@@ -1,0 +1,22 @@
+{
+  "name": "execution_zone_wallet_ui",
+  "version": "1.0.0",
+  "description": "Execution Zone Wallet UI module for the Logos application",
+  "author": "Logos Blockchain Team",
+  "type": "ui",
+  "main": "execution_zone_wallet_ui",
+  "icon": "",
+  "dependencies": ["liblogos_execution_zone_wallet_module"],
+  "category": "wallet",
+  "build": {
+    "type": "cmake",
+    "files": [
+      "src/LEZWalletPlugin.cpp",
+      "src/LEZWalletPlugin.h",
+      "src/LEZWalletBackend.cpp",
+      "src/LEZWalletBackend.h",
+      "src/wallet_resources.qrc"
+    ]
+  },
+  "capabilities": ["ui_components", "wallet"]
+}
