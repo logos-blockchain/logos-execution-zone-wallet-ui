@@ -6,34 +6,31 @@ import QtCore
 import LEZWalletBackend
 import Logos.Theme
 import Logos.Controls
+import "views"
 
 Rectangle {
     id: root
 
     color: Theme.palette.background
 
-    SwipeView {
-        id: swipeView
+    StackView {
         anchors.fill: parent
-        interactive: false
-        currentIndex: backend && backend.isWalletOpen ? 1 : 0
+        initialItem: backend && backend.isWalletOpen ? mainView: onboardingView
 
-        // Page 0: Onboarding placeholder (full OnboardingView added later)
-        Item {
-            Rectangle {
-                anchors.fill: parent
-                color: Theme.palette.background
-                LogosText {
-                    anchors.centerIn: parent
-                    text: qsTr("Wallet Setup")
-                    font.pixelSize: Theme.typography.secondaryText
-                    font.bold: true
+        Component {
+            id: onboardingView
+            OnboardingView {
+                onCreateWallet: function(configPath, storagePath, password) {
+                    if (!backend || !backend.createNew(configPath, storagePath, password))
+                        createError = qsTr("Failed to create wallet. Check paths and try again.")
                 }
             }
         }
 
+
         // Page 1: Main screen placeholder (AccountsView / SendView added later)
-        Item {
+        Component {
+            id: mainView
             Rectangle {
                 anchors.fill: parent
                 color: Theme.palette.background

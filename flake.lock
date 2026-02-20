@@ -574,17 +574,14 @@
         ]
       },
       "locked": {
-        "lastModified": 1771584803,
-        "narHash": "sha256-F6Kk98wy2L1b/Fziq0dbkbvQcTn0pgHJzWoDcuDqaS8=",
-        "owner": "logos-blockchain",
-        "repo": "logos-execution-zone-module",
-        "rev": "1291c407777667664ff8973e099d4f7d0076f575",
-        "type": "github"
+        "lastModified": 1771606875,
+        "narHash": "sha256-g6YPUN8LtRGAj5OG4PAZNuKyNQL0uTP+5IZEcQVaozE=",
+        "path": "/Users/khushboomehta/Documents/logos/logos-execution-zone-module",
+        "type": "path"
       },
       "original": {
-        "owner": "logos-blockchain",
-        "repo": "logos-execution-zone-module",
-        "type": "github"
+        "path": "/Users/khushboomehta/Documents/logos/logos-execution-zone-module",
+        "type": "path"
       }
     },
     "logos-liblogos": {
