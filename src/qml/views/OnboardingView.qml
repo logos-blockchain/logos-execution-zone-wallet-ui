@@ -44,8 +44,9 @@ Control {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.spacing.small
-            CustomTextField {
+            LogosTextField {
                 id: storagePathField
+                Layout.fillWidth: true
                 placeholderText: qsTr("/Users/you/.lez-wallet/")
             }
             LogosButton {
@@ -54,7 +55,7 @@ Control {
             }
         }
         LogosText {
-            text: qsTr("Config file (optional)")
+            text: qsTr("Config file")
             font.pixelSize: Theme.typography.secondaryText
             font.weight: Theme.typography.weightMedium
             color: Theme.palette.text
@@ -62,11 +63,13 @@ Control {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.spacing.small
-            CustomTextField {
+            LogosTextField {
                 id: configPathField
-                placeholderText: qsTr("Use default config")
+                Layout.fillWidth: true
+                placeholderText: qsTr("Add path to config")
             }
             LogosButton {
+                Layout.preferredHeight: configPathField.height
                 text: qsTr("Browse")
                 onClicked: configFileDialog.open()
             }
@@ -79,13 +82,15 @@ Control {
             color: Theme.palette.text
             Layout.topMargin: Theme.spacing.medium
         }
-        CustomTextField {
+        LogosTextField {
             id: passwordField
+            Layout.fillWidth: true
             placeholderText: qsTr("Password")
             echoMode: TextInput.Password
         }
-        CustomTextField {
+        LogosTextField {
             id: confirmField
+            Layout.fillWidth: true
             placeholderText: qsTr("Confirm")
             echoMode: TextInput.Password
         }
@@ -113,43 +118,6 @@ Control {
                     root.createError = ""
                     root.createWallet(configPathField.text, storagePathField.text, passwordField.text)
                 }
-            }
-        }
-
-        component CustomTextField: Item {
-            id: textFieldRoot
-            Layout.fillWidth: true
-            implicitHeight: 40
-            property alias text: input.text
-            property string placeholderText: ""
-            property int echoMode: TextInput.Normal
-            Rectangle {
-                anchors.fill: parent
-                radius: Theme.spacing.radiusSmall
-                color: Theme.palette.backgroundSecondary
-                border.width: 1
-                border.color: input.activeFocus ? Theme.palette.overlayOrange : Theme.palette.backgroundElevated
-            }
-            Text {
-                id: placeholder
-                anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                verticalAlignment: Text.AlignVCenter
-                text: textFieldRoot.placeholderText
-                color: Theme.palette.textMuted
-                font.pixelSize: Theme.typography.secondaryText
-                visible: input.text.length === 0
-            }
-            TextInput {
-                id: input
-                anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                verticalAlignment: Text.AlignVCenter
-                font.pixelSize: Theme.typography.secondaryText
-                color: Theme.palette.text
-                echoMode: textFieldRoot.echoMode
             }
         }
     }

@@ -5,7 +5,7 @@
     nixpkgs.follows = "logos-liblogos/nixpkgs";
     logos-cpp-sdk.url = "github:logos-co/logos-cpp-sdk";
     logos-liblogos.url = "github:logos-co/logos-liblogos";
-    logos-execution-zone-module.url = "path:/Users/khushboomehta/Documents/logos/logos-execution-zone-module";
+    logos-execution-zone-module.url = "github:logos-blockchain/logos-execution-zone-module";
     logos-capability-module.url = "github:logos-co/logos-capability-module";
     logos-design-system.url = "github:logos-co/logos-design-system";
     logos-design-system.inputs.nixpkgs.follows = "nixpkgs";
