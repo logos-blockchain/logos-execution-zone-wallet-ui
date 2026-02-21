@@ -224,13 +224,14 @@ bool LEZWalletBackend::createNew(
     const QString& storagePath,
     const QString& password)
 {
+    const QString localPath = QUrl::fromUserInput(configPath).toLocalFile();
     if (!m_walletClient) return false;
     QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "create_new", configPath, storagePath, password);
+        WALLET_MODULE_NAME, "create_new", localPath, storagePath, password);
     int err = result.isValid() ? result.toInt() : -1;
     if (err != WALLET_FFI_SUCCESS) return false;
 
-    setConfigPath(configPath);
+    setConfigPath(localPath);
     setStoragePath(storagePath);
     setWalletOpen(true);
     refreshAccounts();
