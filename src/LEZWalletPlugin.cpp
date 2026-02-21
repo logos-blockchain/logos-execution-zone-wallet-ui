@@ -1,5 +1,6 @@
 #include "LEZWalletPlugin.h"
 #include "LEZWalletBackend.h"
+#include "LEZAccountFilterModel.h"
 #include <QQuickWidget>
 #include <QQmlContext>
 #include <QQmlEngine>
@@ -16,6 +17,7 @@ QWidget* LEZWalletPlugin::createWidget(LogosAPI* logosAPI) {
     quickWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
 
     qmlRegisterType<LEZWalletBackend>("LEZWalletBackend", 1, 0, "LEZWalletBackend");
+    qmlRegisterType<LEZAccountFilterModel>("LEZWalletBackend", 1, 0, "LEZAccountFilterModel");
 
     LEZWalletBackend* backend = new LEZWalletBackend(logosAPI, quickWidget);
     quickWidget->rootContext()->setContextProperty("backend", backend);

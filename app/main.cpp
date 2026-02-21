@@ -3,8 +3,6 @@
 #include <QApplication>
 #include <QDir>
 #include <QDebug>
-#include <iostream>
-#include <memory>
 
 extern "C" {
     void logos_core_set_plugins_dir(const char* plugins_dir);

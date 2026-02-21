@@ -1,0 +1,5 @@
+module views
+OnboardingView 1.0 OnboardingView.qml
+DashboardView 1.0 DashboardView.qml
+AccountsPanel 1.0 AccountsPanel.qml
+TransferPanel 1.0 TransferPanel.qml
