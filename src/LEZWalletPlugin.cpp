@@ -22,8 +22,8 @@ QWidget* LEZWalletPlugin::createWidget(LogosAPI* logosAPI) {
     LEZWalletBackend* backend = new LEZWalletBackend(logosAPI, quickWidget);
     quickWidget->rootContext()->setContextProperty("backend", backend);
 
-    QString qmlSource = "qrc:/qml/ExecutionZoneWalletView.qml";
-    QString importPath = "qrc:/qml";
+    QString qmlSource = "qrc:/lezwallet/qml/ExecutionZoneWalletView.qml";
+    QString importPath = "qrc:/lezwallet/qml";
 
     QString envPath = QString::fromUtf8(qgetenv("DEV_QML_PATH")).trimmed();
     if (!envPath.isEmpty()) {

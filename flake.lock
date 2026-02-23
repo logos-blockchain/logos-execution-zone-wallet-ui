@@ -528,11 +528,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1771838299,
-        "narHash": "sha256-Uf45wbh2q5ewoiw4u04YImc2Gij3OXIfbB5NYpUm5dw=",
+        "lastModified": 1771862755,
+        "narHash": "sha256-uRQztNMMLhHnQw0P2ZisB1LZ1V7pNqkZRI3pe0wUIts=",
         "owner": "logos-co",
         "repo": "logos-design-system",
-        "rev": "fc6f52d85a008aa1bb513f6b42648df4bcf0713d",
+        "rev": "4d55203607759c9ef042be4505bbc6efffbbd444",
         "type": "github"
       },
       "original": {
@@ -548,11 +548,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1771420202,
-        "narHash": "sha256-r3lO12wvYPm6Xe7YFGK40iYe+1OID5YlGlup6RGgvs8=",
+        "lastModified": 1771604479,
+        "narHash": "sha256-DxgL4uT8+F0ALuEpENkbJ0OcyNhdFgX8Mr8tezMnZ5E=",
         "owner": "logos-blockchain",
         "repo": "lssa",
-        "rev": "89ce9f322a1fc4214ec818e094e6efc97be02d9c",
+        "rev": "bc84d5cf31b3f6967060c35a5b98618d99780ade",
         "type": "github"
       },
       "original": {
@@ -574,14 +574,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1771839856,
-        "narHash": "sha256-MtgK/B6mx9xyojbRc6RY8vHuMkMrS4XMV7BKcO6zK/I=",
-        "path": "/Users/khushboomehta/Documents/logos/logos-execution-zone-module",
-        "type": "path"
+        "lastModified": 1771922567,
+        "narHash": "sha256-ObbXljdS/hR0PCgBosZgzwMHWRxvSGWmaxgFEy3OvOE=",
+        "owner": "logos-blockchain",
+        "repo": "logos-execution-zone-module",
+        "rev": "8474602359b69f56cfad232b052b52ae2701f74c",
+        "type": "github"
       },
       "original": {
-        "path": "/Users/khushboomehta/Documents/logos/logos-execution-zone-module",
-        "type": "path"
+        "owner": "logos-blockchain",
+        "repo": "logos-execution-zone-module",
+        "type": "github"
       }
     },
     "logos-liblogos": {
@@ -778,11 +781,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1770837874,
-        "narHash": "sha256-wr75lv1q4U1FS5+l/6ypwzJFJe06l2RyUvx1npoRS88=",
+        "lastModified": 1771871578,
+        "narHash": "sha256-6Mu3cmdhd8e7i+n8OWcaIBye+i12gwlwt1fhd9QCbCI=",
         "owner": "logos-co",
         "repo": "logos-liblogos",
-        "rev": "e3741c01fd3abf6b7bd9ff2fa8edf89c41fc0cea",
+        "rev": "19d29d4ef99292d9285b3a561cb7ea8029be3b74",
         "type": "github"
       },
       "original": {

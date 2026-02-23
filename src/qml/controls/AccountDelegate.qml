@@ -8,47 +8,69 @@ import Logos.Controls
 ItemDelegate {
     id: root
 
-    implicitHeight: 80
     leftPadding: Theme.spacing.medium
     rightPadding: Theme.spacing.medium
     topPadding: Theme.spacing.medium
     bottomPadding: Theme.spacing.medium
 
     background: Rectangle {
-        color: root.highlighted ? Theme.palette.backgroundMuted : "transparent"
-        radius: Theme.spacing.radiusSmall
+        color: root.highlighted || root.hovered ?
+                   Theme.palette.backgroundMuted :
+                   Theme.palette.backgroundTertiary
+        radius: Theme.spacing.radiusLarge
     }
 
-    contentItem: RowLayout {
+    contentItem: ColumnLayout {
         spacing: Theme.spacing.small
-
-        LogosText {
-            text: model.name
-            font.pixelSize: Theme.typography.secondaryText
-            font.bold: true
-        }
-
-        Rectangle {
-            Layout.preferredWidth: tagLabel.implicitWidth + Theme.spacing.small * 2
-            Layout.preferredHeight: tagLabel.implicitHeight + 4
-            radius: 2
-            color: model.isPublic ? Theme.palette.backgroundElevated : Theme.palette.backgroundSecondary
+        RowLayout {
+            spacing: Theme.spacing.small
 
             LogosText {
-                id: tagLabel
-                anchors.centerIn: parent
-                text: model.isPublic ? qsTr("Public") : qsTr("Private")
-                font.pixelSize: Theme.typography.captionText
-                color: Theme.palette.textSecondary
+                text: model.name
+                font.pixelSize: Theme.typography.secondaryText
+                font.bold: true
+            }
+
+            Rectangle {
+                Layout.preferredWidth: tagLabel.implicitWidth + Theme.spacing.small * 2
+                Layout.preferredHeight: tagLabel.implicitHeight + 4
+                radius: 4
+                color: Theme.palette.backgroundSecondary
+
+                LogosText {
+                    id: tagLabel
+                    anchors.centerIn: parent
+                    text: model.isPublic ? qsTr("Public") : qsTr("Private")
+                    font.pixelSize: Theme.typography.secondaryText
+                    color: Theme.palette.textSecondary
+                }
+            }
+
+            Item { Layout.fillWidth: true }
+
+            LogosText {
+                text: model.balance && model.balance.length > 0 ? model.balance : "—"
+                font.bold: true
             }
         }
 
-        Item { Layout.fillWidth: true }
-
         LogosText {
-            text: model.balance && model.balance.length > 0 ? model.balance : "—"
+            id: addressLabel
+            verticalAlignment: Text.AlignVCenter
+            text: model.address && model.address.length > 9
+                  ? model.address.slice(0, 4) + "…" + model.address.slice(-5)
+                  : (model.address || "")
             font.pixelSize: Theme.typography.secondaryText
-            color: Theme.palette.textSecondary
+            color: Theme.palette.textMuted
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                acceptedButtons: Qt.LeftButton
+                onDoubleClicked: {
+                    if (model.address && typeof backend !== "undefined")
+                        backend.copyToClipboard(model.address)
+                }
+            }
         }
     }
 }

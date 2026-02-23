@@ -51,13 +51,14 @@ public:
         const QString& amountLe16Hex);
     Q_INVOKABLE QString transferPrivate(
         const QString& fromHex,
-        const QString& toKeysJson,
+        const QString& toHex,
         const QString& amountLe16Hex);
     Q_INVOKABLE bool createNew(
         const QString& configPath,
         const QString& storagePath,
         const QString& password);
     Q_INVOKABLE int indexOfAddressInModel(QObject* model, const QString& address) const;
+    Q_INVOKABLE void copyToClipboard(const QString& text);
 
 signals:
     void isWalletOpenChanged();
@@ -74,6 +75,7 @@ private:
     void refreshBlockHeights();
     void refreshSequencerAddr();
     void saveWallet();
+    void fetchAndUpdateBlockHeights();
 
     bool m_isWalletOpen;
     QString m_configPath;

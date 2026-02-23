@@ -9,10 +9,24 @@ import Logos.Controls
 Control {
     id: root
 
+    property string configPath: ""
+    property string storePath: ""
     property string createError: ""
 
     signal createWallet(string configPath, string storagePath, string password)
 
+
+    QtObject {
+        id: d
+        function configParentFolderUrl(path) {
+            if (!path || path.length === 0) return ""
+            var p = path
+            var i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"))
+            if (i <= 0) return ""
+            var dir = p.substring(0, i)
+            return dir.indexOf("file://") === 0 ? dir : "file://" + dir
+        }
+    }
 
     ColumnLayout {
         id: cardColumn
@@ -46,7 +60,8 @@ Control {
             LogosTextField {
                 id: storagePathField
                 Layout.fillWidth: true
-                placeholderText: qsTr("/Users/you/.lez-wallet/")
+                placeholderText: qsTr("Add store path")
+                text: root.storePath
             }
             LogosButton {
                 text: qsTr("Browse")
@@ -66,6 +81,7 @@ Control {
                 id: configPathField
                 Layout.fillWidth: true
                 placeholderText: qsTr("Add path to config")
+                text: root.configPath
             }
             LogosButton {
                 Layout.preferredHeight: configPathField.height
@@ -121,16 +137,19 @@ Control {
         }
     }
 
-    FolderDialog {
+    FileDialog {
         id: storageFolderDialog
         modality: Qt.NonModal
-        onAccepted: storagePathField.text = selectedFolder.toString().replace(/^file:\/\//, "")
+        nameFilters: ["JSON files (*.json)"]
+        currentFolder: root.storePath ? d.configParentFolderUrl(root.storePath) : ""
+        onAccepted: storagePathField.text = selectedFile.toString().replace(/^file:\/\//, "")
     }
 
     FileDialog {
         id: configFileDialog
         modality: Qt.NonModal
-        nameFilters: ["YAML files (*.yaml)"]
+        nameFilters: ["JSON files (*.json)"]
+        currentFolder: root.configPath ? d.configParentFolderUrl(oot.configPath) : ""
         onAccepted: {
             if (selectedFile) configPathField.text = selectedFile.toString().replace(/^file:\/\//, "")
         }
