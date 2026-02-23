@@ -22,7 +22,7 @@ void MainWindow::setupUi()
     pluginExtension = ".so";
 #endif
 
-    QString pluginPath = QCoreApplication::applicationDirPath() + "/../execution_zone_wallet_ui" + pluginExtension;
+    QString pluginPath = QCoreApplication::applicationDirPath() + "/../logos_execution_zone_wallet_ui" + pluginExtension;
     QPluginLoader loader(pluginPath);
 
     QWidget* walletWidget = nullptr;

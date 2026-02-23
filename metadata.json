@@ -1,10 +1,10 @@
 {
-  "name": "execution_zone_wallet_ui",
+  "name": "logos_execution_zone_wallet_ui",
   "version": "1.0.0",
   "description": "Execution Zone Wallet UI module for the Logos application",
   "author": "Logos Blockchain Team",
   "type": "ui",
-  "main": "execution_zone_wallet_ui",
+  "main": "logos_execution_zone_wallet_ui",
   "icon": "",
   "dependencies": ["liblogos_execution_zone_wallet_module"],
   "category": "wallet",
