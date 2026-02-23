@@ -31,7 +31,7 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     m_storagePath = s.value(STORAGE_PATH_KEY).toString();
 
     if (!logosAPI) {
-        logosAPI = new LogosAPI("execution_zone_wallet_ui", this);
+        logosAPI = new LogosAPI("logos_execution_zone_wallet_ui", this);
     }
     m_logosAPI = logosAPI;
     m_walletClient = m_logosAPI->getClient(WALLET_MODULE_NAME);

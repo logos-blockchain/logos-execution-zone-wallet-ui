@@ -154,8 +154,8 @@ pkgs.stdenv.mkDerivation rec {
       cp -L "${logosExecutionZoneModule}/lib/libwallet_ffi.$OS_EXT" "$out/modules/"
     fi
 
-    if [ -f "${logosExecutionZoneWalletUI}/lib/execution_zone_wallet_ui.$OS_EXT" ]; then
-      cp -L "${logosExecutionZoneWalletUI}/lib/execution_zone_wallet_ui.$OS_EXT" "$out/"
+    if [ -f "${logosExecutionZoneWalletUI}/lib/logos_execution_zone_wallet_ui.$OS_EXT" ]; then
+      cp -L "${logosExecutionZoneWalletUI}/lib/logos_execution_zone_wallet_ui.$OS_EXT" "$out/"
     fi
 
     if [ -d "${logosDesignSystem}/lib/Logos/Theme" ]; then
@@ -182,7 +182,7 @@ Layout:
   bin/logos-execution-zone-wallet-ui-app
   lib/
   modules/
-  execution_zone_wallet_ui.$OS_EXT
+  logos_execution_zone_wallet_ui.$OS_EXT
 EOF
 
     runHook postInstall

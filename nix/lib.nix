@@ -30,12 +30,12 @@ pkgs.stdenv.mkDerivation {
     runHook preInstall
 
     mkdir -p $out/lib
-    if [ -f build/modules/execution_zone_wallet_ui.dylib ]; then
-      cp build/modules/execution_zone_wallet_ui.dylib $out/lib/
-    elif [ -f build/modules/execution_zone_wallet_ui.so ]; then
-      cp build/modules/execution_zone_wallet_ui.so $out/lib/
-    elif [ -f build/modules/execution_zone_wallet_ui.dll ]; then
-      cp build/modules/execution_zone_wallet_ui.dll $out/lib/
+    if [ -f build/modules/logos_execution_zone_wallet_ui.dylib ]; then
+      cp build/modules/logos_execution_zone_wallet_ui.dylib $out/lib/
+    elif [ -f build/modules/logos_execution_zone_wallet_ui.so ]; then
+      cp build/modules/logos_execution_zone_wallet_ui.so $out/lib/
+    elif [ -f build/modules/logos_execution_zone_wallet_ui.dll ]; then
+      cp build/modules/logos_execution_zone_wallet_ui.dll $out/lib/
     else
       echo "Error: No library file found in build/modules/"
       ls -la build/modules/ 2>/dev/null || true

@@ -112,16 +112,16 @@ if(_cpp_sdk_is_source)
 endif()
 
 # Create the plugin library
-add_library(execution_zone_wallet_ui SHARED ${SOURCES})
+add_library(logos_execution_zone_wallet_ui SHARED ${SOURCES})
 
 # Set output name without lib prefix
-set_target_properties(execution_zone_wallet_ui PROPERTIES
+set_target_properties(logos_execution_zone_wallet_ui PROPERTIES
     PREFIX ""
-    OUTPUT_NAME "execution_zone_wallet_ui"
+    OUTPUT_NAME "logos_execution_zone_wallet_ui"
 )
 
 # Include directories
-target_include_directories(execution_zone_wallet_ui PRIVATE
+target_include_directories(logos_execution_zone_wallet_ui PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_BINARY_DIR}
@@ -129,17 +129,17 @@ target_include_directories(execution_zone_wallet_ui PRIVATE
 
 # Add include directories based on layout type
 if(_liblogos_is_source)
-    target_include_directories(execution_zone_wallet_ui PRIVATE ${LOGOS_LIBLOGOS_ROOT})
+    target_include_directories(logos_execution_zone_wallet_ui PRIVATE ${LOGOS_LIBLOGOS_ROOT})
 else()
-    target_include_directories(execution_zone_wallet_ui PRIVATE ${LOGOS_LIBLOGOS_ROOT}/include)
+    target_include_directories(logos_execution_zone_wallet_ui PRIVATE ${LOGOS_LIBLOGOS_ROOT}/include)
 endif()
 
 if(_cpp_sdk_is_source)
-    target_include_directories(execution_zone_wallet_ui PRIVATE
+    target_include_directories(logos_execution_zone_wallet_ui PRIVATE
         ${LOGOS_CPP_SDK_ROOT}/cpp
     )
 else()
-    target_include_directories(execution_zone_wallet_ui PRIVATE
+    target_include_directories(logos_execution_zone_wallet_ui PRIVATE
         ${LOGOS_CPP_SDK_ROOT}/include
         ${LOGOS_CPP_SDK_ROOT}/include/cpp
         ${LOGOS_CPP_SDK_ROOT}/include/core
@@ -147,7 +147,7 @@ else()
 endif()
 
 # Link against libraries
-target_link_libraries(execution_zone_wallet_ui PRIVATE
+target_link_libraries(logos_execution_zone_wallet_ui PRIVATE
     Qt6::Core
     Qt6::Widgets
     Qt6::RemoteObjects
@@ -160,7 +160,7 @@ target_link_libraries(execution_zone_wallet_ui PRIVATE
 if(NOT _cpp_sdk_is_source)
     find_library(LOGOS_SDK_LIB logos_sdk PATHS ${LOGOS_CPP_SDK_ROOT}/lib NO_DEFAULT_PATH)
     if(LOGOS_SDK_LIB)
-        target_link_libraries(execution_zone_wallet_ui PRIVATE ${LOGOS_SDK_LIB})
+        target_link_libraries(logos_execution_zone_wallet_ui PRIVATE ${LOGOS_SDK_LIB})
     else()
         message(FATAL_ERROR "logos_sdk library not found in ${LOGOS_CPP_SDK_ROOT}/lib - required when using installed SDK layout")
     endif()
@@ -169,7 +169,7 @@ endif()
 # Link against Abseil libraries if found
 find_package(absl QUIET)
 if(absl_FOUND)
-    target_link_libraries(execution_zone_wallet_ui PRIVATE
+    target_link_libraries(logos_execution_zone_wallet_ui PRIVATE
         absl::base
         absl::strings
         absl::log
@@ -178,28 +178,28 @@ if(absl_FOUND)
 endif()
 
 # Set common properties for both platforms
-set_target_properties(execution_zone_wallet_ui PROPERTIES
+set_target_properties(logos_execution_zone_wallet_ui PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
     BUILD_WITH_INSTALL_RPATH TRUE
     SKIP_BUILD_RPATH FALSE)
 
 if(APPLE)
-    set_target_properties(execution_zone_wallet_ui PROPERTIES
+    set_target_properties(logos_execution_zone_wallet_ui PROPERTIES
         INSTALL_RPATH "@loader_path"
         INSTALL_NAME_DIR "@rpath"
         BUILD_WITH_INSTALL_NAME_DIR TRUE)
-    add_custom_command(TARGET execution_zone_wallet_ui POST_BUILD
-        COMMAND install_name_tool -id "@rpath/execution_zone_wallet_ui.dylib" $<TARGET_FILE:execution_zone_wallet_ui>
+    add_custom_command(TARGET logos_execution_zone_wallet_ui POST_BUILD
+        COMMAND install_name_tool -id "@rpath/logos_execution_zone_wallet_ui.dylib" $<TARGET_FILE:logos_execution_zone_wallet_ui>
         COMMENT "Updating library paths for macOS")
 elseif(UNIX)
-    set_target_properties(execution_zone_wallet_ui PROPERTIES
+    set_target_properties(logos_execution_zone_wallet_ui PROPERTIES
         INSTALL_RPATH "$ORIGIN"
         INSTALL_RPATH_USE_LINK_PATH FALSE)
 endif()
 # Windows: DLLs are found via PATH or same directory; no RPATH
 
-install(TARGETS execution_zone_wallet_ui
+install(TARGETS logos_execution_zone_wallet_ui
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/logos/modules
     RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}/logos/modules
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/logos/modules
