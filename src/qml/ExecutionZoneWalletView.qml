@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtCore
 
 import LEZWalletBackend
 import Logos.Theme
@@ -27,18 +26,42 @@ Rectangle {
             }
         }
 
-
-        // Page 1: Main screen placeholder (AccountsView / SendView added later)
         Component {
             id: mainView
-            Rectangle {
-                anchors.fill: parent
-                color: Theme.palette.background
-                LogosText {
-                    anchors.centerIn: parent
-                    text: qsTr("Wallet")
-                    font.pixelSize: Theme.typography.secondaryText
-                    font.bold: true
+            DashboardView {
+                id: dashboardView
+                accountModel: backend ? backend.accountModel : null
+                filteredAccountModel: backend ? backend.filteredAccountModel : null
+
+                onCreatePublicAccountRequested: {
+                    if (!backend) {
+                        console.warning("backend is null")
+                        return
+                    }
+                    backend.createAccountPublic()
+                }
+                onCreatePrivateAccountRequested: {
+                    if (!backend) {
+                        console.warning("backend is null")
+                        return
+                    }
+                    backend.createAccountPrivate()
+                }
+                onFetchBalancesRequested: {
+                    if (!backend) {
+                        console.warning("backend is null")
+                        return
+                    }
+                    backend.refreshBalances()
+                }
+                onTransferRequested: function(isPublic, fromId, toAddress, amount) {
+                    if (!backend) {
+                        console.warning("backend is null")
+                        return
+                    }
+                    dashboardView.transferResult = isPublic
+                            ? backend.transferPublic(fromId, toAddress, amount)
+                            : backend.transferPrivate(fromId, toAddress, amount)
                 }
             }
         }

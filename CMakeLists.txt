@@ -82,6 +82,10 @@ endif()
 
 # Source files
 set(SOURCES
+    src/LEZAccountFilterModel.cpp
+    src/LEZAccountFilterModel.h
+    src/LEZWalletAccountModel.cpp
+    src/LEZWalletAccountModel.h
     src/LEZWalletPlugin.cpp
     src/LEZWalletPlugin.h
     src/LEZWalletBackend.cpp

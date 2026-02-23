@@ -1,5 +1,7 @@
 #include "LEZWalletBackend.h"
+#include <QAbstractItemModel>
 #include <QDebug>
+#include <QJsonArray>
 #include <QSettings>
 #include <QUrl>
 
@@ -17,9 +19,13 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
       m_isWalletOpen(false),
       m_lastSyncedBlock(0),
       m_currentBlockHeight(0),
+      m_accountModel(new LEZWalletAccountModel(this)),
+      m_filteredAccountModel(new LEZAccountFilterModel(this)),
       m_logosAPI(nullptr),
       m_walletClient(nullptr)
 {
+    m_filteredAccountModel->setSourceModel(m_accountModel);
+
     QSettings s(SETTINGS_ORG, SETTINGS_APP);
     m_configPath = s.value(CONFIG_PATH_KEY).toString();
     m_storagePath = s.value(STORAGE_PATH_KEY).toString();
@@ -104,9 +110,18 @@ void LEZWalletBackend::refreshAccounts()
     if (result.isValid() && result.canConvert<QJsonArray>()) {
         arr = result.toJsonArray();
     }
-    if (m_accounts != arr) {
-        m_accounts = std::move(arr);
-        emit accountsChanged();
+    m_accountModel->replaceFromJsonArray(arr);
+    emit accountModelChanged();
+}
+
+void LEZWalletBackend::refreshBalances()
+{
+    if (!m_walletClient || !m_accountModel) return;
+    for (int i = 0; i < m_accountModel->count(); ++i) {
+        const QModelIndex idx = m_accountModel->index(i, 0);
+        const QString addr = m_accountModel->data(idx, LEZWalletAccountModel::AddressRole).toString();
+        const bool isPub = m_accountModel->data(idx, LEZWalletAccountModel::IsPublicRole).toBool();
+        m_accountModel->setBalanceByAddress(addr, getBalance(addr, isPub));
     }
 }
 
@@ -238,4 +253,19 @@ bool LEZWalletBackend::createNew(
     refreshBlockHeights();
     refreshSequencerAddr();
     return true;
+}
+
+int LEZWalletBackend::indexOfAddressInModel(QObject* model, const QString& address) const
+{
+    auto* m = qobject_cast<QAbstractItemModel*>(model);
+    if (!m || address.isEmpty())
+        return -1;
+    const int role = m->roleNames().key("address", -1);
+    if (role < 0)
+        return -1;
+    for (int i = 0; i < m->rowCount(); ++i) {
+        if (m->data(m->index(i, 0), role).toString() == address)
+            return i;
+    }
+    return -1;
 }
