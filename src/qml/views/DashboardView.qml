@@ -8,18 +8,18 @@ import Logos.Controls
 Rectangle {
     id: root
 
-    color: Theme.palette.background
-
     // --- Public API: input properties (set by parent / MainView) ---
     property var accountModel: null
-    property var filteredAccountModel: null
     property string transferResult: ""
+    property bool transferResultIsError: false
 
     // --- Public API: output signals (parent connects and calls backend) ---
     signal createPublicAccountRequested()
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
     signal transferRequested(bool isPublic, string fromAccountId, string toAddress, string amount)
+
+    color: Theme.palette.background
 
     RowLayout {
         anchors.fill: parent
@@ -42,9 +42,9 @@ Rectangle {
             id: transferPanel
             Layout.fillWidth: true
             Layout.fillHeight: true
-
-            fromAccountModel: root.filteredAccountModel
+            fromAccountModel: root.accountModel
             transferResult: root.transferResult
+            transferResultIsError: root.transferResultIsError
 
             onTransferRequested: function(isPublic, fromId, toAddress, amount) {
                 root.transferRequested(isPublic, fromId, toAddress, amount)

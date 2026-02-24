@@ -1,6 +1,8 @@
 #include "LEZWalletBackend.h"
 #include <QAbstractItemModel>
+#include <QClipboard>
 #include <QDebug>
+#include <QGuiApplication>
 #include <QJsonArray>
 #include <QSettings>
 #include <QUrl>
@@ -12,6 +14,19 @@ namespace {
     const char STORAGE_PATH_KEY[] = "storagePath";
     const QString WALLET_MODULE_NAME = QStringLiteral("liblogos_execution_zone_wallet_module");
     const int WALLET_FFI_SUCCESS = 0;
+
+    // Convert decimal amount string to 32-char hex (16 bytes little-endian) for transfer_public/transfer_private.
+    QString amountToLe16Hex(const QString& amountStr) {
+        const QString trimmed = amountStr.trimmed();
+        if (trimmed.isEmpty()) return QString();
+        bool parseOk = false;
+        const quint64 value = trimmed.toULongLong(&parseOk);
+        if (!parseOk) return QString();
+        uint8_t bytes[16] = {0};
+        for (int i = 0; i < 8; ++i)
+            bytes[i] = static_cast<uint8_t>((value >> (i * 8)) & 0xff);
+        return QByteArray(reinterpret_cast<const char*>(bytes), 16).toHex();
+    }
 }
 
 LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
@@ -42,16 +57,21 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     }
 
     if (!m_configPath.isEmpty() && !m_storagePath.isEmpty()) {
+        qDebug() << "LEZWalletBackend: opening wallet with config path" << m_configPath << "and storage path" << m_storagePath;
         QVariant result = m_walletClient->invokeRemoteMethod(
             WALLET_MODULE_NAME, "open", m_configPath, m_storagePath);
         int err = result.isValid() ? result.toInt() : -1;
         if (err == WALLET_FFI_SUCCESS) {
+            qWarning() << "LEZWalletBackend: wallet opened successfully";
             setWalletOpen(true);
             refreshAccounts();
             refreshBlockHeights();
             refreshSequencerAddr();
         }
     }
+
+    // Save wallet when app quits; host may not call destroyWidget() so destructor might not run.
+    connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() { saveWallet(); }, Qt::DirectConnection);
 }
 
 LEZWalletBackend::~LEZWalletBackend()
@@ -112,6 +132,7 @@ void LEZWalletBackend::refreshAccounts()
     }
     m_accountModel->replaceFromJsonArray(arr);
     emit accountModelChanged();
+    refreshBalances();
 }
 
 void LEZWalletBackend::refreshBalances()
@@ -125,13 +146,11 @@ void LEZWalletBackend::refreshBalances()
     }
 }
 
-void LEZWalletBackend::refreshBlockHeights()
+void LEZWalletBackend::fetchAndUpdateBlockHeights()
 {
     if (!m_walletClient) return;
-    QVariant last = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_last_synced_block");
-    QVariant current = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_current_block_height");
-    quint64 lastVal = last.isValid() ? last.toULongLong() : 0;
-    quint64 currentVal = current.isValid() ? current.toULongLong() : 0;
+    const quint64 lastVal = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_last_synced_block").toULongLong();
+    const quint64 currentVal = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_current_block_height").toULongLong();
     if (m_lastSyncedBlock != lastVal) {
         m_lastSyncedBlock = lastVal;
         emit lastSyncedBlockChanged();
@@ -140,6 +159,13 @@ void LEZWalletBackend::refreshBlockHeights()
         m_currentBlockHeight = currentVal;
         emit currentBlockHeightChanged();
     }
+}
+
+void LEZWalletBackend::refreshBlockHeights()
+{
+    fetchAndUpdateBlockHeights();
+    if (m_currentBlockHeight > 0 && m_lastSyncedBlock < m_currentBlockHeight && syncToBlock(m_currentBlockHeight))
+        fetchAndUpdateBlockHeights();
 }
 
 void LEZWalletBackend::refreshSequencerAddr()
@@ -205,11 +231,7 @@ bool LEZWalletBackend::syncToBlock(quint64 blockId)
     QVariant result = m_walletClient->invokeRemoteMethod(
         WALLET_MODULE_NAME, "sync_to_block", blockId);
     int err = result.isValid() ? result.toInt() : -1;
-    if (err == WALLET_FFI_SUCCESS) {
-        refreshBlockHeights();
-        return true;
-    }
-    return false;
+    return err == WALLET_FFI_SUCCESS;
 }
 
 QString LEZWalletBackend::transferPublic(
@@ -218,19 +240,33 @@ QString LEZWalletBackend::transferPublic(
     const QString& amountLe16Hex)
 {
     if (!m_walletClient) return QStringLiteral("Error: Module not initialized.");
+    const QString amountHex = amountToLe16Hex(amountLe16Hex);
+    if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
     QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "transfer_public", fromHex, toHex, amountLe16Hex);
+        WALLET_MODULE_NAME, "transfer_public", fromHex, toHex, amountHex);
     return result.isValid() ? result.toString() : QStringLiteral("Error: Call failed.");
 }
 
 QString LEZWalletBackend::transferPrivate(
     const QString& fromHex,
-    const QString& toKeysJson,
+    const QString& toHex,
     const QString& amountLe16Hex)
 {
     if (!m_walletClient) return QStringLiteral("Error: Module not initialized.");
+    const QString amountHex = amountToLe16Hex(amountLe16Hex);
+    if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
+
+    QString keysPayload = toHex.trimmed();
+    // If "To" is not JSON (e.g. user pasted account id hex), resolve to keys via get_private_account_keys.
+    if (!keysPayload.startsWith(QLatin1Char('{'))) {
+        qDebug() << "LEZWalletBackend::transferPrivate: keysPayload is not JSON, resolving to keys via get_private_account_keys";
+        const QString resolved = getPrivateAccountKeys(keysPayload);
+        if (!resolved.isEmpty())
+            keysPayload = resolved;
+    }
+
     QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "transfer_private", fromHex, toKeysJson, amountLe16Hex);
+        WALLET_MODULE_NAME, "transfer_private", fromHex, keysPayload, amountHex);
     return result.isValid() ? result.toString() : QStringLiteral("Error: Call failed.");
 }
 
@@ -268,4 +304,10 @@ int LEZWalletBackend::indexOfAddressInModel(QObject* model, const QString& addre
             return i;
     }
     return -1;
+}
+
+void LEZWalletBackend::copyToClipboard(const QString& text)
+{
+    if (QGuiApplication::clipboard())
+        QGuiApplication::clipboard()->setText(text);
 }

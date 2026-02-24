@@ -4,13 +4,15 @@ import QtQuick.Layouts
 
 import Logos.Theme
 import Logos.Controls
+import "../controls"
 
 Rectangle {
     id: root
 
     // --- Public API: data in ---
-    property var fromAccountModel: null  // LEZAccountFilterModel from backend (filtered by public/private)
+    property var fromAccountModel: null
     property string transferResult: ""
+    property bool transferResultIsError: false
 
     // --- Public API: signals out ---
     signal transferRequested(bool isPublic, string fromAccountId, string toAddress, string amount)
@@ -23,13 +25,6 @@ Rectangle {
                                             && toField.text.length > 0 && amountField.text.length > 0
                                             && ((fromFilterCount > 0 && fromCombo.currentIndex >= 0)
                                                 || (fromFilterCount === 0 && manualFromField.text.trim().length > 0))
-    }
-
-    Binding {
-        target: fromAccountModel
-        property: "filterByPublic"
-        value: transferTypeBar.currentIndex === 0
-        when: fromAccountModel != null
     }
 
     radius: Theme.spacing.radiusXlarge
@@ -113,44 +108,36 @@ Rectangle {
                     visible: fromCombo.count > 0
                 }
 
-                contentItem: TextInput {
-                    readOnly: true
-                    selectByMouse: true
-                    width: fromCombo.width - indicatorText.width - 12
-                    font.pixelSize: Theme.typography.secondaryText
-                    color: Theme.palette.text
-                    text: fromCombo.currentValue ?? ""
-                    verticalAlignment: Text.AlignVCenter
-                    clip: true
-                }
-
-                delegate: ItemDelegate {
-                    id: delegate
-                    width: fromCombo.width
-                    leftPadding: 12
-                    rightPadding: 12
-                    contentItem: LogosText {
-                        width: parent.width - parent.leftPadding - parent.rightPadding
+                contentItem: Item {
+                    implicitWidth: fromCombo.width - indicatorText.width - 12
+                    TextInput {
+                        id: fromComboContentInput
+                        anchors.fill: parent
+                        readOnly: true
+                        selectByMouse: true
                         font.pixelSize: Theme.typography.secondaryText
                         color: Theme.palette.text
-                        text: model.name
-                        elide: Text.ElideRight
-                        horizontalAlignment: Text.AlignLeft
+                        text: fromCombo.displayText
                         verticalAlignment: Text.AlignVCenter
+                        clip: true
                     }
-                    background: Rectangle {
-                        color: delegate.highlighted
-                               ? Theme.palette.backgroundElevated
-                               : Theme.palette.backgroundSecondary
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton
+                        onClicked: fromCombo.popup.visible ? fromCombo.popup.close() : fromCombo.popup.open()
                     }
+                }
+
+                delegate: AccountDelegate {
+                    width: fromCombo.popup.width - fromCombo.popup.leftPadding - fromCombo.popup.rightPadding
                     highlighted: fromCombo.highlightedIndex === index
                 }
 
                 popup: Popup {
                     y: fromCombo.height - 1
-                    width: fromCombo.width
+                    width: 400
                     height: Math.min(contentItem.implicitHeight + 8, 300)
-                    padding: 0
+                    padding: Theme.spacing.small
 
                     contentItem: ListView {
                         clip: true
@@ -161,7 +148,7 @@ Rectangle {
                     }
 
                     background: Rectangle {
-                        color: Theme.palette.backgroundSecondary
+                        color: Theme.palette.backgroundTertiary
                         border.width: 1
                         border.color: Theme.palette.backgroundElevated
                         radius: Theme.spacing.radiusSmall
@@ -226,7 +213,9 @@ Rectangle {
             Layout.fillWidth: true
             text: root.transferResult
             font.pixelSize: Theme.typography.secondaryText
-            color: root.transferResult.length > 0 ? Theme.palette.textSecondary : "transparent"
+            color: root.transferResult.length > 0
+                   ? (root.transferResultIsError ? Theme.palette.error : Theme.palette.textSecondary)
+                   : "transparent"
             wrapMode: Text.WordWrap
         }
 

@@ -16,11 +16,7 @@ Popup {
     padding: Theme.spacing.large
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-    // Center in overlay (main window when modal)
-    parent: Overlay.overlay
     anchors.centerIn: parent
-    // width: contentWrapper.width + leftPadding + rightPadding
-    // height: contentWrapper.height + topPadding + bottomPadding
 
     background: Rectangle {
         color: Theme.palette.backgroundSecondary
