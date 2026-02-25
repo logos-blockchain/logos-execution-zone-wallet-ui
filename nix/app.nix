@@ -1,5 +1,5 @@
 # Builds the logos-execution-zone-wallet-ui-app standalone application
-{ pkgs, common, src, logosLiblogos, logosExecutionZoneModule, logosCapabilityModule, logosExecutionZoneWalletUI, logosDesignSystem }:
+{ pkgs, common, src, logosLiblogos, logosExecutionZoneModule, logosCapabilityModule, logosExecutionZoneWalletUI, logosDesignSystem, lgpm, logosCapabilityModuleLgx, logosExecutionZoneModuleLgx }:
 
 pkgs.stdenv.mkDerivation rec {
   pname = "logos-execution-zone-wallet-ui-app";
@@ -144,15 +144,14 @@ pkgs.stdenv.mkDerivation rec {
       MINGW*|MSYS*|CYGWIN*) OS_EXT="dll";;
     esac
 
-    if [ -f "${logosCapabilityModule}/lib/capability_module_plugin.$OS_EXT" ]; then
-      cp -L "${logosCapabilityModule}/lib/capability_module_plugin.$OS_EXT" "$out/modules/"
-    fi
-    if [ -f "${logosExecutionZoneModule}/lib/liblogos_execution_zone_wallet_module.$OS_EXT" ]; then
-      cp -L "${logosExecutionZoneModule}/lib/liblogos_execution_zone_wallet_module.$OS_EXT" "$out/modules/"
-    fi
-    if [ -f "${logosExecutionZoneModule}/lib/libwallet_ffi.$OS_EXT" ]; then
-      cp -L "${logosExecutionZoneModule}/lib/libwallet_ffi.$OS_EXT" "$out/modules/"
-    fi
+    for lgxFile in ${logosCapabilityModuleLgx}/*.lgx; do
+      echo "Installing $lgxFile via lgpm..."
+      ${lgpm}/bin/lgpm --modules-dir "$out/modules" install --file "$lgxFile"
+    done
+    for lgxFile in ${logosExecutionZoneModuleLgx}/*.lgx; do
+      echo "Installing $lgxFile via lgpm..."
+      ${lgpm}/bin/lgpm --modules-dir "$out/modules" install --file "$lgxFile"
+    done
 
     if [ -f "${logosExecutionZoneWalletUI}/lib/logos_execution_zone_wallet_ui.$OS_EXT" ]; then
       cp -L "${logosExecutionZoneWalletUI}/lib/logos_execution_zone_wallet_ui.$OS_EXT" "$out/"
