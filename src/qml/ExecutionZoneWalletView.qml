@@ -51,14 +51,18 @@ Rectangle {
     QtObject {
         id: d
         readonly property bool isWalletOpen: backend && backend.isWalletOpen
-        onIsWalletOpenChanged: {
-            if(isWalletOpen) {
+        onIsWalletOpenChanged: updateStack(isWalletOpen)
+
+        function updateStack(walletOpen) {
+            if(walletOpen) {
                 stackView.push(mainView)
             } else {
                 stackView.push(onboardingView)
             }
         }
     }
+
+    Component.onCompleted: d.updateStack(backend && backend.isWalletOpen)
 
     color: Theme.palette.background
 
