@@ -8,5 +8,8 @@
         <file>qml/views/DashboardView.qml</file>
         <file>qml/views/AccountsPanel.qml</file>
         <file>qml/views/TransferPanel.qml</file>
+        <file>qml/controls/LogosCopyButton.qml</file>
+        <file>icons/checkmark.svg</file>
+        <file>icons/copy.svg</file>
     </qresource>
 </RCC>

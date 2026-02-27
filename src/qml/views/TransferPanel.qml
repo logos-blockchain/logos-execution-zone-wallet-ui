@@ -4,6 +4,7 @@ import QtQuick.Layouts
 
 import Logos.Theme
 import Logos.Controls
+
 import "../controls"
 
 Rectangle {
@@ -16,6 +17,7 @@ Rectangle {
 
     // --- Public API: signals out ---
     signal transferRequested(bool isPublic, string fromAccountId, string toAddress, string amount)
+    signal copyRequested(string copyText)
 
     readonly property int fromFilterCount: fromAccountModel ? fromAccountModel.count : 0
 
@@ -209,14 +211,25 @@ Rectangle {
         }
 
         // Result label
-        LogosText {
+        RowLayout {
             Layout.fillWidth: true
-            text: root.transferResult
-            font.pixelSize: Theme.typography.secondaryText
-            color: root.transferResult.length > 0
-                   ? (root.transferResultIsError ? Theme.palette.error : Theme.palette.textSecondary)
-                   : "transparent"
-            wrapMode: Text.WordWrap
+            LogosText {
+                id: resultText
+                Layout.fillWidth: true
+                text: root.transferResult
+                font.pixelSize: Theme.typography.secondaryText
+                color: root.transferResult.length > 0
+                       ? (root.transferResultIsError ? Theme.palette.error : Theme.palette.textSecondary)
+                       : "transparent"
+                elide: Text.ElideMiddle
+            }
+            LogosCopyButton {
+                Layout.alignment: Qt.AlignRight
+                Layout.preferredHeight: 40
+                Layout.preferredWidth: 40
+                onCopyText: root.copyRequested(root.transferResult)
+                visible: resultText.text
+            }
         }
 
         Item {

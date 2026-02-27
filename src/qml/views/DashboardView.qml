@@ -18,6 +18,7 @@ Rectangle {
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
     signal transferRequested(bool isPublic, string fromAccountId, string toAddress, string amount)
+    signal copyRequested(string copyText)
 
     color: Theme.palette.background
 
@@ -49,6 +50,7 @@ Rectangle {
             onTransferRequested: function(isPublic, fromId, toAddress, amount) {
                 root.transferRequested(isPublic, fromId, toAddress, amount)
             }
+            onCopyRequested: (copyText) => root.copyRequested(copyText)
         }
     }
 }
