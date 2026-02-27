@@ -23,6 +23,7 @@ ItemDelegate {
     contentItem: ColumnLayout {
         spacing: Theme.spacing.small
         RowLayout {
+            Layout.fillWidth: true
             spacing: Theme.spacing.small
 
             LogosText {
@@ -54,22 +55,24 @@ ItemDelegate {
             }
         }
 
-        LogosText {
-            id: addressLabel
-            verticalAlignment: Text.AlignVCenter
-            text: model.address && model.address.length > 9
-                  ? model.address.slice(0, 4) + "…" + model.address.slice(-5)
-                  : (model.address || "")
-            font.pixelSize: Theme.typography.secondaryText
-            color: Theme.palette.textMuted
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                acceptedButtons: Qt.LeftButton
-                onDoubleClicked: {
-                    if (model.address && typeof backend !== "undefined")
-                        backend.copyToClipboard(model.address)
-                }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing:0
+            LogosText {
+                id: addressLabel
+                Layout.fillWidth: true
+                verticalAlignment: Text.AlignVCenter
+                text: model.address
+                font.pixelSize: Theme.typography.secondaryText
+                color: Theme.palette.textMuted
+                elide: Text.ElideMiddle
+            }
+            LogosCopyButton {
+                Layout.preferredHeight: 40
+                Layout.preferredWidth: 40
+                onCopyText: backend.copyToClipboard(model.address)
+                visible: addressLabel.text
+                icon.color: Theme.palette.textMuted
             }
         }
     }

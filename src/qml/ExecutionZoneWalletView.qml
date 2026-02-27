@@ -134,6 +134,7 @@ Rectangle {
                     dashboardView.transferResult = msg
                     dashboardView.transferResultIsError = isError
                 }
+                onCopyRequested: (copyText) => backend.copyToClipboard(copyText)
             }
         }
     }
