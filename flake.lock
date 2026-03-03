@@ -881,15 +881,16 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1772194689,
-        "narHash": "sha256-t+Gka35IAYjVDo/kdjOmoCbGplB3lkEZhyFJg9FWVnQ=",
+        "lastModified": 1772525593,
+        "narHash": "sha256-elnxzEEMt28P67+3LGHt6wfU6ltCtWZHI0KhrMpQaxs=",
         "owner": "logos-blockchain",
         "repo": "lssa",
-        "rev": "10770bd99edd9aa2aa295620921067cefd31f91a",
+        "rev": "9df121704fe3ae8831d616e26157be15e1f3f26d",
         "type": "github"
       },
       "original": {
         "owner": "logos-blockchain",
+        "ref": "wallet-ffi-0.1.0",
         "repo": "lssa",
         "type": "github"
       }
@@ -907,11 +908,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1772194916,
-        "narHash": "sha256-1HvHyBRdEVXrVNaKubQAb83TY5s09h5iMFcFpFRaZMM=",
+        "lastModified": 1772547606,
+        "narHash": "sha256-l/kus40fdENA3kXS7oWnMfFFv69SDEvOBaOzwNvSBZQ=",
         "owner": "logos-blockchain",
         "repo": "logos-execution-zone-module",
-        "rev": "8b456631fdb3ed9018ed430aeef6c80343504268",
+        "rev": "f20ef94e35c3deb806479ececcf11087729c452e",
         "type": "github"
       },
       "original": {
@@ -1818,11 +1819,11 @@
         "nixpkgs": "nixpkgs_45"
       },
       "locked": {
-        "lastModified": 1772130893,
-        "narHash": "sha256-HscCYHz12J/kcZ+8GnRFITIAF4+xTgWxlQv383C05dI=",
+        "lastModified": 1772471819,
+        "narHash": "sha256-9Ce1/XdtOhOYHZuAtOwMtHVSys3dnkIOd4nnXIHKe9M=",
         "owner": "logos-co",
         "repo": "nix-bundle-lgx",
-        "rev": "68a23fb83089c845ca6c11bd301ce96bc13e7277",
+        "rev": "63a176612549a63baab146a4e0c7f1c713b5e972",
         "type": "github"
       },
       "original": {
