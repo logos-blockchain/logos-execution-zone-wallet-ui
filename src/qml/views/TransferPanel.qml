@@ -111,7 +111,8 @@ Rectangle {
                 }
 
                 contentItem: Item {
-                    implicitWidth: fromCombo.width - indicatorText.width - 12
+                    implicitWidth: 120
+                    width: fromCombo.width - indicatorText.width - 12
                     TextInput {
                         id: fromComboContentInput
                         anchors.fill: parent
