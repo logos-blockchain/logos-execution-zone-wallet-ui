@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 
+import Logos.Theme
+
 Button {
     id: root
 
@@ -16,6 +18,7 @@ Button {
     icon.source: root.iconSource
     icon.width: 24
     icon.height: 24
+    icon.color: Theme.palette.textSecondary
 
     function reset() {
         iconSource = "qrc:/lezwallet/icons/copy.svg"
