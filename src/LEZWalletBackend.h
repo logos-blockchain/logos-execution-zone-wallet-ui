@@ -18,8 +18,8 @@ public:
     Q_PROPERTY(QString storagePath READ storagePath WRITE setStoragePath NOTIFY storagePathChanged)
     Q_PROPERTY(LEZWalletAccountModel* accountModel READ accountModel NOTIFY accountModelChanged)
     Q_PROPERTY(LEZAccountFilterModel* filteredAccountModel READ filteredAccountModel NOTIFY filteredAccountModelChanged)
-    Q_PROPERTY(quint64 lastSyncedBlock READ lastSyncedBlock NOTIFY lastSyncedBlockChanged)
-    Q_PROPERTY(quint64 currentBlockHeight READ currentBlockHeight NOTIFY currentBlockHeightChanged)
+    Q_PROPERTY(int lastSyncedBlock READ lastSyncedBlock NOTIFY lastSyncedBlockChanged)
+    Q_PROPERTY(int currentBlockHeight READ currentBlockHeight NOTIFY currentBlockHeightChanged)
     Q_PROPERTY(QString sequencerAddr READ sequencerAddr NOTIFY sequencerAddrChanged)
 
     explicit LEZWalletBackend(LogosAPI* logosAPI = nullptr, QObject* parent = nullptr);
@@ -30,8 +30,8 @@ public:
     QString storagePath() const { return m_storagePath; }
     LEZWalletAccountModel* accountModel() const { return m_accountModel; }
     LEZAccountFilterModel* filteredAccountModel() const { return m_filteredAccountModel; }
-    quint64 lastSyncedBlock() const { return m_lastSyncedBlock; }
-    quint64 currentBlockHeight() const { return m_currentBlockHeight; }
+    int lastSyncedBlock() const { return m_lastSyncedBlock; }
+    int currentBlockHeight() const { return m_currentBlockHeight; }
     QString sequencerAddr() const { return m_sequencerAddr; }
 
     void setConfigPath(const QString& path);
@@ -82,8 +82,8 @@ private:
     QString m_storagePath;
     LEZWalletAccountModel* m_accountModel;
     LEZAccountFilterModel* m_filteredAccountModel;
-    quint64 m_lastSyncedBlock;
-    quint64 m_currentBlockHeight;
+    int m_lastSyncedBlock;
+    int m_currentBlockHeight;
     QString m_sequencerAddr;
 
     LogosAPI* m_logosAPI;
