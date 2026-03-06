@@ -137,6 +137,8 @@ void LEZWalletBackend::refreshAccounts()
 
 void LEZWalletBackend::refreshBalances()
 {
+    refreshBlockHeights();
+    syncToBlock(m_currentBlockHeight);
     if (!m_walletClient || !m_accountModel) return;
     for (int i = 0; i < m_accountModel->count(); ++i) {
         const QModelIndex idx = m_accountModel->index(i, 0);
@@ -149,8 +151,8 @@ void LEZWalletBackend::refreshBalances()
 void LEZWalletBackend::fetchAndUpdateBlockHeights()
 {
     if (!m_walletClient) return;
-    const quint64 lastVal = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_last_synced_block").toULongLong();
-    const quint64 currentVal = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_current_block_height").toULongLong();
+    const int lastVal = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_last_synced_block").toInt();
+    const int currentVal = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_current_block_height").toInt();
     if (m_lastSyncedBlock != lastVal) {
         m_lastSyncedBlock = lastVal;
         emit lastSyncedBlockChanged();
@@ -266,7 +268,7 @@ QString LEZWalletBackend::transferPrivate(
     }
 
     QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "transfer_private", fromHex, keysPayload, amountHex);
+        WALLET_MODULE_NAME, "transfer_private", fromHex, keysPayload, amountHex, Timeout(6*60*1000)); // 6 minutes timeout
     return result.isValid() ? result.toString() : QStringLiteral("Error: Call failed.");
 }
 
