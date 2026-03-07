@@ -17,7 +17,9 @@ Rectangle {
     signal createPublicAccountRequested()
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
-    signal transferRequested(bool isPublic, string fromAccountId, string toAddress, string amount)
+    signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
+    signal transferPrivateRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
+    signal transferPrivateOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal copyRequested(string copyText)
 
     color: Theme.palette.background
@@ -47,9 +49,9 @@ Rectangle {
             transferResult: root.transferResult
             transferResultIsError: root.transferResultIsError
 
-            onTransferRequested: function(isPublic, fromId, toAddress, amount) {
-                root.transferRequested(isPublic, fromId, toAddress, amount)
-            }
+            onTransferPublicRequested: (fromId, toAddress, amount) => root.transferPublicRequested(fromId, toAddress, amount)
+            onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) => root.transferPrivateRequested(fromId, toKeysJsonOrAddress, amount)
+            onTransferPrivateOwnedRequested: (fromId, toAccountId, amount) => root.transferPrivateOwnedRequested(fromId, toAccountId, amount)
             onCopyRequested: (copyText) => root.copyRequested(copyText)
         }
     }

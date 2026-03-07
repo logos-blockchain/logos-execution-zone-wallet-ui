@@ -53,6 +53,10 @@ public:
         const QString& fromHex,
         const QString& toHex,
         const QString& amountLe16Hex);
+    Q_INVOKABLE QString transferPrivateOwned(
+        const QString& fromHex,
+        const QString& toHex,
+        const QString& amountLe16Hex);
     Q_INVOKABLE bool createNew(
         const QString& configPath,
         const QString& storagePath,

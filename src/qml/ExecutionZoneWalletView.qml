@@ -109,14 +109,9 @@ Rectangle {
                     }
                     backend.refreshBalances()
                 }
-                onTransferRequested: function(isPublic, fromId, toAddress, amount) {
-                    if (!backend) {
-                        console.warning("backend is null")
-                        return
-                    }
-                    var raw = isPublic
-                            ? backend.transferPublic(fromId, toAddress, amount)
-                            : backend.transferPrivate(fromId, toAddress, amount)
+                onTransferPublicRequested: (fromId, toAddress, amount) => {
+                    if (!backend) return
+                    var raw = backend.transferPublic(fromId, toAddress, amount)
                     var msg = raw || ""
                     var isError = false
                     try {
@@ -128,8 +123,45 @@ Rectangle {
                             isError = true
                         }
                     } catch (e) {
-                        if (msg.length > 0)
+                        if (msg.length > 0) isError = true
+                    }
+                    dashboardView.transferResult = msg
+                    dashboardView.transferResultIsError = isError
+                }
+                onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) => {
+                    if (!backend) return
+                    var raw = backend.transferPrivate(fromId, toKeysJsonOrAddress, amount)
+                    var msg = raw || ""
+                    var isError = false
+                    try {
+                        var obj = JSON.parse(raw)
+                        if (obj.success) {
+                            msg = obj.tx_hash ? qsTr("Success. Tx: %1").arg(obj.tx_hash) : qsTr("Success.")
+                        } else if (obj.error) {
+                            msg = ffiErrors.format(obj.error)
                             isError = true
+                        }
+                    } catch (e) {
+                        if (msg.length > 0) isError = true
+                    }
+                    dashboardView.transferResult = msg
+                    dashboardView.transferResultIsError = isError
+                }
+                onTransferPrivateOwnedRequested: (fromId, toAccountId, amount) => {
+                    if (!backend) return
+                    var raw = backend.transferPrivateOwned(fromId, toAccountId, amount)
+                    var msg = raw || ""
+                    var isError = false
+                    try {
+                        var obj = JSON.parse(raw)
+                        if (obj.success) {
+                            msg = obj.tx_hash ? qsTr("Success. Tx: %1").arg(obj.tx_hash) : qsTr("Success.")
+                        } else if (obj.error) {
+                            msg = ffiErrors.format(obj.error)
+                            isError = true
+                        }
+                    } catch (e) {
+                        if (msg.length > 0) isError = true
                     }
                     dashboardView.transferResult = msg
                     dashboardView.transferResultIsError = isError

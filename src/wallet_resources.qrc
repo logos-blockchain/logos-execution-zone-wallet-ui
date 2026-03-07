@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/lezwallet">
         <file>qml/ExecutionZoneWalletView.qml</file>
+        <file>qml/controls/AccountComboBox.qml</file>
         <file>qml/controls/AccountDelegate.qml</file>
         <file>qml/popups/CreateAccountDialog.qml</file>
         <file>qml/views/qmldir</file>
