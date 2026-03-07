@@ -146,6 +146,7 @@ void LEZWalletBackend::refreshBalances()
         const bool isPub = m_accountModel->data(idx, LEZWalletAccountModel::IsPublicRole).toBool();
         m_accountModel->setBalanceByAddress(addr, getBalance(addr, isPub));
     }
+    saveWallet();
 }
 
 void LEZWalletBackend::fetchAndUpdateBlockHeights()
@@ -269,6 +270,19 @@ QString LEZWalletBackend::transferPrivate(
 
     QVariant result = m_walletClient->invokeRemoteMethod(
         WALLET_MODULE_NAME, "transfer_private", fromHex, keysPayload, amountHex, Timeout(6*60*1000)); // 6 minutes timeout
+    return result.isValid() ? result.toString() : QStringLiteral("Error: Call failed.");
+}
+
+QString LEZWalletBackend::transferPrivateOwned(
+    const QString& fromHex,
+    const QString& toHex,
+    const QString& amountLe16Hex)
+{
+    if (!m_walletClient) return QStringLiteral("Error: Module not initialized.");
+    const QString amountHex = amountToLe16Hex(amountLe16Hex);
+    if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
+    QVariant result = m_walletClient->invokeRemoteMethod(
+        WALLET_MODULE_NAME, "transfer_private_owned", fromHex, toHex.trimmed(), amountHex);
     return result.isValid() ? result.toString() : QStringLiteral("Error: Call failed.");
 }
 

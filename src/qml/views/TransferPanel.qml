@@ -15,16 +15,23 @@ Rectangle {
     property string transferResult: ""
     property bool transferResultIsError: false
 
-    // --- Public API: signals out ---
-    signal transferRequested(bool isPublic, string fromAccountId, string toAddress, string amount)
+    // --- Public API: signals out (match backend: transfer_public, transfer_private, transfer_private_owned) ---
+    signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
+    signal transferPrivateRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
+    signal transferPrivateOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal copyRequested(string copyText)
 
     readonly property int fromFilterCount: fromAccountModel ? fromAccountModel.count : 0
 
     QtObject {
         id: d
-        readonly property bool sendEnabled: toField && amountField && manualFromField
-                                            && toField.text.length > 0 && amountField.text.length > 0
+        property bool useOwnedAccountForTo: false
+        readonly property bool isPrivateTab: transferTypeBar.currentIndex === 1
+        readonly property bool toAddressValid: isPrivateTab && useOwnedAccountForTo
+            ? (fromFilterCount > 0 && toCombo.currentIndex >= 0)
+            : (toField && toField.text.trim().length > 0)
+        readonly property bool sendEnabled: amountField && manualFromField
+                                            && amountField.text.length > 0 && d.toAddressValid
                                             && ((fromFilterCount > 0 && fromCombo.currentIndex >= 0)
                                                 || (fromFilterCount === 0 && manualFromField.text.trim().length > 0))
     }
@@ -82,81 +89,11 @@ Rectangle {
                 visible: fromFilterCount === 0
             }
 
-            ComboBox {
+            AccountComboBox {
                 id: fromCombo
                 Layout.fillWidth: true
-                leftPadding: 12
-                rightPadding: 12
-                implicitHeight: 40
                 model: fromAccountModel
-                textRole: "name"
-                valueRole: "address"
                 visible: fromFilterCount > 0
-
-                background: Rectangle {
-                    radius: Theme.spacing.radiusSmall
-                    color: Theme.palette.backgroundSecondary
-                    border.width: 1
-                    border.color: fromCombo.popup.visible ? Theme.palette.overlayOrange : Theme.palette.backgroundElevated
-                }
-
-                indicator: LogosText {
-                    id: indicatorText
-                    text: "▼"
-                    font.pixelSize: Theme.typography.secondaryText
-                    color: Theme.palette.textSecondary
-                    x: fromCombo.width - width - 12
-                    y: (fromCombo.height - height) / 2
-                    visible: fromCombo.count > 0
-                }
-
-                contentItem: Item {
-                    implicitWidth: 120
-                    width: fromCombo.width - indicatorText.width - 12
-                    TextInput {
-                        id: fromComboContentInput
-                        anchors.fill: parent
-                        readOnly: true
-                        selectByMouse: true
-                        font.pixelSize: Theme.typography.secondaryText
-                        color: Theme.palette.text
-                        text: fromCombo.displayText
-                        verticalAlignment: Text.AlignVCenter
-                        clip: true
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        acceptedButtons: Qt.LeftButton
-                        onClicked: fromCombo.popup.visible ? fromCombo.popup.close() : fromCombo.popup.open()
-                    }
-                }
-
-                delegate: AccountDelegate {
-                    width: fromCombo.popup.width - fromCombo.popup.leftPadding - fromCombo.popup.rightPadding
-                    highlighted: fromCombo.highlightedIndex === index
-                }
-
-                popup: Popup {
-                    y: fromCombo.height - 1
-                    width: 400
-                    height: Math.min(contentItem.implicitHeight + 8, 300)
-                    padding: Theme.spacing.small
-
-                    contentItem: ListView {
-                        clip: true
-                        implicitHeight: contentHeight
-                        model: fromCombo.popup.visible ? fromCombo.delegateModel : null
-                        ScrollIndicator.vertical: ScrollIndicator { }
-                        highlightFollowsCurrentItem: false
-                    }
-
-                    background: Rectangle {
-                        color: Theme.palette.backgroundTertiary
-                        border.width: 1
-                        border.color: Theme.palette.backgroundElevated
-                        radius: Theme.spacing.radiusSmall
-                    }
-                }
             }
         }
 
@@ -171,10 +108,28 @@ Rectangle {
                 color: Theme.palette.textSecondary
             }
 
+            CheckBox {
+                id: useOwnedToCheck
+                visible: d.isPrivateTab
+                checked: d.useOwnedAccountForTo
+                onCheckedChanged: d.useOwnedAccountForTo = checked
+                text: qsTr("Use owned account")
+                font.pixelSize: Theme.typography.secondaryText
+                palette.text: Theme.palette.text
+            }
+
             LogosTextField {
                 id: toField
                 Layout.fillWidth: true
                 placeholderText: qsTr("Recipient public key")
+                visible: !d.isPrivateTab || !d.useOwnedAccountForTo
+            }
+
+            AccountComboBox {
+                id: toCombo
+                Layout.fillWidth: true
+                model: fromAccountModel
+                visible: d.isPrivateTab && d.useOwnedAccountForTo && fromFilterCount > 0
             }
         }
 
@@ -206,8 +161,18 @@ Rectangle {
                 var fromId = fromFilterCount > 0 && fromCombo.currentIndex >= 0
                         ? (fromCombo.currentValue ?? "")
                         : manualFromField.text.trim()
-                if (fromId.length > 0)
-                    root.transferRequested(transferTypeBar.currentIndex === 0, fromId, toField.text.trim(), amountField.text.trim())
+                var toAddress = d.useOwnedAccountForTo && toCombo.currentIndex >= 0
+                        ? (toCombo.currentValue ?? "")
+                        : toField.text.trim()
+                var amount = amountField.text.trim()
+                if (fromId.length > 0 && toAddress.length > 0 && amount.length > 0) {
+                    if (transferTypeBar.currentIndex === 0)
+                        root.transferPublicRequested(fromId, toAddress, amount)
+                    else if (d.useOwnedAccountForTo)
+                        root.transferPrivateOwnedRequested(fromId, toAddress, amount)
+                    else
+                        root.transferPrivateRequested(fromId, toAddress, amount)
+                }
             }
         }
 
