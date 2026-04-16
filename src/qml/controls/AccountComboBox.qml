@@ -8,6 +8,10 @@ import Logos.Controls
 ComboBox {
     id: root
 
+    // Forwarded from AccountDelegate's copy button — bubble up to the parent
+    // view, which calls backend.copyToClipboard().
+    signal copyRequested(string text)
+
     leftPadding: 12
     rightPadding: 12
     implicitHeight: 40
@@ -55,6 +59,7 @@ ComboBox {
     delegate: AccountDelegate {
         width: root.popup ? (root.popup.width - root.popup.leftPadding - root.popup.rightPadding) : 368
         highlighted: root.highlightedIndex === index
+        onCopyRequested: (text) => root.copyRequested(text)
     }
 
     popup: Popup {

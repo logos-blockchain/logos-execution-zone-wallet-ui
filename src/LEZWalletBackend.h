@@ -1,95 +1,62 @@
-#pragma once
+#ifndef LEZ_WALLET_BACKEND_H
+#define LEZ_WALLET_BACKEND_H
 
 #include <QObject>
 #include <QString>
+
+#include "rep_LEZWalletBackend_source.h"
+
 #include "LEZAccountFilterModel.h"
 #include "LEZWalletAccountModel.h"
-#include "logos_api.h"
-#include "logos_api_client.h"
 
-class QAbstractItemModel;
+class LogosAPI;
+class LogosAPIClient;
 
-class LEZWalletBackend : public QObject {
+// Source-side implementation of the LEZWalletBackend .rep interface.
+// Inheriting from LEZWalletBackendSimpleSource gives us the generated PROPs
+// and SLOTs from LEZWalletBackend.rep — all the simple ones flow over QtRO.
+class LEZWalletBackend : public LEZWalletBackendSimpleSource {
     Q_OBJECT
+    Q_PROPERTY(LEZWalletAccountModel* accountModel READ accountModel CONSTANT)
+    Q_PROPERTY(LEZAccountFilterModel* filteredAccountModel READ filteredAccountModel CONSTANT)
 
 public:
-    Q_PROPERTY(bool isWalletOpen READ isWalletOpen NOTIFY isWalletOpenChanged)
-    Q_PROPERTY(QString configPath READ configPath WRITE setConfigPath NOTIFY configPathChanged)
-    Q_PROPERTY(QString storagePath READ storagePath WRITE setStoragePath NOTIFY storagePathChanged)
-    Q_PROPERTY(LEZWalletAccountModel* accountModel READ accountModel NOTIFY accountModelChanged)
-    Q_PROPERTY(LEZAccountFilterModel* filteredAccountModel READ filteredAccountModel NOTIFY filteredAccountModelChanged)
-    Q_PROPERTY(int lastSyncedBlock READ lastSyncedBlock NOTIFY lastSyncedBlockChanged)
-    Q_PROPERTY(int currentBlockHeight READ currentBlockHeight NOTIFY currentBlockHeightChanged)
-    Q_PROPERTY(QString sequencerAddr READ sequencerAddr NOTIFY sequencerAddrChanged)
-
     explicit LEZWalletBackend(LogosAPI* logosAPI = nullptr, QObject* parent = nullptr);
-    ~LEZWalletBackend();
+    ~LEZWalletBackend() override;
 
-    bool isWalletOpen() const { return m_isWalletOpen; }
-    QString configPath() const { return m_configPath; }
-    QString storagePath() const { return m_storagePath; }
     LEZWalletAccountModel* accountModel() const { return m_accountModel; }
     LEZAccountFilterModel* filteredAccountModel() const { return m_filteredAccountModel; }
-    int lastSyncedBlock() const { return m_lastSyncedBlock; }
-    int currentBlockHeight() const { return m_currentBlockHeight; }
-    QString sequencerAddr() const { return m_sequencerAddr; }
 
-    void setConfigPath(const QString& path);
-    void setStoragePath(const QString& path);
-
-    Q_INVOKABLE QString createAccountPublic();
-    Q_INVOKABLE QString createAccountPrivate();
-    Q_INVOKABLE void refreshAccounts();
-    Q_INVOKABLE QString getBalance(const QString& accountIdHex, bool isPublic);
-    Q_INVOKABLE void refreshBalances();
-    Q_INVOKABLE QString getPublicAccountKey(const QString& accountIdHex);
-    Q_INVOKABLE QString getPrivateAccountKeys(const QString& accountIdHex);
-    Q_INVOKABLE bool syncToBlock(quint64 blockId);
-    Q_INVOKABLE QString transferPublic(
-        const QString& fromHex,
-        const QString& toHex,
-        const QString& amountLe16Hex);
-    Q_INVOKABLE QString transferPrivate(
-        const QString& fromHex,
-        const QString& toHex,
-        const QString& amountLe16Hex);
-    Q_INVOKABLE QString transferPrivateOwned(
-        const QString& fromHex,
-        const QString& toHex,
-        const QString& amountLe16Hex);
-    Q_INVOKABLE bool createNew(
-        const QString& configPath,
-        const QString& storagePath,
-        const QString& password);
-    Q_INVOKABLE int indexOfAddressInModel(QObject* model, const QString& address) const;
-    Q_INVOKABLE void copyToClipboard(const QString& text);
-
-signals:
-    void isWalletOpenChanged();
-    void configPathChanged();
-    void storagePathChanged();
-    void accountModelChanged();
-    void filteredAccountModelChanged();
-    void lastSyncedBlockChanged();
-    void currentBlockHeightChanged();
-    void sequencerAddrChanged();
+public slots:
+    // Overrides of the pure-virtual slots generated from the .rep.
+    QString createAccountPublic() override;
+    QString createAccountPrivate() override;
+    void refreshAccounts() override;
+    QString getBalance(QString accountIdHex, bool isPublic) override;
+    void refreshBalances() override;
+    QString getPublicAccountKey(QString accountIdHex) override;
+    QString getPrivateAccountKeys(QString accountIdHex) override;
+    bool syncToBlock(quint64 blockId) override;
+    QString transferPublic(QString fromHex, QString toHex, QString amountStr) override;
+    QString transferPrivate(QString fromHex, QString toHex, QString amountStr) override;
+    QString transferPrivateOwned(QString fromHex, QString toHex, QString amountStr) override;
+    bool createNew(QString configPath, QString storagePath, QString password) override;
+    void copyToClipboard(QString text) override;
 
 private:
-    void setWalletOpen(bool open);
+    void persistConfigPath(const QString& path);
+    void persistStoragePath(const QString& path);
     void refreshBlockHeights();
     void refreshSequencerAddr();
     void saveWallet();
     void fetchAndUpdateBlockHeights();
+    void openIfPathsConfigured();
 
-    bool m_isWalletOpen;
-    QString m_configPath;
-    QString m_storagePath;
     LEZWalletAccountModel* m_accountModel;
     LEZAccountFilterModel* m_filteredAccountModel;
-    int m_lastSyncedBlock;
-    int m_currentBlockHeight;
-    QString m_sequencerAddr;
 
     LogosAPI* m_logosAPI;
     LogosAPIClient* m_walletClient;
 };
+
+#endif // LEZ_WALLET_BACKEND_H

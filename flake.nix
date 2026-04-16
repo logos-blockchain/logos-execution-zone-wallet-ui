@@ -1,90 +1,47 @@
 {
-  description = "Logos Execution Zone Wallet UI - A Qt UI plugin for Logos Execution Zone Wallet Module";
+  description = "Logos Execution Zone Wallet UI - QML view + C++ backend module";
 
   inputs = {
-    nixpkgs.follows = "logos-liblogos/nixpkgs";
-    logos-cpp-sdk.url = "github:logos-co/logos-cpp-sdk";
-    logos-liblogos.url = "github:logos-co/logos-liblogos";
-    logos-execution-zone-module.url = "github:logos-blockchain/logos-execution-zone-module";
-    logos-capability-module.url = "github:logos-co/logos-capability-module";
-    logos-design-system.url = "github:logos-co/logos-design-system";
-    logos-design-system.inputs.nixpkgs.follows = "nixpkgs";
+    logos-module-builder.url = "github:logos-co/logos-module-builder";
     nix-bundle-lgx.url = "github:logos-co/nix-bundle-lgx";
-    logos-package-manager.url = "github:logos-co/logos-package-manager-module";
+    liblogos_execution_zone_wallet_module.url = "github:logos-blockchain/logos-execution-zone-module";
   };
 
-  outputs = { self, nixpkgs, logos-cpp-sdk, logos-liblogos, logos-execution-zone-module, logos-capability-module, logos-design-system, nix-bundle-lgx, logos-package-manager }:
-    let
-      systems = [ "aarch64-darwin" "x86_64-darwin" "aarch64-linux" "x86_64-linux" "x86_64-windows" ];
-      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f {
-        pkgs = import nixpkgs { inherit system; };
-        logosSdk = logos-cpp-sdk.packages.${system}.default;
-        logosLiblogos = logos-liblogos.packages.${system}.default;
-        logosExecutionZoneModule = logos-execution-zone-module.packages.${system}.default;
-        logosCapabilityModule = logos-capability-module.packages.${system}.default;
-        logosDesignSystem = logos-design-system.packages.${system}.default;
-        lgxBundler = nix-bundle-lgx.bundlers.${system}.default;
-        lgpm = logos-package-manager.packages.${system}.cli;
-      });
-    in
-    {
-      packages = forAllSystems ({ pkgs, logosSdk, logosLiblogos, logosExecutionZoneModule, logosCapabilityModule, logosDesignSystem, lgxBundler, lgpm }:
-        let
-          common = import ./nix/default.nix {
-            inherit pkgs logosSdk logosLiblogos;
-          };
-          src = ./.;
+  outputs = inputs@{ logos-module-builder, ... }:
+    logos-module-builder.lib.mkLogosQmlModule {
+      src = ./.;
+      configFile = ./metadata.json;
+      flakeInputs = inputs;
 
-          lib = import ./nix/lib.nix {
-            inherit pkgs common src logosExecutionZoneModule;
-          };
+      # Stub the typed wrapper for liblogos_execution_zone_wallet_module.
+      # That module ships its plugin via a hand-rolled mkDerivation (not
+      # mkLogosModule), so it does not produce a *_api.h via
+      # logos-cpp-generator --module-only. LEZWalletBackend never uses the
+      # typed wrapper — it talks to the wallet module via raw
+      # LogosAPIClient::invokeRemoteMethod() — but the auto-generated
+      # logos_sdk.{h,cpp} umbrella still references the wrapper, so we drop
+      # empty stubs in to satisfy the include + initializer.
+      preConfigure = ''
+        mkdir -p ./generated_code/include
+        cat > ./generated_code/include/liblogos_execution_zone_wallet_module_api.h <<'EOF'
+#pragma once
+#include "logos_api.h"
 
-          logosCapabilityModuleLgx = lgxBundler logosCapabilityModule;
-          logosExecutionZoneModuleLgx = lgxBundler logosExecutionZoneModule;
-
-          app = import ./nix/app.nix {
-            inherit pkgs common src logosLiblogos logosExecutionZoneModule logosCapabilityModule logosDesignSystem lgpm logosCapabilityModuleLgx logosExecutionZoneModuleLgx;
-            logosExecutionZoneWalletUI = lib;
-          };
-        in
-        {
-          logos-execution-zone-wallet-ui-lib = lib;
-          app = app;
-          lib = lib;
-
-          default = lib;
-        }
-      );
-
-      apps = nixpkgs.lib.genAttrs systems (system: {
-        default = {
-          type = "app";
-          program = "${self.packages.${system}.app}/bin/logos-execution-zone-wallet-ui-app";
-        };
-      });
-
-      devShells = forAllSystems ({ pkgs, logosSdk, logosLiblogos, logosExecutionZoneModule, logosCapabilityModule, logosDesignSystem, lgpm, ... }: {
-        default = pkgs.mkShell {
-          nativeBuildInputs = [
-            pkgs.cmake
-            pkgs.ninja
-            pkgs.pkg-config
-          ];
-          buildInputs = [
-            pkgs.qt6.qtbase
-            pkgs.qt6.qtremoteobjects
-            pkgs.zstd
-            pkgs.krb5
-            pkgs.abseil-cpp
-          ];
-
-          shellHook = ''
-            export LOGOS_LIBLOGOS_ROOT="${logosLiblogos}"
-            export LOGOS_DESIGN_SYSTEM_ROOT="${logosDesignSystem}"
-            echo "Logos Execution Zone Wallet UI development environment"
-            echo "LOGOS_LIBLOGOS_ROOT: $LOGOS_LIBLOGOS_ROOT"
-          '';
-        };
-      });
+// Stub: see flake.nix preConfigure. The wallet module isn't built with
+// mkLogosModule and doesn't produce a typed _api.h. LEZWalletBackend uses
+// raw LogosAPIClient::invokeRemoteMethod() instead, so this empty class
+// only needs to satisfy the umbrella logos_sdk.h's member declaration and
+// constructor initializer.
+class LiblogosExecutionZoneWalletModule {
+public:
+    explicit LiblogosExecutionZoneWalletModule(LogosAPI* /*api*/) {}
+};
+EOF
+        cat > ./generated_code/include/liblogos_execution_zone_wallet_module_api.cpp <<'EOF'
+// Stub source for the typed wrapper. The umbrella logos_sdk.cpp #includes
+// this file; the class is fully defined inline in the header above so this
+// translation unit is intentionally empty.
+EOF
+      '';
     };
 }

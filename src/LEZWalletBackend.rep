@@ -1,0 +1,26 @@
+class LEZWalletBackend
+{
+    PROP(bool isWalletOpen READONLY)
+    PROP(QString configPath READONLY)
+    PROP(QString storagePath READONLY)
+    PROP(int lastSyncedBlock READONLY)
+    PROP(int currentBlockHeight READONLY)
+    PROP(QString sequencerAddr READONLY)
+
+    SLOT(QString createAccountPublic())
+    SLOT(QString createAccountPrivate())
+    SLOT(void refreshAccounts())
+    SLOT(QString getBalance(QString accountIdHex, bool isPublic))
+    SLOT(void refreshBalances())
+    SLOT(QString getPublicAccountKey(QString accountIdHex))
+    SLOT(QString getPrivateAccountKeys(QString accountIdHex))
+    SLOT(bool syncToBlock(quint64 blockId))
+
+    SLOT(QString transferPublic(QString fromHex, QString toHex, QString amountStr))
+    SLOT(QString transferPrivate(QString fromHex, QString toHex, QString amountStr))
+    SLOT(QString transferPrivateOwned(QString fromHex, QString toHex, QString amountStr))
+
+    SLOT(bool createNew(QString configPath, QString storagePath, QString password))
+
+    SLOT(void copyToClipboard(QString text))
+}

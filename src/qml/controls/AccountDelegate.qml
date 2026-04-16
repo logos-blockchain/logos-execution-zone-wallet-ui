@@ -8,6 +8,12 @@ import Logos.Controls
 ItemDelegate {
     id: root
 
+    // Emitted when the user clicks the copy icon. The parent connects this
+    // to backend.copyToClipboard(...) — AccountDelegate doesn't reach into
+    // the global QML scope for `backend` since it now lives behind the
+    // logos.module() bridge in the parent view.
+    signal copyRequested(string text)
+
     leftPadding: Theme.spacing.medium
     rightPadding: Theme.spacing.medium
     topPadding: Theme.spacing.medium
@@ -70,7 +76,7 @@ ItemDelegate {
             LogosCopyButton {
                 Layout.preferredHeight: 40
                 Layout.preferredWidth: 40
-                onCopyText: backend.copyToClipboard(model.address)
+                onCopyText: root.copyRequested(model.address)
                 visible: addressLabel.text
                 icon.color: Theme.palette.textMuted
             }

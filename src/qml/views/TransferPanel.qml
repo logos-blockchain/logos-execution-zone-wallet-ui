@@ -21,7 +21,7 @@ Rectangle {
     signal transferPrivateOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal copyRequested(string copyText)
 
-    readonly property int fromFilterCount: fromAccountModel ? fromAccountModel.count : 0
+    readonly property int fromFilterCount: (fromAccountModel && fromAccountModel.count) ? fromAccountModel.count : 0
 
     QtObject {
         id: d
@@ -94,6 +94,7 @@ Rectangle {
                 Layout.fillWidth: true
                 model: fromAccountModel
                 visible: fromFilterCount > 0
+                onCopyRequested: (text) => root.copyRequested(text)
             }
         }
 
@@ -130,6 +131,7 @@ Rectangle {
                 Layout.fillWidth: true
                 model: fromAccountModel
                 visible: d.isPrivateTab && d.useOwnedAccountForTo && fromFilterCount > 0
+                onCopyRequested: (text) => root.copyRequested(text)
             }
         }
 

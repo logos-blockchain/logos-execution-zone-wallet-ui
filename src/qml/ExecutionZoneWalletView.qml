@@ -2,13 +2,24 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-import LEZWalletBackend
 import Logos.Theme
 import Logos.Controls
 import "views"
 
 Rectangle {
     id: root
+
+    readonly property var backend: logos.module("logos_execution_zone_wallet_ui")
+    readonly property var accountModel: logos.model("logos_execution_zone_wallet_ui", "accountModel")
+    property bool ready: false
+
+    Connections {
+        target: logos
+        function onViewModuleReadyChanged(moduleName, isReady) {
+            if (moduleName === "logos_execution_zone_wallet_ui")
+                root.ready = isReady && root.backend !== null
+        }
+    }
 
     // Map wallet FFI error codes to user-facing strings. Matches lssa/wallet-ffi WalletFfiError enum.
     QtObject {
@@ -46,23 +57,45 @@ Rectangle {
             }
             return errorMessage
         }
+
+        // Parse a transfer result JSON string and write to dashboardView.
+        // Used by all three transfer handlers below.
+        function applyTransferResult(dashboardView, raw) {
+            var msg = raw || ""
+            var isError = false
+            try {
+                var obj = JSON.parse(raw)
+                if (obj.success) {
+                    msg = obj.tx_hash ? qsTr("Success. Tx: %1").arg(obj.tx_hash) : qsTr("Success.")
+                } else if (obj.error) {
+                    msg = ffiErrors.format(obj.error)
+                    isError = true
+                }
+            } catch (e) {
+                if (msg.length > 0) isError = true
+            }
+            dashboardView.transferResult = msg
+            dashboardView.transferResultIsError = isError
+        }
     }
 
     QtObject {
         id: d
         readonly property bool isWalletOpen: backend && backend.isWalletOpen
-        onIsWalletOpenChanged: updateStack(isWalletOpen)
+        onIsWalletOpenChanged: if (root.ready) updateStack(isWalletOpen)
 
         function updateStack(walletOpen) {
-            if(walletOpen) {
-                stackView.push(mainView)
-            } else {
-                stackView.push(onboardingView)
-            }
+            stackView.replace(walletOpen ? mainView : onboardingView)
         }
     }
 
-    Component.onCompleted: d.updateStack(backend && backend.isWalletOpen)
+    onReadyChanged: if (ready) d.updateStack(d.isWalletOpen)
+
+    Component.onCompleted: {
+        root.ready = root.backend !== null
+            && logos.isViewModuleReady("logos_execution_zone_wallet_ui")
+        if (root.ready) d.updateStack(d.isWalletOpen)
+    }
 
     color: Theme.palette.background
 
@@ -73,11 +106,19 @@ Rectangle {
         Component {
             id: onboardingView
             OnboardingView {
-                storePath: backend.storagePath
-                configPath: backend.configPath
+                storePath: backend ? backend.storagePath : ""
+                configPath: backend ? backend.configPath : ""
                 onCreateWallet: function(configPath, storagePath, password) {
-                    if (!backend || !backend.createNew(configPath, storagePath, password))
-                        createError = qsTr("Failed to create wallet. Check paths and try again.")
+                    if (!backend) return
+                    logos.watch(backend.createNew(configPath, storagePath, password),
+                        function(ok) {
+                            if (!ok)
+                                createError = qsTr("Failed to create wallet. Check paths and try again.")
+                        },
+                        function(error) {
+                            createError = qsTr("Error creating wallet: %1").arg(error)
+                        }
+                    )
                 }
             }
         }
@@ -86,87 +127,56 @@ Rectangle {
             id: mainView
             DashboardView {
                 id: dashboardView
-                accountModel: backend ? backend.accountModel : null
+                accountModel: root.accountModel
 
                 onCreatePublicAccountRequested: {
-                    if (!backend) {
-                        console.warning("backend is null")
-                        return
-                    }
-                    backend.createAccountPublic()
+                    if (!backend) { console.warn("backend is null"); return }
+                    // Result not consumed here — accountModel updates via NOTIFY when
+                    // the backend's refreshAccounts() runs after creation.
+                    logos.watch(backend.createAccountPublic(),
+                        function(_id) { /* ignored */ },
+                        function(error) { console.warn("createAccountPublic failed:", error) })
                 }
                 onCreatePrivateAccountRequested: {
-                    if (!backend) {
-                        console.warning("backend is null")
-                        return
-                    }
-                    backend.createAccountPrivate()
+                    if (!backend) { console.warn("backend is null"); return }
+                    logos.watch(backend.createAccountPrivate(),
+                        function(_id) { /* ignored */ },
+                        function(error) { console.warn("createAccountPrivate failed:", error) })
                 }
                 onFetchBalancesRequested: {
-                    if (!backend) {
-                        console.warning("backend is null")
-                        return
-                    }
-                    backend.refreshBalances()
+                    if (!backend) { console.warn("backend is null"); return }
+                    backend.refreshBalances()  // void slot, fire-and-forget
                 }
                 onTransferPublicRequested: (fromId, toAddress, amount) => {
                     if (!backend) return
-                    var raw = backend.transferPublic(fromId, toAddress, amount)
-                    var msg = raw || ""
-                    var isError = false
-                    try {
-                        var obj = JSON.parse(raw)
-                        if (obj.success) {
-                            msg = obj.tx_hash ? qsTr("Success. Tx: %1").arg(obj.tx_hash) : qsTr("Success.")
-                        } else if (obj.error) {
-                            msg = ffiErrors.format(obj.error)
-                            isError = true
-                        }
-                    } catch (e) {
-                        if (msg.length > 0) isError = true
-                    }
-                    dashboardView.transferResult = msg
-                    dashboardView.transferResultIsError = isError
+                    logos.watch(backend.transferPublic(fromId, toAddress, amount),
+                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(error) {
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                        })
                 }
                 onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) => {
                     if (!backend) return
-                    var raw = backend.transferPrivate(fromId, toKeysJsonOrAddress, amount)
-                    var msg = raw || ""
-                    var isError = false
-                    try {
-                        var obj = JSON.parse(raw)
-                        if (obj.success) {
-                            msg = obj.tx_hash ? qsTr("Success. Tx: %1").arg(obj.tx_hash) : qsTr("Success.")
-                        } else if (obj.error) {
-                            msg = ffiErrors.format(obj.error)
-                            isError = true
-                        }
-                    } catch (e) {
-                        if (msg.length > 0) isError = true
-                    }
-                    dashboardView.transferResult = msg
-                    dashboardView.transferResultIsError = isError
+                    logos.watch(backend.transferPrivate(fromId, toKeysJsonOrAddress, amount),
+                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(error) {
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                        })
                 }
                 onTransferPrivateOwnedRequested: (fromId, toAccountId, amount) => {
                     if (!backend) return
-                    var raw = backend.transferPrivateOwned(fromId, toAccountId, amount)
-                    var msg = raw || ""
-                    var isError = false
-                    try {
-                        var obj = JSON.parse(raw)
-                        if (obj.success) {
-                            msg = obj.tx_hash ? qsTr("Success. Tx: %1").arg(obj.tx_hash) : qsTr("Success.")
-                        } else if (obj.error) {
-                            msg = ffiErrors.format(obj.error)
-                            isError = true
-                        }
-                    } catch (e) {
-                        if (msg.length > 0) isError = true
-                    }
-                    dashboardView.transferResult = msg
-                    dashboardView.transferResultIsError = isError
+                    logos.watch(backend.transferPrivateOwned(fromId, toAccountId, amount),
+                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(error) {
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                        })
                 }
-                onCopyRequested: (copyText) => backend.copyToClipboard(copyText)
+                onCopyRequested: (copyText) => {
+                    if (backend) backend.copyToClipboard(copyText)
+                }
             }
         }
     }
