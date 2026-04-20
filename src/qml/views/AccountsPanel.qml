@@ -18,6 +18,7 @@ Rectangle {
     signal createPublicAccountRequested()
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
+    signal copyRequested(string text)
 
     radius: Theme.spacing.radiusXlarge
     color: Theme.palette.backgroundSecondary
@@ -81,6 +82,7 @@ Rectangle {
 
             delegate: AccountDelegate {
                 width: listView.width
+                onCopyRequested: (text) => root.copyRequested(text)
             }
         }
 

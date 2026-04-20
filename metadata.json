@@ -1,22 +1,26 @@
 {
-  "name": "logos_execution_zone_wallet_ui",
+  "name": "lez_wallet_ui",
   "version": "1.0.0",
+  "type": "ui_qml",
+  "category": "wallet",
   "description": "Execution Zone Wallet UI module for the Logos application",
   "author": "Logos Blockchain Team",
-  "type": "ui",
-  "main": "logos_execution_zone_wallet_ui",
-  "icon": "",
-  "dependencies": ["liblogos_execution_zone_wallet_module"],
-  "category": "wallet",
-  "build": {
-    "type": "cmake",
-    "files": [
-      "src/LEZWalletPlugin.cpp",
-      "src/LEZWalletPlugin.h",
-      "src/LEZWalletBackend.cpp",
-      "src/LEZWalletBackend.h",
-      "src/wallet_resources.qrc"
-    ]
-  },
-  "capabilities": ["ui_components", "wallet"]
+  "main": "lez_wallet_ui_plugin",
+  "icon": "src/qml/icons/copy.svg",
+  "view": "qml/ExecutionZoneWalletView.qml",
+  "dependencies": ["lez_wallet_module"],
+
+  "nix": {
+    "packages": {
+      "build": [],
+      "runtime": ["qt6.qtdeclarative", "zstd", "krb5", "abseil-cpp"]
+    },
+    "external_libraries": [],
+    "cmake": {
+      "find_packages": [],
+      "extra_sources": [],
+      "extra_include_dirs": [],
+      "extra_link_libraries": []
+    }
+  }
 }

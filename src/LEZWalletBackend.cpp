@@ -1,21 +1,27 @@
 #include "LEZWalletBackend.h"
+
 #include <QAbstractItemModel>
 #include <QClipboard>
+#include <QCoreApplication>
 #include <QDebug>
 #include <QGuiApplication>
 #include <QJsonArray>
 #include <QSettings>
+#include <QTimer>
 #include <QUrl>
+
+#include "logos_api.h"
+#include "logos_sdk.h"
 
 namespace {
     const char SETTINGS_ORG[] = "Logos";
     const char SETTINGS_APP[] = "ExecutionZoneWalletUI";
     const char CONFIG_PATH_KEY[] = "configPath";
     const char STORAGE_PATH_KEY[] = "storagePath";
-    const QString WALLET_MODULE_NAME = QStringLiteral("liblogos_execution_zone_wallet_module");
     const int WALLET_FFI_SUCCESS = 0;
 
-    // Convert decimal amount string to 32-char hex (16 bytes little-endian) for transfer_public/transfer_private.
+    // Convert a decimal amount string to 32-char hex (16 bytes little-endian)
+    // for transfer_public/transfer_private/transfer_private_owned.
     QString amountToLe16Hex(const QString& amountStr) {
         const QString trimmed = amountStr.trimmed();
         if (trimmed.isEmpty()) return QString();
@@ -27,119 +33,102 @@ namespace {
             bytes[i] = static_cast<uint8_t>((value >> (i * 8)) & 0xff);
         return QByteArray(reinterpret_cast<const char*>(bytes), 16).toHex();
     }
+
+    // Normalise file:// URLs and OS paths to a plain local path.
+    QString toLocalPath(const QString& path) {
+        if (path.startsWith("file://") || path.contains("/"))
+            return QUrl::fromUserInput(path).toLocalFile();
+        return path;
+    }
 }
 
 LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
-    : QObject(parent),
-      m_isWalletOpen(false),
-      m_lastSyncedBlock(0),
-      m_currentBlockHeight(0),
+    : LEZWalletBackendSimpleSource(parent),
       m_accountModel(new LEZWalletAccountModel(this)),
       m_filteredAccountModel(new LEZAccountFilterModel(this)),
-      m_logosAPI(nullptr),
-      m_walletClient(nullptr)
+      m_logosAPI(logosAPI ? logosAPI : new LogosAPI("lez_wallet_ui", this)),
+      m_logos(new LogosModules(m_logosAPI))
 {
     m_filteredAccountModel->setSourceModel(m_accountModel);
 
+    // Initialise PROP defaults via the generated setters.
+    setIsWalletOpen(false);
+    setLastSyncedBlock(0);
+    setCurrentBlockHeight(0);
+
+    // Load persisted config/storage paths.
     QSettings s(SETTINGS_ORG, SETTINGS_APP);
-    m_configPath = s.value(CONFIG_PATH_KEY).toString();
-    m_storagePath = s.value(STORAGE_PATH_KEY).toString();
+    setConfigPath(s.value(CONFIG_PATH_KEY).toString());
+    setStoragePath(s.value(STORAGE_PATH_KEY).toString());
 
-    if (!logosAPI) {
-        logosAPI = new LogosAPI("logos_execution_zone_wallet_ui", this);
-    }
-    m_logosAPI = logosAPI;
-    m_walletClient = m_logosAPI->getClient(WALLET_MODULE_NAME);
+    // ui-host runs our constructor inside initLogos(), synchronously, BEFORE
+    // it enables remoting and emits READY. Any blocking RPC here (open,
+    // list_accounts, block-height queries, sequencer lookup) would stall
+    // ui-host startup past ViewModuleHost's 30s ready watchdog and get the
+    // child SIGTERM'd. Defer the whole open+refresh chain to the first
+    // event-loop tick so ui-host finishes wiring itself up first.
+    QTimer::singleShot(0, this, [this]() { openIfPathsConfigured(); });
 
-    if (!m_walletClient) {
-        qWarning() << "LEZWalletBackend: could not get client for" << WALLET_MODULE_NAME;
-        return;
-    }
-
-    if (!m_configPath.isEmpty() && !m_storagePath.isEmpty()) {
-        qDebug() << "LEZWalletBackend: opening wallet with config path" << m_configPath << "and storage path" << m_storagePath;
-        QVariant result = m_walletClient->invokeRemoteMethod(
-            WALLET_MODULE_NAME, "open", m_configPath, m_storagePath);
-        int err = result.isValid() ? result.toInt() : -1;
-        if (err == WALLET_FFI_SUCCESS) {
-            qWarning() << "LEZWalletBackend: wallet opened successfully";
-            setWalletOpen(true);
-            refreshAccounts();
-            refreshBlockHeights();
-            refreshSequencerAddr();
-        }
-    }
-
-    // Save wallet when app quits; host may not call destroyWidget() so destructor might not run.
-    connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() { saveWallet(); }, Qt::DirectConnection);
+    // Save wallet when app quits; host may not call destructors so this is best-effort.
+    connect(qApp, &QCoreApplication::aboutToQuit, this,
+            [this]() { saveWallet(); }, Qt::DirectConnection);
 }
 
 LEZWalletBackend::~LEZWalletBackend()
 {
     saveWallet();
+    delete m_logos;
 }
 
 void LEZWalletBackend::saveWallet()
 {
-    if (m_walletClient && m_isWalletOpen) {
-        m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "save");
+    if (isWalletOpen()) {
+        m_logos->lez_wallet_module.save();
     }
 }
 
-void LEZWalletBackend::setWalletOpen(bool open)
+void LEZWalletBackend::persistConfigPath(const QString& path)
 {
-    if (m_isWalletOpen != open) {
-        m_isWalletOpen = open;
-        emit isWalletOpenChanged();
-    }
+    const QString localPath = toLocalPath(path);
+    setConfigPath(localPath);
+    QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(CONFIG_PATH_KEY, localPath);
 }
 
-void LEZWalletBackend::setConfigPath(const QString& path)
+void LEZWalletBackend::persistStoragePath(const QString& path)
 {
-    QString localPath = path;
-    if (path.startsWith("file://") || path.contains("/")) {
-        localPath = QUrl::fromUserInput(path).toLocalFile();
-    }
-    if (m_configPath != localPath) {
-        m_configPath = localPath;
-        QSettings s(SETTINGS_ORG, SETTINGS_APP);
-        s.setValue(CONFIG_PATH_KEY, m_configPath);
-        emit configPathChanged();
-    }
+    const QString localPath = toLocalPath(path);
+    setStoragePath(localPath);
+    QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(STORAGE_PATH_KEY, localPath);
 }
 
-void LEZWalletBackend::setStoragePath(const QString& path)
+void LEZWalletBackend::openIfPathsConfigured()
 {
-    QString localPath = path;
-    if (path.startsWith("file://") || path.contains("/")) {
-        localPath = QUrl::fromUserInput(path).toLocalFile();
-    }
-    if (m_storagePath != localPath) {
-        m_storagePath = localPath;
-        QSettings s(SETTINGS_ORG, SETTINGS_APP);
-        s.setValue(STORAGE_PATH_KEY, m_storagePath);
-        emit storagePathChanged();
+    if (configPath().isEmpty() || storagePath().isEmpty()) return;
+
+    qDebug() << "LEZWalletBackend: opening wallet with config" << configPath()
+             << "storage" << storagePath();
+    int err = m_logos->lez_wallet_module.open(configPath(), storagePath());
+    if (err == WALLET_FFI_SUCCESS) {
+        qDebug() << "LEZWalletBackend: wallet opened successfully";
+        setIsWalletOpen(true);
+        refreshAccounts();
+        refreshBlockHeights();
+        refreshSequencerAddr();
     }
 }
 
 void LEZWalletBackend::refreshAccounts()
 {
-    if (!m_walletClient) return;
-    QVariant result = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "list_accounts");
-    QJsonArray arr;
-    if (result.isValid() && result.canConvert<QJsonArray>()) {
-        arr = result.toJsonArray();
-    }
+    QJsonArray arr = m_logos->lez_wallet_module.list_accounts();
     m_accountModel->replaceFromJsonArray(arr);
-    emit accountModelChanged();
     refreshBalances();
 }
 
 void LEZWalletBackend::refreshBalances()
 {
     refreshBlockHeights();
-    syncToBlock(m_currentBlockHeight);
-    if (!m_walletClient || !m_accountModel) return;
+    syncToBlock(currentBlockHeight());
+    if (!m_accountModel) return;
     for (int i = 0; i < m_accountModel->count(); ++i) {
         const QModelIndex idx = m_accountModel->index(i, 0);
         const QString addr = m_accountModel->data(idx, LEZWalletAccountModel::AddressRole).toString();
@@ -151,178 +140,116 @@ void LEZWalletBackend::refreshBalances()
 
 void LEZWalletBackend::fetchAndUpdateBlockHeights()
 {
-    if (!m_walletClient) return;
-    const int lastVal = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_last_synced_block").toInt();
-    const int currentVal = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_current_block_height").toInt();
-    if (m_lastSyncedBlock != lastVal) {
-        m_lastSyncedBlock = lastVal;
-        emit lastSyncedBlockChanged();
-    }
-    if (m_currentBlockHeight != currentVal) {
-        m_currentBlockHeight = currentVal;
-        emit currentBlockHeightChanged();
-    }
+    const int lastVal = m_logos->lez_wallet_module.get_last_synced_block();
+    const int currentVal = m_logos->lez_wallet_module.get_current_block_height();
+    if (lastSyncedBlock() != lastVal)
+        setLastSyncedBlock(lastVal);
+    if (currentBlockHeight() != currentVal)
+        setCurrentBlockHeight(currentVal);
 }
 
 void LEZWalletBackend::refreshBlockHeights()
 {
     fetchAndUpdateBlockHeights();
-    if (m_currentBlockHeight > 0 && m_lastSyncedBlock < m_currentBlockHeight && syncToBlock(m_currentBlockHeight))
+    if (currentBlockHeight() > 0
+        && lastSyncedBlock() < currentBlockHeight()
+        && syncToBlock(currentBlockHeight()))
+    {
         fetchAndUpdateBlockHeights();
+    }
 }
 
 void LEZWalletBackend::refreshSequencerAddr()
 {
-    if (!m_walletClient) return;
-    QVariant result = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "get_sequencer_addr");
-    QString addr = result.isValid() ? result.toString() : QString();
-    if (m_sequencerAddr != addr) {
-        m_sequencerAddr = std::move(addr);
-        emit sequencerAddrChanged();
-    }
+    const QString addr = m_logos->lez_wallet_module.get_sequencer_addr();
+    if (sequencerAddr() != addr)
+        setSequencerAddr(addr);
 }
 
 QString LEZWalletBackend::createAccountPublic()
 {
-    if (!m_walletClient) return QString();
-    QVariant result = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "create_account_public");
-    if (result.isValid()) {
+    QString result = m_logos->lez_wallet_module.create_account_public();
+    if (!result.isEmpty())
         refreshAccounts();
-        return result.toString();
-    }
-    return QString();
+    return result;
 }
 
 QString LEZWalletBackend::createAccountPrivate()
 {
-    if (!m_walletClient) return QString();
-    QVariant result = m_walletClient->invokeRemoteMethod(WALLET_MODULE_NAME, "create_account_private");
-    if (result.isValid()) {
+    QString result = m_logos->lez_wallet_module.create_account_private();
+    if (!result.isEmpty())
         refreshAccounts();
-        return result.toString();
-    }
-    return QString();
+    return result;
 }
 
-QString LEZWalletBackend::getBalance(const QString& accountIdHex, bool isPublic)
+QString LEZWalletBackend::getBalance(QString accountIdHex, bool isPublic)
 {
-    if (!m_walletClient) return QStringLiteral("Error: Module not initialized.");
-    QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "get_balance", accountIdHex, isPublic);
-    return result.isValid() ? result.toString() : QStringLiteral("Error: Call failed.");
+    return m_logos->lez_wallet_module.get_balance(accountIdHex, isPublic);
 }
 
-QString LEZWalletBackend::getPublicAccountKey(const QString& accountIdHex)
+QString LEZWalletBackend::getPublicAccountKey(QString accountIdHex)
 {
-    if (!m_walletClient) return QString();
-    QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "get_public_account_key", accountIdHex);
-    return result.isValid() ? result.toString() : QString();
+    return m_logos->lez_wallet_module.get_public_account_key(accountIdHex);
 }
 
-QString LEZWalletBackend::getPrivateAccountKeys(const QString& accountIdHex)
+QString LEZWalletBackend::getPrivateAccountKeys(QString accountIdHex)
 {
-    if (!m_walletClient) return QString();
-    QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "get_private_account_keys", accountIdHex);
-    return result.isValid() ? result.toString() : QString();
+    return m_logos->lez_wallet_module.get_private_account_keys(accountIdHex);
 }
 
 bool LEZWalletBackend::syncToBlock(quint64 blockId)
 {
-    if (!m_walletClient) return false;
-    QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "sync_to_block", blockId);
-    int err = result.isValid() ? result.toInt() : -1;
+    int err = m_logos->lez_wallet_module.sync_to_block(blockId);
     return err == WALLET_FFI_SUCCESS;
 }
 
-QString LEZWalletBackend::transferPublic(
-    const QString& fromHex,
-    const QString& toHex,
-    const QString& amountLe16Hex)
+QString LEZWalletBackend::transferPublic(QString fromHex, QString toHex, QString amountStr)
 {
-    if (!m_walletClient) return QStringLiteral("Error: Module not initialized.");
-    const QString amountHex = amountToLe16Hex(amountLe16Hex);
+    const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "transfer_public", fromHex, toHex, amountHex);
-    return result.isValid() ? result.toString() : QStringLiteral("Error: Call failed.");
+    return m_logos->lez_wallet_module.transfer_public(fromHex, toHex, amountHex);
 }
 
-QString LEZWalletBackend::transferPrivate(
-    const QString& fromHex,
-    const QString& toHex,
-    const QString& amountLe16Hex)
+QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QString amountStr)
 {
-    if (!m_walletClient) return QStringLiteral("Error: Module not initialized.");
-    const QString amountHex = amountToLe16Hex(amountLe16Hex);
+    const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
 
     QString keysPayload = toHex.trimmed();
-    // If "To" is not JSON (e.g. user pasted account id hex), resolve to keys via get_private_account_keys.
+    // If "To" is not JSON (e.g. user pasted account id hex), resolve to keys.
     if (!keysPayload.startsWith(QLatin1Char('{'))) {
-        qDebug() << "LEZWalletBackend::transferPrivate: keysPayload is not JSON, resolving to keys via get_private_account_keys";
+        qDebug() << "LEZWalletBackend::transferPrivate: resolving keys via get_private_account_keys";
         const QString resolved = getPrivateAccountKeys(keysPayload);
         if (!resolved.isEmpty())
             keysPayload = resolved;
     }
 
-    QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "transfer_private", fromHex, keysPayload, amountHex, Timeout(6*60*1000)); // 6 minutes timeout
-    return result.isValid() ? result.toString() : QStringLiteral("Error: Call failed.");
+    return m_logos->lez_wallet_module.transfer_private(fromHex, keysPayload, amountHex);
 }
 
-QString LEZWalletBackend::transferPrivateOwned(
-    const QString& fromHex,
-    const QString& toHex,
-    const QString& amountLe16Hex)
+QString LEZWalletBackend::transferPrivateOwned(QString fromHex, QString toHex, QString amountStr)
 {
-    if (!m_walletClient) return QStringLiteral("Error: Module not initialized.");
-    const QString amountHex = amountToLe16Hex(amountLe16Hex);
+    const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "transfer_private_owned", fromHex, toHex.trimmed(), amountHex);
-    return result.isValid() ? result.toString() : QStringLiteral("Error: Call failed.");
+    return m_logos->lez_wallet_module.transfer_private_owned(fromHex, toHex.trimmed(), amountHex);
 }
 
-bool LEZWalletBackend::createNew(
-    const QString& configPath,
-    const QString& storagePath,
-    const QString& password)
+bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password)
 {
-    const QString localPath = QUrl::fromUserInput(configPath).toLocalFile();
-    if (!m_walletClient) return false;
-    QVariant result = m_walletClient->invokeRemoteMethod(
-        WALLET_MODULE_NAME, "create_new", localPath, storagePath, password);
-    int err = result.isValid() ? result.toInt() : -1;
+    const QString localPath = toLocalPath(configPath);
+    int err = m_logos->lez_wallet_module.create_new(localPath, storagePath, password);
     if (err != WALLET_FFI_SUCCESS) return false;
 
-    setConfigPath(localPath);
-    setStoragePath(storagePath);
-    setWalletOpen(true);
+    persistConfigPath(localPath);
+    persistStoragePath(storagePath);
+    setIsWalletOpen(true);
     refreshAccounts();
     refreshBlockHeights();
     refreshSequencerAddr();
     return true;
 }
 
-int LEZWalletBackend::indexOfAddressInModel(QObject* model, const QString& address) const
-{
-    auto* m = qobject_cast<QAbstractItemModel*>(model);
-    if (!m || address.isEmpty())
-        return -1;
-    const int role = m->roleNames().key("address", -1);
-    if (role < 0)
-        return -1;
-    for (int i = 0; i < m->rowCount(); ++i) {
-        if (m->data(m->index(i, 0), role).toString() == address)
-            return i;
-    }
-    return -1;
-}
-
-void LEZWalletBackend::copyToClipboard(const QString& text)
+void LEZWalletBackend::copyToClipboard(QString text)
 {
     if (QGuiApplication::clipboard())
         QGuiApplication::clipboard()->setText(text);

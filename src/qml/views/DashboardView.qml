@@ -39,6 +39,7 @@ Rectangle {
             onCreatePublicAccountRequested: root.createPublicAccountRequested()
             onCreatePrivateAccountRequested: root.createPrivateAccountRequested()
             onFetchBalancesRequested: root.fetchBalancesRequested()
+            onCopyRequested: (text) => root.copyRequested(text)
         }
 
         TransferPanel {

@@ -149,7 +149,7 @@ Control {
         id: configFileDialog
         modality: Qt.NonModal
         nameFilters: ["JSON files (*.json)"]
-        currentFolder: root.configPath ? d.configParentFolderUrl(oot.configPath) : ""
+        currentFolder: root.configPath ? d.configParentFolderUrl(root.configPath) : ""
         onAccepted: {
             if (selectedFile) configPathField.text = selectedFile.toString().replace(/^file:\/\//, "")
         }
