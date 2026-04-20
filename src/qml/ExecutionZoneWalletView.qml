@@ -9,14 +9,14 @@ import "views"
 Rectangle {
     id: root
 
-    readonly property var backend: logos.module("logos_execution_zone_wallet_ui")
-    readonly property var accountModel: logos.model("logos_execution_zone_wallet_ui", "accountModel")
+    readonly property var backend: logos.module("lez_wallet_ui")
+    readonly property var accountModel: logos.model("lez_wallet_ui", "accountModel")
     property bool ready: false
 
     Connections {
         target: logos
         function onViewModuleReadyChanged(moduleName, isReady) {
-            if (moduleName === "logos_execution_zone_wallet_ui")
+            if (moduleName === "lez_wallet_ui")
                 root.ready = isReady && root.backend !== null
         }
     }
@@ -93,7 +93,7 @@ Rectangle {
 
     Component.onCompleted: {
         root.ready = root.backend !== null
-            && logos.isViewModuleReady("logos_execution_zone_wallet_ui")
+            && logos.isViewModuleReady("lez_wallet_ui")
         if (root.ready) d.updateStack(d.isWalletOpen)
     }
 

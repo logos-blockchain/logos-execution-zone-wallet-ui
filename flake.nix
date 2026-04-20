@@ -4,7 +4,7 @@
   inputs = {
     logos-module-builder.url = "github:logos-co/logos-module-builder";
     nix-bundle-lgx.url = "github:logos-co/nix-bundle-lgx";
-    liblogos_execution_zone_wallet_module.url = "github:logos-blockchain/logos-execution-zone-module";
+    lez_wallet_module.url = "github:logos-blockchain/logos-execution-zone-module";
   };
 
   outputs = inputs@{ logos-module-builder, ... }:
@@ -23,7 +23,7 @@
       # empty stubs in to satisfy the include + initializer.
       preConfigure = ''
         mkdir -p ./generated_code/include
-        cat > ./generated_code/include/liblogos_execution_zone_wallet_module_api.h <<'EOF'
+        cat > ./generated_code/include/lez_wallet_module_api.h <<'EOF'
 #pragma once
 #include "logos_api.h"
 
@@ -32,15 +32,13 @@
 // raw LogosAPIClient::invokeRemoteMethod() instead, so this empty class
 // only needs to satisfy the umbrella logos_sdk.h's member declaration and
 // constructor initializer.
-class LiblogosExecutionZoneWalletModule {
+class LezWalletModule {
 public:
-    explicit LiblogosExecutionZoneWalletModule(LogosAPI* /*api*/) {}
+    explicit LezWalletModule(LogosAPI* /*api*/) {}
 };
 EOF
-        cat > ./generated_code/include/liblogos_execution_zone_wallet_module_api.cpp <<'EOF'
-// Stub source for the typed wrapper. The umbrella logos_sdk.cpp #includes
-// this file; the class is fully defined inline in the header above so this
-// translation unit is intentionally empty.
+        cat > ./generated_code/include/lez_wallet_module_api.cpp <<'EOF'
+// Stub: class is inline in lez_wallet_module_api.h; logos_sdk.cpp #includes this file.
 EOF
       '';
     };

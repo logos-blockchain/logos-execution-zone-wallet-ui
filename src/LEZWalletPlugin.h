@@ -24,7 +24,7 @@ public:
     explicit LEZWalletPlugin(QObject* parent = nullptr);
     ~LEZWalletPlugin() override;
 
-    QString name()    const override { return "logos_execution_zone_wallet_ui"; }
+    QString name()    const override { return "lez_wallet_ui"; }
     QString version() const override { return "1.0.0"; }
 
     // Called by ui-host after plugin load. Creates the backend and wires

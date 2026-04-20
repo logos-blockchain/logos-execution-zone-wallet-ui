@@ -1,14 +1,14 @@
 {
-  "name": "logos_execution_zone_wallet_ui",
+  "name": "lez_wallet_ui",
   "version": "1.0.0",
   "type": "ui_qml",
   "category": "wallet",
   "description": "Execution Zone Wallet UI module for the Logos application",
   "author": "Logos Blockchain Team",
-  "main": "logos_execution_zone_wallet_ui_plugin",
+  "main": "lez_wallet_ui_plugin",
   "icon": "src/qml/icons/copy.svg",
   "view": "qml/ExecutionZoneWalletView.qml",
-  "dependencies": ["liblogos_execution_zone_wallet_module"],
+  "dependencies": ["lez_wallet_module"],
 
   "nix": {
     "packages": {

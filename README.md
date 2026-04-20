@@ -27,11 +27,11 @@ Built with [`logos-module-builder`](https://github.com/logos-co/logos-module-bui
 nix run
 
 # With local workspace overrides
-nix run --override-input liblogos_execution_zone_wallet_module path:../logos-execution-zone-module \
+nix run --override-input lez_wallet_module path:../logos-execution-zone-module \
         --override-input logos-module-builder path:../logos-module-builder
 ```
 
-The standalone app starts Logos Core, loads `capability_module` and `liblogos_execution_zone_wallet_module`, then launches the QML UI via an isolated `ui-host` process.
+The standalone app starts Logos Core, loads `capability_module` and the `lez_wallet_module` core plugin (flake input name must match `metadata.json` `dependencies`), then launches the QML UI via an isolated `ui-host` process.
 
 ### In Basecamp
 
@@ -81,6 +81,28 @@ logos-execution-zone-wallet-ui/
 ## Configuration
 
 Config path and storage path are persisted via QSettings (`Logos`, `ExecutionZoneWalletUI`). On first run, if opening the wallet fails, the onboarding screen is shown to create a new wallet.
+
+### Resetting saved paths and onboarding
+
+Saved config path, storage path, and related UI state come from **QSettings** (organization `Logos`, application `ExecutionZoneWalletUI`), in addition to whatever files live on disk under your chosen storage path.
+
+To fully reset onboarding and drop old paths:
+
+1. **Quit** the app (and any `ui-host` process if you use standalone).
+2. **Remove wallet data** on disk if you no longer need it (your storage directory).
+3. **Clear persisted settings** for this app so QSettings does not immediately repopulate the old paths. Where that store lives is **platform-specific** (Qt native format per OS).
+
+**macOS** — preferences are under the domain `com.logos.ExecutionZoneWalletUI`. After quitting the app:
+
+```bash
+defaults delete com.logos.ExecutionZoneWalletUI 2>/dev/null
+rm -f ~/Library/Preferences/com.logos.ExecutionZoneWalletUI.plist
+killall cfprefsd
+```
+
+Restarting `cfprefsd` (it comes back automatically) avoids stale in-memory preference cache.
+
+On **Linux** and **Windows**, use your platform’s usual way to clear app settings (e.g. delete the Qt settings file under `~/.config` / registry / `%AppData%` for `Logos` / `ExecutionZoneWalletUI`, or an equivalent tool), following [QSettings](https://doc.qt.io/qt-6/qsettings.html#locations) locations for the native format on that OS.
 
 ### QML Hot Reload
 

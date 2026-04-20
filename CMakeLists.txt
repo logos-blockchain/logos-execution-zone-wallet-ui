@@ -8,7 +8,7 @@ else()
 endif()
 
 logos_module(
-    NAME logos_execution_zone_wallet_ui
+    NAME lez_wallet_ui
     REP_FILE src/LEZWalletBackend.rep
     SOURCES
         src/LEZWalletPluginInterface.h

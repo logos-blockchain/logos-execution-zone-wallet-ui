@@ -18,7 +18,7 @@ namespace {
     const char SETTINGS_APP[] = "ExecutionZoneWalletUI";
     const char CONFIG_PATH_KEY[] = "configPath";
     const char STORAGE_PATH_KEY[] = "storagePath";
-    const QString WALLET_MODULE_NAME = QStringLiteral("liblogos_execution_zone_wallet_module");
+    const QString WALLET_MODULE_NAME = QStringLiteral("lez_wallet_module");
     const int WALLET_FFI_SUCCESS = 0;
 
     // Convert a decimal amount string to 32-char hex (16 bytes little-endian)
@@ -47,7 +47,7 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     : LEZWalletBackendSimpleSource(parent),
       m_accountModel(new LEZWalletAccountModel(this)),
       m_filteredAccountModel(new LEZAccountFilterModel(this)),
-      m_logosAPI(logosAPI ? logosAPI : new LogosAPI("logos_execution_zone_wallet_ui", this)),
+      m_logosAPI(logosAPI ? logosAPI : new LogosAPI("lez_wallet_ui", this)),
       m_walletClient(nullptr)
 {
     m_filteredAccountModel->setSourceModel(m_accountModel);
