@@ -10,7 +10,7 @@
 #include "LEZWalletAccountModel.h"
 
 class LogosAPI;
-class LogosAPIClient;
+struct LogosModules;
 
 // Source-side implementation of the LEZWalletBackend .rep interface.
 // Inheriting from LEZWalletBackendSimpleSource gives us the generated PROPs
@@ -56,7 +56,7 @@ private:
     LEZAccountFilterModel* m_filteredAccountModel;
 
     LogosAPI* m_logosAPI;
-    LogosAPIClient* m_walletClient;
+    LogosModules* m_logos;
 };
 
 #endif // LEZ_WALLET_BACKEND_H

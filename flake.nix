@@ -12,34 +12,5 @@
       src = ./.;
       configFile = ./metadata.json;
       flakeInputs = inputs;
-
-      # Stub the typed wrapper for liblogos_execution_zone_wallet_module.
-      # That module ships its plugin via a hand-rolled mkDerivation (not
-      # mkLogosModule), so it does not produce a *_api.h via
-      # logos-cpp-generator --module-only. LEZWalletBackend never uses the
-      # typed wrapper — it talks to the wallet module via raw
-      # LogosAPIClient::invokeRemoteMethod() — but the auto-generated
-      # logos_sdk.{h,cpp} umbrella still references the wrapper, so we drop
-      # empty stubs in to satisfy the include + initializer.
-      preConfigure = ''
-        mkdir -p ./generated_code/include
-        cat > ./generated_code/include/lez_wallet_module_api.h <<'EOF'
-#pragma once
-#include "logos_api.h"
-
-// Stub: see flake.nix preConfigure. The wallet module isn't built with
-// mkLogosModule and doesn't produce a typed _api.h. LEZWalletBackend uses
-// raw LogosAPIClient::invokeRemoteMethod() instead, so this empty class
-// only needs to satisfy the umbrella logos_sdk.h's member declaration and
-// constructor initializer.
-class LezWalletModule {
-public:
-    explicit LezWalletModule(LogosAPI* /*api*/) {}
-};
-EOF
-        cat > ./generated_code/include/lez_wallet_module_api.cpp <<'EOF'
-// Stub: class is inline in lez_wallet_module_api.h; logos_sdk.cpp #includes this file.
-EOF
-      '';
     };
 }
