@@ -2,36 +2,16 @@
   "nodes": {
     "crane": {
       "locked": {
-        "lastModified": 1769737823,
-        "narHash": "sha256-DrBaNpZ+sJ4stXm+0nBX7zqZT9t9P22zbk6m5YhQxS4=",
+        "lastModified": 1776396856,
+        "narHash": "sha256-aRJpIJUlZLaf06ekPvqjuU46zvO9K90IxJGpbqodkPs=",
         "owner": "ipetkov",
         "repo": "crane",
-        "rev": "b2f45c3830aa96b7456a4c4bc327d04d7a43e1ba",
+        "rev": "28462d6d55c33206ffa5a56c7907ca3125ed788f",
         "type": "github"
       },
       "original": {
         "owner": "ipetkov",
         "repo": "crane",
-        "type": "github"
-      }
-    },
-    "lez_wallet_module": {
-      "inputs": {
-        "logos-execution-zone": "logos-execution-zone",
-        "logos-module-builder": "logos-module-builder",
-        "nix-bundle-lgx": "nix-bundle-lgx_4"
-      },
-      "locked": {
-        "lastModified": 1776703320,
-        "narHash": "sha256-RCLFRGKg+CnFZzkCKbKWbS1wdcxPw9QQnxi1vP2m8WY=",
-        "owner": "logos-blockchain",
-        "repo": "logos-execution-zone-module",
-        "rev": "62829623257d98b18a8c10a30801a4f10d1681dd",
-        "type": "github"
-      },
-      "original": {
-        "owner": "logos-blockchain",
-        "repo": "logos-execution-zone-module",
         "type": "github"
       }
     },
@@ -40,11 +20,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1770979891,
-        "narHash": "sha256-cvkVnE7btuFLzv70ORAZve9K1Huiplq0iECgXSXb0ZY=",
+        "lastModified": 1775835011,
+        "narHash": "sha256-SQDLyyRUa5J9QHjNiHbeZw4rQOZnTEo61TcaUpjtLBs=",
         "owner": "logos-blockchain",
         "repo": "logos-blockchain-circuits",
-        "rev": "ec7d298e5a3a0507bb8570df86cdf78dc452d024",
+        "rev": "d6cf41f66500d4afc157b4f43de0f0d5bfa01443",
         "type": "github"
       },
       "original": {
@@ -56,7 +36,7 @@
     "logos-capability-module": {
       "inputs": {
         "logos-cpp-sdk": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-cpp-sdk"
@@ -64,7 +44,7 @@
         "logos-module": "logos-module_4",
         "logos-nix": "logos-nix_9",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-nix",
@@ -91,7 +71,7 @@
         "logos-module": "logos-module_5",
         "logos-nix": "logos-nix_14",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -176,7 +156,7 @@
       "inputs": {
         "logos-nix": "logos-nix",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-cpp-sdk",
           "logos-nix",
@@ -201,7 +181,7 @@
       "inputs": {
         "logos-nix": "logos-nix_10",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-cpp-sdk",
@@ -227,7 +207,7 @@
       "inputs": {
         "logos-nix": "logos-nix_12",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -255,7 +235,7 @@
       "inputs": {
         "logos-nix": "logos-nix_15",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -384,7 +364,7 @@
       "inputs": {
         "logos-nix": "logos-nix_11",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-design-system",
@@ -439,17 +419,37 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1772525593,
-        "narHash": "sha256-elnxzEEMt28P67+3LGHt6wfU6ltCtWZHI0KhrMpQaxs=",
+        "lastModified": 1777304880,
+        "narHash": "sha256-tbVljiQ5Xgm5LBea6bIEDFp/pextnYtooNk+IWx/3XE=",
         "owner": "logos-blockchain",
         "repo": "lssa",
-        "rev": "9df121704fe3ae8831d616e26157be15e1f3f26d",
+        "rev": "cf3639d8252040d13b3d4e933feb19b42c76e14a",
         "type": "github"
       },
       "original": {
         "owner": "logos-blockchain",
-        "ref": "wallet-ffi-0.1.0",
         "repo": "lssa",
+        "rev": "cf3639d8252040d13b3d4e933feb19b42c76e14a",
+        "type": "github"
+      }
+    },
+    "logos-execution-zone-module": {
+      "inputs": {
+        "logos-execution-zone": "logos-execution-zone",
+        "logos-module-builder": "logos-module-builder",
+        "nix-bundle-lgx": "nix-bundle-lgx_4"
+      },
+      "locked": {
+        "lastModified": 1779377153,
+        "narHash": "sha256-/L4fH8/EcwI6hv3cV+wGjW7DrV6cHxq37sEuwBKXH50=",
+        "owner": "logos-blockchain",
+        "repo": "logos-execution-zone-module",
+        "rev": "5d42559db8634ec40742941d8c22aeaedb2c1955",
+        "type": "github"
+      },
+      "original": {
+        "owner": "logos-blockchain",
+        "repo": "logos-execution-zone-module",
         "type": "github"
       }
     },
@@ -461,7 +461,7 @@
         "logos-nix": "logos-nix_17",
         "logos-package-manager": "logos-package-manager",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-nix",
@@ -516,7 +516,7 @@
       "inputs": {
         "logos-nix": "logos-nix_2",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-module",
           "logos-nix",
@@ -549,7 +549,7 @@
         "nix-bundle-lgx": "nix-bundle-lgx_2",
         "nix-bundle-logos-module-install": "nix-bundle-logos-module-install",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-nix",
           "nixpkgs"
@@ -683,7 +683,7 @@
       "inputs": {
         "logos-nix": "logos-nix_4",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-plugin-core",
           "logos-module",
@@ -709,7 +709,7 @@
       "inputs": {
         "logos-nix": "logos-nix_6",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-plugin-qt",
           "logos-module",
@@ -735,7 +735,7 @@
       "inputs": {
         "logos-nix": "logos-nix_8",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-capability-module",
@@ -762,7 +762,7 @@
       "inputs": {
         "logos-nix": "logos-nix_13",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -790,7 +790,7 @@
       "inputs": {
         "logos-nix": "logos-nix_16",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -2511,7 +2511,7 @@
       "inputs": {
         "logos-nix": "logos-nix_19",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -2542,7 +2542,7 @@
         "nix-bundle-appimage": "nix-bundle-appimage",
         "nix-bundle-dir": "nix-bundle-dir_2",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -2572,7 +2572,7 @@
         "nix-bundle-appimage": "nix-bundle-appimage_2",
         "nix-bundle-dir": "nix-bundle-dir_6",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-logos-module-install",
           "logos-package-manager",
@@ -2731,7 +2731,7 @@
       "inputs": {
         "logos-nix": "logos-nix_28",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "nix-bundle-lgx",
@@ -2758,7 +2758,7 @@
       "inputs": {
         "logos-nix": "logos-nix_32",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-lgx",
           "logos-package",
@@ -2784,7 +2784,7 @@
       "inputs": {
         "logos-nix": "logos-nix_36",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-logos-module-install",
           "logos-package-manager",
@@ -2811,7 +2811,7 @@
       "inputs": {
         "logos-nix": "logos-nix_41",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-logos-module-install",
           "nix-bundle-lgx",
@@ -2838,7 +2838,7 @@
       "inputs": {
         "logos-nix": "logos-nix_44",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "nix-bundle-lgx",
           "logos-package",
           "logos-nix",
@@ -2942,7 +2942,7 @@
         "logos-module": "logos-module_2",
         "logos-nix": "logos-nix_5",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-plugin-core",
           "logos-nix",
@@ -2993,7 +2993,7 @@
         "logos-module": "logos-module_3",
         "logos-nix": "logos-nix_7",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-plugin-qt",
           "logos-nix",
@@ -3043,7 +3043,7 @@
       "inputs": {
         "logos-nix": "logos-nix_25",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-nix",
@@ -3099,7 +3099,7 @@
         "logos-view-module-runtime": "logos-view-module-runtime",
         "nix-bundle-lgx": "nix-bundle-lgx",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-nix",
@@ -3154,13 +3154,13 @@
     "logos-test-framework": {
       "inputs": {
         "logos-cpp-sdk": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-cpp-sdk"
         ],
         "logos-nix": "logos-nix_30",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-test-framework",
           "logos-nix",
@@ -3212,14 +3212,14 @@
     "logos-view-module-runtime": {
       "inputs": {
         "logos-cpp-sdk": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-cpp-sdk"
         ],
         "logos-nix": "logos-nix_26",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-nix",
@@ -3274,7 +3274,7 @@
         "logos-nix": "logos-nix_20",
         "nix-bundle-dir": "nix-bundle-dir",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -3303,7 +3303,7 @@
         "logos-nix": "logos-nix_37",
         "nix-bundle-dir": "nix-bundle-dir_5",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-logos-module-install",
           "logos-package-manager",
@@ -3385,7 +3385,7 @@
       "inputs": {
         "logos-nix": "logos-nix_21",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -3591,7 +3591,7 @@
       "inputs": {
         "logos-nix": "logos-nix_22",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -3619,7 +3619,7 @@
       "inputs": {
         "logos-nix": "logos-nix_29",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "nix-bundle-lgx",
@@ -3646,7 +3646,7 @@
       "inputs": {
         "logos-nix": "logos-nix_33",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-lgx",
           "nix-bundle-dir",
@@ -3672,7 +3672,7 @@
       "inputs": {
         "logos-nix": "logos-nix_38",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-logos-module-install",
           "logos-package-manager",
@@ -3698,7 +3698,7 @@
       "inputs": {
         "logos-nix": "logos-nix_39",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-logos-module-install",
           "logos-package-manager",
@@ -3725,7 +3725,7 @@
       "inputs": {
         "logos-nix": "logos-nix_42",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-logos-module-install",
           "nix-bundle-lgx",
@@ -3752,7 +3752,7 @@
       "inputs": {
         "logos-nix": "logos-nix_45",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "nix-bundle-lgx",
           "nix-bundle-dir",
           "logos-nix",
@@ -3805,7 +3805,7 @@
         "logos-package": "logos-package_2",
         "nix-bundle-dir": "nix-bundle-dir_3",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-nix",
@@ -3832,7 +3832,7 @@
         "logos-package": "logos-package_3",
         "nix-bundle-dir": "nix-bundle-dir_4",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-lgx",
           "logos-nix",
@@ -3859,7 +3859,7 @@
         "logos-package": "logos-package_5",
         "nix-bundle-dir": "nix-bundle-dir_7",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-logos-module-install",
           "nix-bundle-lgx",
@@ -3887,7 +3887,7 @@
         "logos-package": "logos-package_6",
         "nix-bundle-dir": "nix-bundle-dir_8",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "nix-bundle-lgx",
           "logos-nix",
           "nixpkgs"
@@ -4017,7 +4017,7 @@
         "logos-package-manager": "logos-package-manager_2",
         "nix-bundle-lgx": "nix-bundle-lgx_3",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "nix-bundle-logos-module-install",
           "logos-nix",
@@ -4242,11 +4242,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1770019141,
-        "narHash": "sha256-VKS4ZLNx4PNrABoB0L8KUpc1fE7CLpQXQs985tGfaCU=",
+        "lastModified": 1776169885,
+        "narHash": "sha256-l/iNYDZ4bGOAFQY2q8y5OAfBBtrDAaPuRQqWaFHVRXM=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "cb369ef2efd432b3cdf8622b0ffc0a97a02f3137",
+        "rev": "4bd9165a9165d7b5e33ae57f3eecbcb28fb231c9",
         "type": "github"
       },
       "original": {
@@ -5540,7 +5540,7 @@
       "inputs": {
         "logos-nix": "logos-nix_23",
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-module-builder",
           "logos-standalone-app",
           "logos-liblogos",
@@ -5591,7 +5591,7 @@
     },
     "root": {
       "inputs": {
-        "lez_wallet_module": "lez_wallet_module",
+        "logos-execution-zone-module": "logos-execution-zone-module",
         "logos-module-builder": "logos-module-builder_2",
         "nix-bundle-lgx": "nix-bundle-lgx_8"
       }
@@ -5599,17 +5599,17 @@
     "rust-overlay": {
       "inputs": {
         "nixpkgs": [
-          "lez_wallet_module",
+          "logos-execution-zone-module",
           "logos-execution-zone",
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1770088046,
-        "narHash": "sha256-4hfYDnUTvL1qSSZEA4CEThxfz+KlwSFQ30Z9jgDguO0=",
+        "lastModified": 1776395632,
+        "narHash": "sha256-Mi1uF5f2FsdBIvy+v7MtsqxD3Xjhd0ARJdwoqqqPtJo=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "71f9daa4e05e49c434d08627e755495ae222bc34",
+        "rev": "8087ff1f47fff983a1fba70fa88b759f2fd8ae97",
         "type": "github"
       },
       "original": {
