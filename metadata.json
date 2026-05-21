@@ -8,7 +8,7 @@
   "main": "lez_wallet_ui_plugin",
   "icon": "src/qml/icons/copy.svg",
   "view": "qml/ExecutionZoneWalletView.qml",
-  "dependencies": ["lez_wallet_module"],
+  "dependencies": ["logos_execution_zone"],
 
   "nix": {
     "packages": {

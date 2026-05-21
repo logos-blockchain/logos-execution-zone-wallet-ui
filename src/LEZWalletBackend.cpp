@@ -83,7 +83,7 @@ LEZWalletBackend::~LEZWalletBackend()
 void LEZWalletBackend::saveWallet()
 {
     if (isWalletOpen()) {
-        m_logos->lez_wallet_module.save();
+        m_logos->logos_execution_zone.save();
     }
 }
 
@@ -107,7 +107,7 @@ void LEZWalletBackend::openIfPathsConfigured()
 
     qDebug() << "LEZWalletBackend: opening wallet with config" << configPath()
              << "storage" << storagePath();
-    int err = m_logos->lez_wallet_module.open(configPath(), storagePath());
+    int err = m_logos->logos_execution_zone.open(configPath(), storagePath());
     if (err == WALLET_FFI_SUCCESS) {
         qDebug() << "LEZWalletBackend: wallet opened successfully";
         setIsWalletOpen(true);
@@ -119,7 +119,7 @@ void LEZWalletBackend::openIfPathsConfigured()
 
 void LEZWalletBackend::refreshAccounts()
 {
-    QJsonArray arr = m_logos->lez_wallet_module.list_accounts();
+    QJsonArray arr = m_logos->logos_execution_zone.list_accounts();
     m_accountModel->replaceFromJsonArray(arr);
     refreshBalances();
 }
@@ -140,8 +140,8 @@ void LEZWalletBackend::refreshBalances()
 
 void LEZWalletBackend::fetchAndUpdateBlockHeights()
 {
-    const int lastVal = m_logos->lez_wallet_module.get_last_synced_block();
-    const int currentVal = m_logos->lez_wallet_module.get_current_block_height();
+    const int lastVal = m_logos->logos_execution_zone.get_last_synced_block();
+    const int currentVal = m_logos->logos_execution_zone.get_current_block_height();
     if (lastSyncedBlock() != lastVal)
         setLastSyncedBlock(lastVal);
     if (currentBlockHeight() != currentVal)
@@ -161,14 +161,14 @@ void LEZWalletBackend::refreshBlockHeights()
 
 void LEZWalletBackend::refreshSequencerAddr()
 {
-    const QString addr = m_logos->lez_wallet_module.get_sequencer_addr();
+    const QString addr = m_logos->logos_execution_zone.get_sequencer_addr();
     if (sequencerAddr() != addr)
         setSequencerAddr(addr);
 }
 
 QString LEZWalletBackend::createAccountPublic()
 {
-    QString result = m_logos->lez_wallet_module.create_account_public();
+    QString result = m_logos->logos_execution_zone.create_account_public();
     if (!result.isEmpty())
         refreshAccounts();
     return result;
@@ -176,7 +176,7 @@ QString LEZWalletBackend::createAccountPublic()
 
 QString LEZWalletBackend::createAccountPrivate()
 {
-    QString result = m_logos->lez_wallet_module.create_account_private();
+    QString result = m_logos->logos_execution_zone.create_account_private();
     if (!result.isEmpty())
         refreshAccounts();
     return result;
@@ -184,22 +184,22 @@ QString LEZWalletBackend::createAccountPrivate()
 
 QString LEZWalletBackend::getBalance(QString accountIdHex, bool isPublic)
 {
-    return m_logos->lez_wallet_module.get_balance(accountIdHex, isPublic);
+    return m_logos->logos_execution_zone.get_balance(accountIdHex, isPublic);
 }
 
 QString LEZWalletBackend::getPublicAccountKey(QString accountIdHex)
 {
-    return m_logos->lez_wallet_module.get_public_account_key(accountIdHex);
+    return m_logos->logos_execution_zone.get_public_account_key(accountIdHex);
 }
 
 QString LEZWalletBackend::getPrivateAccountKeys(QString accountIdHex)
 {
-    return m_logos->lez_wallet_module.get_private_account_keys(accountIdHex);
+    return m_logos->logos_execution_zone.get_private_account_keys(accountIdHex);
 }
 
 bool LEZWalletBackend::syncToBlock(quint64 blockId)
 {
-    int err = m_logos->lez_wallet_module.sync_to_block(blockId);
+    int err = m_logos->logos_execution_zone.sync_to_block(blockId);
     return err == WALLET_FFI_SUCCESS;
 }
 
@@ -207,7 +207,7 @@ QString LEZWalletBackend::transferPublic(QString fromHex, QString toHex, QString
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    return m_logos->lez_wallet_module.transfer_public(fromHex, toHex, amountHex);
+    return m_logos->logos_execution_zone.transfer_public(fromHex, toHex, amountHex);
 }
 
 QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QString amountStr)
@@ -224,20 +224,20 @@ QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QStrin
             keysPayload = resolved;
     }
 
-    return m_logos->lez_wallet_module.transfer_private(fromHex, keysPayload, amountHex);
+    return m_logos->logos_execution_zone.transfer_private(fromHex, keysPayload, amountHex);
 }
 
 QString LEZWalletBackend::transferPrivateOwned(QString fromHex, QString toHex, QString amountStr)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    return m_logos->lez_wallet_module.transfer_private_owned(fromHex, toHex.trimmed(), amountHex);
+    return m_logos->logos_execution_zone.transfer_private_owned(fromHex, toHex.trimmed(), amountHex);
 }
 
 bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password)
 {
     const QString localPath = toLocalPath(configPath);
-    int err = m_logos->lez_wallet_module.create_new(localPath, storagePath, password);
+    int err = m_logos->logos_execution_zone.create_new(localPath, storagePath, password);
     if (err != WALLET_FFI_SUCCESS) return false;
 
     persistConfigPath(localPath);
