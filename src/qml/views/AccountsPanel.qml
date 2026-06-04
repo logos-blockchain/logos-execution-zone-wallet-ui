@@ -75,10 +75,10 @@ Rectangle {
             id: listView
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: (accountModel && accountModel.count > 0) || !accountModel
+            visible: count > 0 || !root.accountModel
             clip: true
             spacing: Theme.spacing.small
-            model: accountModel && accountModel.count > 0 ? root.accountModel: null
+            model: root.accountModel
 
             delegate: AccountDelegate {
                 width: listView.width
