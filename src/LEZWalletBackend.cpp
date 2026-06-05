@@ -125,8 +125,10 @@ void LEZWalletBackend::openIfPathsConfigured()
     if (err == WALLET_FFI_SUCCESS) {
         qDebug() << "LEZWalletBackend: wallet opened successfully";
         setIsWalletOpen(true);
-        refreshAccounts();
-        refreshBlockHeights();
+        QJsonArray arr = m_logos->logos_execution_zone.list_accounts();
+        m_accountModel->replaceFromJsonArray(arr);
+        fetchAndUpdateBlockHeights();
+        startChunkedSync();
         refreshSequencerAddr();
     } else {
         qWarning() << "LEZWalletBackend: failed to open wallet, error" << err
@@ -138,21 +140,66 @@ void LEZWalletBackend::refreshAccounts()
 {
     QJsonArray arr = m_logos->logos_execution_zone.list_accounts();
     m_accountModel->replaceFromJsonArray(arr);
-    refreshBalances();
+    fetchAndUpdateBlockHeights();
+    if (!m_syncing)
+        startChunkedSync();
 }
 
 void LEZWalletBackend::refreshBalances()
 {
-    refreshBlockHeights();
-    syncToBlock(currentBlockHeight());
+    fetchAndUpdateBlockHeights();
+    if (!m_syncing)
+        startChunkedSync();
+}
+
+void LEZWalletBackend::startChunkedSync()
+{
+    m_syncTarget = static_cast<quint64>(currentBlockHeight());
+    if (m_syncTarget == 0 || static_cast<quint64>(lastSyncedBlock()) >= m_syncTarget) {
+        updateBalances();
+        return;
+    }
+    m_syncing = true;
+    syncNextChunk();
+}
+
+void LEZWalletBackend::syncNextChunk()
+{
+    const quint64 synced = static_cast<quint64>(lastSyncedBlock());
+    if (synced >= m_syncTarget) {
+        m_syncing = false;
+        fetchAndUpdateBlockHeights();
+        updateBalances();
+        return;
+    }
+    const quint64 next = qMin(synced + SYNC_CHUNK_SIZE, m_syncTarget);
+    m_logos->logos_execution_zone.sync_to_block(next);
+    // Only read lastSyncedBlock between chunks — avoids a sequencer network
+    // call (get_current_block_height) on every iteration.
+    const int lastVal = m_logos->logos_execution_zone.get_last_synced_block();
+    if (lastSyncedBlock() != lastVal)
+        setLastSyncedBlock(lastVal);
+    QTimer::singleShot(0, this, &LEZWalletBackend::syncNextChunk);
+}
+
+void LEZWalletBackend::updateBalances()
+{
     if (!m_accountModel) return;
+    bool anyFailed = false;
     for (int i = 0; i < m_accountModel->count(); ++i) {
         const QModelIndex idx = m_accountModel->index(i, 0);
         const QString addr = m_accountModel->data(idx, LEZWalletAccountModel::AddressRole).toString();
         const bool isPub = m_accountModel->data(idx, LEZWalletAccountModel::IsPublicRole).toBool();
-        m_accountModel->setBalanceByAddress(addr, getBalance(addr, isPub));
+        const QString bal = getBalance(addr, isPub);
+        if (!bal.isEmpty())
+            m_accountModel->setBalanceByAddress(addr, bal);
+        else
+            anyFailed = true;
     }
-    saveWallet();
+    if (anyFailed)
+        QTimer::singleShot(3000, this, &LEZWalletBackend::updateBalances);
+    else
+        saveWallet();
 }
 
 void LEZWalletBackend::fetchAndUpdateBlockHeights()
@@ -165,16 +212,6 @@ void LEZWalletBackend::fetchAndUpdateBlockHeights()
         setCurrentBlockHeight(currentVal);
 }
 
-void LEZWalletBackend::refreshBlockHeights()
-{
-    fetchAndUpdateBlockHeights();
-    if (currentBlockHeight() > 0
-        && lastSyncedBlock() < currentBlockHeight()
-        && syncToBlock(currentBlockHeight()))
-    {
-        fetchAndUpdateBlockHeights();
-    }
-}
 
 void LEZWalletBackend::refreshSequencerAddr()
 {
@@ -331,7 +368,6 @@ bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QStrin
     persistStoragePath(localStoragePath);
     setIsWalletOpen(true);
     refreshAccounts();
-    refreshBlockHeights();
     refreshSequencerAddr();
     return true;
 }

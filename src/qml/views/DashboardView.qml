@@ -15,6 +15,8 @@ Rectangle {
     property string transferResult: ""
     property bool transferResultIsError: false
     property bool transferPending: false
+    property int lastSyncedBlock: 0
+    property int currentBlockHeight: 0
 
     // --- Public API: output signals (parent connects and calls backend) ---
     signal createPublicAccountRequested()
@@ -41,6 +43,8 @@ Rectangle {
             Layout.fillHeight: true
 
             accountModel: root.accountModel
+            lastSyncedBlock: root.lastSyncedBlock
+            currentBlockHeight: root.currentBlockHeight
 
             onCreatePublicAccountRequested: root.createPublicAccountRequested()
             onCreatePrivateAccountRequested: root.createPrivateAccountRequested()

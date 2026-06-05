@@ -48,15 +48,24 @@ public slots:
     bool createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
     void copyToClipboard(QString text) override;
 
+private slots:
+    void syncNextChunk();
+
 private:
     void persistConfigPath(const QString& path);
     void persistStoragePath(const QString& path);
     void applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr);
-    void refreshBlockHeights();
+    void fetchAndUpdateBlockHeights();
+    void startChunkedSync();
+
+    void updateBalances();
     void refreshSequencerAddr();
     void saveWallet();
-    void fetchAndUpdateBlockHeights();
     void openIfPathsConfigured();
+
+    bool m_syncing = false;
+    quint64 m_syncTarget = 0;
+    static constexpr quint64 SYNC_CHUNK_SIZE = 100;
 
     LEZWalletAccountModel* m_accountModel;
     LEZAccountFilterModel* m_filteredAccountModel;

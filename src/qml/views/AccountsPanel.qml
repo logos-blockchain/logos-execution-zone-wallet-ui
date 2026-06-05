@@ -13,6 +13,8 @@ Rectangle {
 
     // --- Public API: data in ---
     property var accountModel: null
+    property int lastSyncedBlock: 0
+    property int currentBlockHeight: 0
 
     // --- Public API: signals out ---
     signal createPublicAccountRequested()
@@ -54,6 +56,34 @@ Rectangle {
                 Layout.preferredWidth: 80
                 text: qsTr("+ Create")
                 onClicked: createAccountDialog.open()
+            }
+        }
+
+        // Sync progress
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacing.xsmall
+            visible: root.currentBlockHeight > 0 && root.lastSyncedBlock < root.currentBlockHeight
+
+            RowLayout {
+                Layout.fillWidth: true
+                LogosText {
+                    text: qsTr("Syncing")
+                    font.pixelSize: Theme.typography.secondaryText
+                    color: Theme.palette.textSecondary
+                }
+                Item { Layout.fillWidth: true }
+                LogosText {
+                    text: root.lastSyncedBlock + " / " + root.currentBlockHeight
+                    font.pixelSize: Theme.typography.secondaryText
+                    color: Theme.palette.textSecondary
+                }
+            }
+            ProgressBar {
+                Layout.fillWidth: true
+                from: 0
+                to: root.currentBlockHeight
+                value: root.lastSyncedBlock
             }
         }
 

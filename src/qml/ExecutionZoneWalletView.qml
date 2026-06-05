@@ -137,6 +137,8 @@ Rectangle {
                 accountModel: root.accountModel
                 publicAccountModel: root.publicAccountModel
                 privateAccountModel: root.privateAccountModel
+                lastSyncedBlock: backend ? backend.lastSyncedBlock : 0
+                currentBlockHeight: backend ? backend.currentBlockHeight : 0
 
                 onCreatePublicAccountRequested: {
                     if (!backend) { console.warn("backend is null"); return }
