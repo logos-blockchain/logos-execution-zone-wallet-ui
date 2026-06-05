@@ -33,7 +33,7 @@ ItemDelegate {
             spacing: Theme.spacing.small
 
             LogosText {
-                text: model.name
+                text: model.name ?? ""
                 font.pixelSize: Theme.typography.secondaryText
                 font.bold: true
             }
@@ -68,7 +68,7 @@ ItemDelegate {
                 id: addressLabel
                 Layout.fillWidth: true
                 verticalAlignment: Text.AlignVCenter
-                text: model.address
+                text: model.address ?? ""
                 font.pixelSize: Theme.typography.secondaryText
                 color: Theme.palette.textMuted
                 elide: Text.ElideMiddle

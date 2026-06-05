@@ -21,7 +21,7 @@ Rectangle {
     signal transferPrivateOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal copyRequested(string copyText)
 
-    readonly property int fromFilterCount: (fromAccountModel && fromAccountModel.count) ? fromAccountModel.count : 0
+    readonly property int fromFilterCount: fromCombo.count
 
     QtObject {
         id: d

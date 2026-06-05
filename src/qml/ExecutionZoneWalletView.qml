@@ -99,6 +99,12 @@ Rectangle {
 
     color: Theme.palette.background
 
+    // Used as a clipboard helper — TextEdit.copy() works in the GUI process.
+    TextEdit {
+        id: clipHelper
+        visible: false
+    }
+
     StackView {
         id: stackView
         anchors.fill: parent
@@ -175,7 +181,9 @@ Rectangle {
                         })
                 }
                 onCopyRequested: (copyText) => {
-                    if (backend) backend.copyToClipboard(copyText)
+                    clipHelper.text = copyText
+                    clipHelper.selectAll()
+                    clipHelper.copy()
                 }
             }
         }
