@@ -202,6 +202,15 @@ Rectangle {
                             dashboardView.transferResultIsError = true
                         })
                 }
+                onTransferDeshieldedRequested: (fromId, toAccountId, amount) => {
+                    if (!backend) return
+                    logos.watch(backend.transferDeshielded(fromId, toAccountId, amount),
+                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(error) {
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                        })
+                }
                 onCopyRequested: (copyText) => {
                     clipHelper.text = copyText
                     clipHelper.selectAll()

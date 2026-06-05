@@ -22,6 +22,7 @@ Rectangle {
     signal transferPrivateOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal transferShieldedRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
     signal transferShieldedOwnedRequested(string fromAccountId, string toAccountId, string amount)
+    signal transferDeshieldedRequested(string fromAccountId, string toAccountId, string amount)
     signal copyRequested(string copyText)
 
     readonly property int fromFilterCount: fromCombo.count
@@ -33,8 +34,10 @@ Rectangle {
         readonly property bool isPublicTab: transferTypeBar.currentIndex === 0
         readonly property bool isPrivateTab: transferTypeBar.currentIndex === 1
         readonly property bool isShieldedTab: transferTypeBar.currentIndex === 2
+        readonly property bool isDeshieldedTab: transferTypeBar.currentIndex === 3
         readonly property bool showOwnedOption: isPrivateTab || isShieldedTab
-        readonly property bool toAddressValid: showOwnedOption && useOwnedAccountForTo
+        readonly property bool toComboPermanent: isDeshieldedTab
+        readonly property bool toAddressValid: (toComboPermanent || (showOwnedOption && useOwnedAccountForTo))
             ? (toFilterCount > 0 && toCombo.currentIndex >= 0)
             : (toField && toField.text.trim().length > 0)
         readonly property bool sendEnabled: amountField && manualFromField
@@ -61,7 +64,7 @@ Rectangle {
         // Transfer type toggle
         TabBar {
             id: transferTypeBar
-            Layout.preferredWidth: 300
+            Layout.preferredWidth: 400
             currentIndex: 0
 
             background: Rectangle {
@@ -79,6 +82,10 @@ Rectangle {
 
             LogosTabButton {
                 text: qsTr("Shielded")
+            }
+
+            LogosTabButton {
+                text: qsTr("Deshielded")
             }
         }
 
@@ -103,7 +110,7 @@ Rectangle {
             AccountComboBox {
                 id: fromCombo
                 Layout.fillWidth: true
-                model: d.isPrivateTab ? root.privateAccountModel : root.publicAccountModel
+                model: (d.isPrivateTab || d.isDeshieldedTab) ? root.privateAccountModel : root.publicAccountModel
                 visible: fromFilterCount > 0
                 onCopyRequested: (text) => root.copyRequested(text)
             }
@@ -134,14 +141,14 @@ Rectangle {
                 id: toField
                 Layout.fillWidth: true
                 placeholderText: d.isPublicTab ? qsTr("Recipient address") : qsTr("Recipient private keys (JSON)")
-                visible: !d.showOwnedOption || !d.useOwnedAccountForTo
+                visible: !d.toComboPermanent && (!d.showOwnedOption || !d.useOwnedAccountForTo)
             }
 
             AccountComboBox {
                 id: toCombo
                 Layout.fillWidth: true
-                model: d.isPublicTab ? root.publicAccountModel : root.privateAccountModel
-                visible: d.showOwnedOption && d.useOwnedAccountForTo && toFilterCount > 0
+                model: (d.isPublicTab || d.isDeshieldedTab) ? root.publicAccountModel : root.privateAccountModel
+                visible: d.toComboPermanent || (d.showOwnedOption && d.useOwnedAccountForTo && toFilterCount > 0)
                 onCopyRequested: (text) => root.copyRequested(text)
             }
         }
@@ -174,7 +181,7 @@ Rectangle {
                 var fromId = fromFilterCount > 0 && fromCombo.currentIndex >= 0
                         ? (fromCombo.currentValue ?? "")
                         : manualFromField.text.trim()
-                var toAddress = d.useOwnedAccountForTo && toCombo.currentIndex >= 0
+                var toAddress = (d.toComboPermanent || (d.useOwnedAccountForTo && toCombo.currentIndex >= 0))
                         ? (toCombo.currentValue ?? "")
                         : toField.text.trim()
                 var amount = amountField.text.trim()
@@ -191,6 +198,8 @@ Rectangle {
                             root.transferShieldedOwnedRequested(fromId, toAddress, amount)
                         else
                             root.transferShieldedRequested(fromId, toAddress, amount)
+                    } else if (d.isDeshieldedTab) {
+                        root.transferDeshieldedRequested(fromId, toAddress, amount)
                     }
                 }
             }

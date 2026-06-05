@@ -260,6 +260,13 @@ QString LEZWalletBackend::transferShieldedOwned(QString fromHex, QString toHex, 
     return m_logos->logos_execution_zone.transfer_shielded_owned(fromHex, toHex.trimmed(), amountHex);
 }
 
+QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QString amountStr)
+{
+    const QString amountHex = amountToLe16Hex(amountStr);
+    if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
+    return m_logos->logos_execution_zone.transfer_deshielded(fromHex.trimmed(), toHex.trimmed(), amountHex);
+}
+
 bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password)
 {
     const QString localPath = toLocalPath(configPath);
