@@ -127,14 +127,12 @@ Rectangle {
                 color: Theme.palette.textSecondary
             }
 
-            CheckBox {
+            LogosCheckbox {
                 id: useOwnedToCheck
                 visible: d.showOwnedOption
                 checked: d.useOwnedAccountForTo
                 onCheckedChanged: d.useOwnedAccountForTo = checked
                 text: qsTr("Use owned account")
-                font.pixelSize: Theme.typography.secondaryText
-                palette.text: Theme.palette.text
             }
 
             LogosTextField {
