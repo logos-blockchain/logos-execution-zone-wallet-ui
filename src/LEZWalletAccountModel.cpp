@@ -43,10 +43,8 @@ void LEZWalletAccountModel::replaceFromJsonArray(const QJsonArray& arr)
     beginResetModel();
     int oldCount = m_entries.size();
     m_entries.clear();
-    int idx = 0;
     for (const QJsonValue& v : arr) {
         LEZWalletAccountEntry e;
-        e.name = QStringLiteral("Account %1").arg(++idx);
         e.balance = QString();
         if (v.isObject()) {
             const QJsonObject obj = v.toObject();
@@ -56,6 +54,7 @@ void LEZWalletAccountModel::replaceFromJsonArray(const QJsonArray& arr)
             e.address = v.toString();
             e.isPublic = true;
         }
+        e.name = QStringLiteral("Account %1").arg(e.address.left(4));
         m_entries.append(e);
     }
     endResetModel();
