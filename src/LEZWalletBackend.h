@@ -40,6 +40,8 @@ public slots:
     QString transferPublic(QString fromHex, QString toHex, QString amountStr) override;
     QString transferPrivate(QString fromHex, QString toHex, QString amountStr) override;
     QString transferPrivateOwned(QString fromHex, QString toHex, QString amountStr) override;
+    QString transferShielded(QString fromHex, QString toKeysJson, QString amountStr) override;
+    QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr) override;
     bool createNew(QString configPath, QString storagePath, QString password) override;
     void copyToClipboard(QString text) override;
 

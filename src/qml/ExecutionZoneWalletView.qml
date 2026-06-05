@@ -180,6 +180,24 @@ Rectangle {
                             dashboardView.transferResultIsError = true
                         })
                 }
+                onTransferShieldedRequested: (fromId, toKeysJsonOrAddress, amount) => {
+                    if (!backend) return
+                    logos.watch(backend.transferShielded(fromId, toKeysJsonOrAddress, amount),
+                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(error) {
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                        })
+                }
+                onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) => {
+                    if (!backend) return
+                    logos.watch(backend.transferShieldedOwned(fromId, toAccountId, amount),
+                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(error) {
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                        })
+                }
                 onCopyRequested: (copyText) => {
                     clipHelper.text = copyText
                     clipHelper.selectAll()

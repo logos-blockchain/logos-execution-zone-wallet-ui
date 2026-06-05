@@ -19,6 +19,8 @@ class LEZWalletBackend
     SLOT(QString transferPublic(QString fromHex, QString toHex, QString amountStr))
     SLOT(QString transferPrivate(QString fromHex, QString toHex, QString amountStr))
     SLOT(QString transferPrivateOwned(QString fromHex, QString toHex, QString amountStr))
+    SLOT(QString transferShielded(QString fromHex, QString toKeysJson, QString amountStr))
+    SLOT(QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr))
 
     SLOT(bool createNew(QString configPath, QString storagePath, QString password))
 

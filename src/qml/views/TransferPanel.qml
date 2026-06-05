@@ -15,10 +15,12 @@ Rectangle {
     property string transferResult: ""
     property bool transferResultIsError: false
 
-    // --- Public API: signals out (match backend: transfer_public, transfer_private, transfer_private_owned) ---
+    // --- Public API: signals out (match backend: transfer_public, transfer_private, transfer_private_owned, transfer_shielded, transfer_shielded_owned) ---
     signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
     signal transferPrivateRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
     signal transferPrivateOwnedRequested(string fromAccountId, string toAccountId, string amount)
+    signal transferShieldedRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
+    signal transferShieldedOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal copyRequested(string copyText)
 
     readonly property int fromFilterCount: fromCombo.count
@@ -26,8 +28,11 @@ Rectangle {
     QtObject {
         id: d
         property bool useOwnedAccountForTo: false
+        readonly property bool isPublicTab: transferTypeBar.currentIndex === 0
         readonly property bool isPrivateTab: transferTypeBar.currentIndex === 1
-        readonly property bool toAddressValid: isPrivateTab && useOwnedAccountForTo
+        readonly property bool isShieldedTab: transferTypeBar.currentIndex === 2
+        readonly property bool showOwnedOption: isPrivateTab || isShieldedTab
+        readonly property bool toAddressValid: showOwnedOption && useOwnedAccountForTo
             ? (fromFilterCount > 0 && toCombo.currentIndex >= 0)
             : (toField && toField.text.trim().length > 0)
         readonly property bool sendEnabled: amountField && manualFromField
@@ -54,7 +59,7 @@ Rectangle {
         // Transfer type toggle
         TabBar {
             id: transferTypeBar
-            Layout.preferredWidth: 200
+            Layout.preferredWidth: 300
             currentIndex: 0
 
             background: Rectangle {
@@ -68,6 +73,10 @@ Rectangle {
 
             LogosTabButton {
                 text: qsTr("Private")
+            }
+
+            LogosTabButton {
+                text: qsTr("Shielded")
             }
         }
 
@@ -111,7 +120,7 @@ Rectangle {
 
             CheckBox {
                 id: useOwnedToCheck
-                visible: d.isPrivateTab
+                visible: d.showOwnedOption
                 checked: d.useOwnedAccountForTo
                 onCheckedChanged: d.useOwnedAccountForTo = checked
                 text: qsTr("Use owned account")
@@ -122,15 +131,15 @@ Rectangle {
             LogosTextField {
                 id: toField
                 Layout.fillWidth: true
-                placeholderText: qsTr("Recipient public key")
-                visible: !d.isPrivateTab || !d.useOwnedAccountForTo
+                placeholderText: d.isPublicTab ? qsTr("Recipient address") : qsTr("Recipient private keys (JSON)")
+                visible: !d.showOwnedOption || !d.useOwnedAccountForTo
             }
 
             AccountComboBox {
                 id: toCombo
                 Layout.fillWidth: true
                 model: fromAccountModel
-                visible: d.isPrivateTab && d.useOwnedAccountForTo && fromFilterCount > 0
+                visible: d.showOwnedOption && d.useOwnedAccountForTo && fromFilterCount > 0
                 onCopyRequested: (text) => root.copyRequested(text)
             }
         }
@@ -168,12 +177,19 @@ Rectangle {
                         : toField.text.trim()
                 var amount = amountField.text.trim()
                 if (fromId.length > 0 && toAddress.length > 0 && amount.length > 0) {
-                    if (transferTypeBar.currentIndex === 0)
+                    if (d.isPublicTab)
                         root.transferPublicRequested(fromId, toAddress, amount)
-                    else if (d.useOwnedAccountForTo)
-                        root.transferPrivateOwnedRequested(fromId, toAddress, amount)
-                    else
-                        root.transferPrivateRequested(fromId, toAddress, amount)
+                    else if (d.isPrivateTab) {
+                        if (d.useOwnedAccountForTo)
+                            root.transferPrivateOwnedRequested(fromId, toAddress, amount)
+                        else
+                            root.transferPrivateRequested(fromId, toAddress, amount)
+                    } else if (d.isShieldedTab) {
+                        if (d.useOwnedAccountForTo)
+                            root.transferShieldedOwnedRequested(fromId, toAddress, amount)
+                        else
+                            root.transferShieldedRequested(fromId, toAddress, amount)
+                    }
                 }
             }
         }

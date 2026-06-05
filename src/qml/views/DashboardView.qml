@@ -20,6 +20,8 @@ Rectangle {
     signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
     signal transferPrivateRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
     signal transferPrivateOwnedRequested(string fromAccountId, string toAccountId, string amount)
+    signal transferShieldedRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
+    signal transferShieldedOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal copyRequested(string copyText)
 
     color: Theme.palette.background
@@ -53,6 +55,8 @@ Rectangle {
             onTransferPublicRequested: (fromId, toAddress, amount) => root.transferPublicRequested(fromId, toAddress, amount)
             onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) => root.transferPrivateRequested(fromId, toKeysJsonOrAddress, amount)
             onTransferPrivateOwnedRequested: (fromId, toAccountId, amount) => root.transferPrivateOwnedRequested(fromId, toAccountId, amount)
+            onTransferShieldedRequested: (fromId, toKeysJsonOrAddress, amount) => root.transferShieldedRequested(fromId, toKeysJsonOrAddress, amount)
+            onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) => root.transferShieldedOwnedRequested(fromId, toAccountId, amount)
             onCopyRequested: (copyText) => root.copyRequested(copyText)
         }
     }
