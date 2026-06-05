@@ -123,6 +123,9 @@ void LEZWalletBackend::openIfPathsConfigured()
         refreshAccounts();
         refreshBlockHeights();
         refreshSequencerAddr();
+    } else {
+        qWarning() << "LEZWalletBackend: failed to open wallet, error" << err
+                   << "config:" << configPath() << "storage:" << storagePath();
     }
 }
 
@@ -289,12 +292,13 @@ QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QSt
 
 bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password)
 {
-    const QString localPath = toLocalPath(configPath);
-    int err = m_logos->logos_execution_zone.create_new(localPath, storagePath, password);
+    const QString localConfigPath = toLocalPath(configPath);
+    const QString localStoragePath = toLocalPath(storagePath);
+    int err = m_logos->logos_execution_zone.create_new(localConfigPath, localStoragePath, password);
     if (err != WALLET_FFI_SUCCESS) return false;
 
-    persistConfigPath(localPath);
-    persistStoragePath(storagePath);
+    persistConfigPath(localConfigPath);
+    persistStoragePath(localStoragePath);
     setIsWalletOpen(true);
     refreshAccounts();
     refreshBlockHeights();
