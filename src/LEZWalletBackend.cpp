@@ -46,10 +46,13 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     : LEZWalletBackendSimpleSource(parent),
       m_accountModel(new LEZWalletAccountModel(this)),
       m_filteredAccountModel(new LEZAccountFilterModel(this)),
+      m_privateAccountModel(new LEZAccountFilterModel(this)),
       m_logosAPI(logosAPI ? logosAPI : new LogosAPI("lez_wallet_ui", this)),
       m_logos(new LogosModules(m_logosAPI))
 {
     m_filteredAccountModel->setSourceModel(m_accountModel);
+    m_privateAccountModel->setFilterByPublic(false);
+    m_privateAccountModel->setSourceModel(m_accountModel);
 
     // Initialise PROP defaults via the generated setters.
     setIsWalletOpen(false);

@@ -11,6 +11,8 @@ Rectangle {
 
     readonly property var backend: logos.module("lez_wallet_ui")
     readonly property var accountModel: logos.model("lez_wallet_ui", "accountModel")
+    readonly property var publicAccountModel: logos.model("lez_wallet_ui", "filteredAccountModel")
+    readonly property var privateAccountModel: logos.model("lez_wallet_ui", "privateAccountModel")
     property bool ready: false
 
     Connections {
@@ -134,6 +136,8 @@ Rectangle {
             DashboardView {
                 id: dashboardView
                 accountModel: root.accountModel
+                publicAccountModel: root.publicAccountModel
+                privateAccountModel: root.privateAccountModel
 
                 onCreatePublicAccountRequested: {
                     if (!backend) { console.warn("backend is null"); return }

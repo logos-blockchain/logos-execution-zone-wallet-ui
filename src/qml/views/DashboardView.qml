@@ -10,6 +10,8 @@ Rectangle {
 
     // --- Public API: input properties (set by parent / MainView) ---
     property var accountModel: null
+    property var publicAccountModel: null
+    property var privateAccountModel: null
     property string transferResult: ""
     property bool transferResultIsError: false
 
@@ -48,7 +50,8 @@ Rectangle {
             id: transferPanel
             Layout.fillWidth: true
             Layout.fillHeight: true
-            fromAccountModel: root.accountModel
+            publicAccountModel: root.publicAccountModel
+            privateAccountModel: root.privateAccountModel
             transferResult: root.transferResult
             transferResultIsError: root.transferResultIsError
 

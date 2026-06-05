@@ -11,7 +11,8 @@ Rectangle {
     id: root
 
     // --- Public API: data in ---
-    property var fromAccountModel: null
+    property var publicAccountModel: null
+    property var privateAccountModel: null
     property string transferResult: ""
     property bool transferResultIsError: false
 
@@ -24,6 +25,7 @@ Rectangle {
     signal copyRequested(string copyText)
 
     readonly property int fromFilterCount: fromCombo.count
+    readonly property int toFilterCount: toCombo.count
 
     QtObject {
         id: d
@@ -33,7 +35,7 @@ Rectangle {
         readonly property bool isShieldedTab: transferTypeBar.currentIndex === 2
         readonly property bool showOwnedOption: isPrivateTab || isShieldedTab
         readonly property bool toAddressValid: showOwnedOption && useOwnedAccountForTo
-            ? (fromFilterCount > 0 && toCombo.currentIndex >= 0)
+            ? (toFilterCount > 0 && toCombo.currentIndex >= 0)
             : (toField && toField.text.trim().length > 0)
         readonly property bool sendEnabled: amountField && manualFromField
                                             && amountField.text.length > 0 && d.toAddressValid
@@ -101,7 +103,7 @@ Rectangle {
             AccountComboBox {
                 id: fromCombo
                 Layout.fillWidth: true
-                model: fromAccountModel
+                model: d.isPrivateTab ? root.privateAccountModel : root.publicAccountModel
                 visible: fromFilterCount > 0
                 onCopyRequested: (text) => root.copyRequested(text)
             }
@@ -138,8 +140,8 @@ Rectangle {
             AccountComboBox {
                 id: toCombo
                 Layout.fillWidth: true
-                model: fromAccountModel
-                visible: d.showOwnedOption && d.useOwnedAccountForTo && fromFilterCount > 0
+                model: d.isPublicTab ? root.publicAccountModel : root.privateAccountModel
+                visible: d.showOwnedOption && d.useOwnedAccountForTo && toFilterCount > 0
                 onCopyRequested: (text) => root.copyRequested(text)
             }
         }
