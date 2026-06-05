@@ -11,6 +11,7 @@
 #include <QUrl>
 
 #include "logos_api.h"
+#include "logos_api_client.h"
 #include "logos_sdk.h"
 
 namespace {
@@ -18,7 +19,12 @@ namespace {
     const char SETTINGS_APP[] = "ExecutionZoneWalletUI";
     const char CONFIG_PATH_KEY[] = "configPath";
     const char STORAGE_PATH_KEY[] = "storagePath";
+    const char LEZ_MODULE[] = "logos_execution_zone";
     const int WALLET_FFI_SUCCESS = 0;
+    // Proof generation time is unbounded on commodity hardware.
+    // Timeout(-1) means "wait indefinitely", matching Qt's own convention
+    // for infinite waits (e.g. QRemoteObjectPendingCall::waitForFinished(-1)).
+    const Timeout NO_TIMEOUT{-1};
 
     // Convert a decimal amount string to 32-char hex (16 bytes little-endian)
     // for transfer_public/transfer_private/transfer_private_owned.
@@ -219,7 +225,6 @@ QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QStrin
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
 
     QString keysPayload = toHex.trimmed();
-    // If "To" is not JSON (e.g. user pasted account id hex), resolve to keys.
     if (!keysPayload.startsWith(QLatin1Char('{'))) {
         qDebug() << "LEZWalletBackend::transferPrivate: resolving keys via get_private_account_keys";
         const QString resolved = getPrivateAccountKeys(keysPayload);
@@ -227,14 +232,20 @@ QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QStrin
             keysPayload = resolved;
     }
 
-    return m_logos->logos_execution_zone.transfer_private(fromHex, keysPayload, amountHex);
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "transfer_private",
+        QVariantList{fromHex.trimmed(), keysPayload, amountHex},
+        NO_TIMEOUT).toString();
 }
 
 QString LEZWalletBackend::transferPrivateOwned(QString fromHex, QString toHex, QString amountStr)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    return m_logos->logos_execution_zone.transfer_private_owned(fromHex, toHex.trimmed(), amountHex);
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "transfer_private_owned",
+        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex},
+        NO_TIMEOUT).toString();
 }
 
 QString LEZWalletBackend::transferShielded(QString fromHex, QString toKeysJson, QString amountStr)
@@ -250,21 +261,30 @@ QString LEZWalletBackend::transferShielded(QString fromHex, QString toKeysJson, 
             keysPayload = resolved;
     }
 
-    return m_logos->logos_execution_zone.transfer_shielded(fromHex, keysPayload, amountHex);
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "transfer_shielded",
+        QVariantList{fromHex.trimmed(), keysPayload, amountHex},
+        NO_TIMEOUT).toString();
 }
 
 QString LEZWalletBackend::transferShieldedOwned(QString fromHex, QString toHex, QString amountStr)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    return m_logos->logos_execution_zone.transfer_shielded_owned(fromHex, toHex.trimmed(), amountHex);
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "transfer_shielded_owned",
+        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex},
+        NO_TIMEOUT).toString();
 }
 
 QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QString amountStr)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    return m_logos->logos_execution_zone.transfer_deshielded(fromHex.trimmed(), toHex.trimmed(), amountHex);
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "transfer_deshielded",
+        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex},
+        NO_TIMEOUT).toString();
 }
 
 bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password)

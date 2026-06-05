@@ -15,6 +15,7 @@ Rectangle {
     property var privateAccountModel: null
     property string transferResult: ""
     property bool transferResultIsError: false
+    property bool transferPending: false
 
     // --- Public API: signals out (match backend: transfer_public, transfer_private, transfer_private_owned, transfer_shielded, transfer_shielded_owned) ---
     signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
@@ -40,7 +41,9 @@ Rectangle {
         readonly property bool toAddressValid: (toComboPermanent || (showOwnedOption && useOwnedAccountForTo))
             ? (toFilterCount > 0 && toCombo.currentIndex >= 0)
             : (toField && toField.text.trim().length > 0)
-        readonly property bool sendEnabled: amountField && manualFromField
+        readonly property bool needsProof: isPrivateTab || isShieldedTab || isDeshieldedTab
+        readonly property bool sendEnabled: !root.transferPending
+                                            && amountField && manualFromField
                                             && amountField.text.length > 0 && d.toAddressValid
                                             && ((fromFilterCount > 0 && fromCombo.currentIndex >= 0)
                                                 || (fromFilterCount === 0 && manualFromField.text.trim().length > 0))
@@ -203,9 +206,30 @@ Rectangle {
             }
         }
 
+        // Proof pending indicator
+        RowLayout {
+            Layout.fillWidth: true
+            visible: root.transferPending
+            spacing: Theme.spacing.small
+
+            LogosSpinner {
+                Layout.preferredWidth: 20
+                Layout.preferredHeight: 20
+                running: root.transferPending
+            }
+
+            LogosText {
+                Layout.fillWidth: true
+                text: qsTr("Generating proof, please wait…")
+                font.pixelSize: Theme.typography.secondaryText
+                color: Theme.palette.textSecondary
+            }
+        }
+
         // Result label
         RowLayout {
             Layout.fillWidth: true
+            visible: !root.transferPending
             LogosText {
                 id: resultText
                 Layout.fillWidth: true

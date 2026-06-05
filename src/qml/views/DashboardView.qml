@@ -14,6 +14,7 @@ Rectangle {
     property var privateAccountModel: null
     property string transferResult: ""
     property bool transferResultIsError: false
+    property bool transferPending: false
 
     // --- Public API: output signals (parent connects and calls backend) ---
     signal createPublicAccountRequested()
@@ -55,6 +56,7 @@ Rectangle {
             privateAccountModel: root.privateAccountModel
             transferResult: root.transferResult
             transferResultIsError: root.transferResultIsError
+            transferPending: root.transferPending
 
             onTransferPublicRequested: (fromId, toAddress, amount) => root.transferPublicRequested(fromId, toAddress, amount)
             onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) => root.transferPrivateRequested(fromId, toKeysJsonOrAddress, amount)

@@ -61,7 +61,6 @@ Rectangle {
         }
 
         // Parse a transfer result JSON string and write to dashboardView.
-        // Used by all three transfer handlers below.
         function applyTransferResult(dashboardView, raw) {
             var msg = raw || ""
             var isError = false
@@ -168,45 +167,55 @@ Rectangle {
                 }
                 onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) => {
                     if (!backend) return
+                    dashboardView.transferPending = true
                     logos.watch(backend.transferPrivate(fromId, toKeysJsonOrAddress, amount),
-                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
                         function(error) {
+                            dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
                         })
                 }
                 onTransferPrivateOwnedRequested: (fromId, toAccountId, amount) => {
                     if (!backend) return
+                    dashboardView.transferPending = true
                     logos.watch(backend.transferPrivateOwned(fromId, toAccountId, amount),
-                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
                         function(error) {
+                            dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
                         })
                 }
                 onTransferShieldedRequested: (fromId, toKeysJsonOrAddress, amount) => {
                     if (!backend) return
+                    dashboardView.transferPending = true
                     logos.watch(backend.transferShielded(fromId, toKeysJsonOrAddress, amount),
-                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
                         function(error) {
+                            dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
                         })
                 }
                 onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) => {
                     if (!backend) return
+                    dashboardView.transferPending = true
                     logos.watch(backend.transferShieldedOwned(fromId, toAccountId, amount),
-                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
                         function(error) {
+                            dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
                         })
                 }
                 onTransferDeshieldedRequested: (fromId, toAccountId, amount) => {
                     if (!backend) return
+                    dashboardView.transferPending = true
                     logos.watch(backend.transferDeshielded(fromId, toAccountId, amount),
-                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
                         function(error) {
+                            dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
                         })
