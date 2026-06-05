@@ -45,12 +45,13 @@ public slots:
     QString transferShielded(QString fromHex, QString toKeysJson, QString amountStr) override;
     QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr) override;
     QString transferDeshielded(QString fromHex, QString toHex, QString amountStr) override;
-    bool createNew(QString configPath, QString storagePath, QString password) override;
+    bool createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
     void copyToClipboard(QString text) override;
 
 private:
     void persistConfigPath(const QString& path);
     void persistStoragePath(const QString& path);
+    void applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr);
     void refreshBlockHeights();
     void refreshSequencerAddr();
     void saveWallet();

@@ -115,9 +115,9 @@ Rectangle {
             OnboardingView {
                 storePath: backend ? backend.storagePath : ""
                 configPath: backend ? backend.configPath : ""
-                onCreateWallet: function(configPath, storagePath, password) {
+                onCreateWallet: function(configPath, storagePath, password, sequencerUrl) {
                     if (!backend) return
-                    logos.watch(backend.createNew(configPath, storagePath, password),
+                    logos.watch(backend.createNew(configPath, storagePath, password, sequencerUrl),
                         function(ok) {
                             if (!ok)
                                 createError = qsTr("Failed to create wallet. Check paths and try again.")

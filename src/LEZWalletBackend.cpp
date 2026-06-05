@@ -4,8 +4,13 @@
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSettings>
 #include <QTimer>
 #include <QUrl>
@@ -290,10 +295,35 @@ QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QSt
         NO_TIMEOUT).toString();
 }
 
-bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password)
+void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr)
+{
+    QJsonObject obj;
+    QFile file(configPath);
+    if (file.open(QIODevice::ReadOnly)) {
+        obj = QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+    } else {
+        // Defaults matching WalletConfig::default() in the wallet crate.
+        obj[QStringLiteral("seq_poll_timeout")]        = QStringLiteral("30s");
+        obj[QStringLiteral("seq_tx_poll_max_blocks")]  = 15;
+        obj[QStringLiteral("seq_poll_max_retries")]    = 10;
+        obj[QStringLiteral("seq_block_poll_max_amount")] = 100;
+    }
+    obj[QStringLiteral("sequencer_addr")] = sequencerAddr;
+
+    QDir().mkpath(QFileInfo(configPath).absolutePath());
+    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+}
+
+bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr)
 {
     const QString localConfigPath = toLocalPath(configPath);
     const QString localStoragePath = toLocalPath(storagePath);
+
+    if (!sequencerAddr.isEmpty())
+        applySequencerAddrToConfig(localConfigPath, sequencerAddr);
+
     int err = m_logos->logos_execution_zone.create_new(localConfigPath, localStoragePath, password);
     if (err != WALLET_FFI_SUCCESS) return false;
 

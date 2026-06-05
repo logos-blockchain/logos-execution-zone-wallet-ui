@@ -13,7 +13,10 @@ Control {
     property string storePath: ""
     property string createError: ""
 
-    signal createWallet(string configPath, string storagePath, string password)
+    signal createWallet(string configPath, string storagePath, string password, string sequencerUrl)
+
+    readonly property string testnetUrl: "https://testnet.lez.logos.co"
+    readonly property string localhostUrl: "http://127.0.0.1:3040"
 
 
     QtObject {
@@ -90,6 +93,38 @@ Control {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.spacing.medium
+            spacing: Theme.spacing.small
+            LogosText {
+                text: qsTr("Network")
+                font.pixelSize: Theme.typography.secondaryText
+                font.weight: Theme.typography.weightMedium
+                color: Theme.palette.text
+            }
+            LogosTextField {
+                id: sequencerUrlField
+                Layout.fillWidth: true
+                placeholderText: qsTr("Sequencer URL")
+                text: root.testnetUrl
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacing.small
+            LogosButton {
+                text: qsTr("Testnet")
+                opacity: sequencerUrlField.text === root.testnetUrl ? 1.0 : 0.4
+                onClicked: sequencerUrlField.text = root.testnetUrl
+            }
+            LogosButton {
+                text: qsTr("Localhost")
+                opacity: sequencerUrlField.text === root.localhostUrl ? 1.0 : 0.4
+                onClicked: sequencerUrlField.text = root.localhostUrl
+            }
+        }
+
         LogosText {
             text: qsTr("Security")
             font.pixelSize: Theme.typography.secondaryText
@@ -131,7 +166,7 @@ Control {
                     root.createError = qsTr("Passwords do not match.")
                 } else {
                     root.createError = ""
-                    root.createWallet(configPathField.text, storagePathField.text, passwordField.text)
+                    root.createWallet(configPathField.text, storagePathField.text, passwordField.text, sequencerUrlField.text)
                 }
             }
         }
