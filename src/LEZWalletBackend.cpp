@@ -47,9 +47,12 @@ namespace {
 
     // Normalise file:// URLs and OS paths to a plain local path.
     QString toLocalPath(const QString& path) {
-        if (path.startsWith("file://") || path.contains("/"))
-            return QUrl::fromUserInput(path).toLocalFile();
-        return path;
+        QString p = path;
+        if (p.startsWith(QLatin1Char('~')))
+            p = QDir::homePath() + p.mid(1);
+        if (p.startsWith("file://") || p.contains("/"))
+            return QUrl::fromUserInput(p).toLocalFile();
+        return p;
     }
 }
 
