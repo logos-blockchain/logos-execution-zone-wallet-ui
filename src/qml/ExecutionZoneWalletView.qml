@@ -77,6 +77,7 @@ Rectangle {
             }
             dashboardView.transferResult = msg
             dashboardView.transferResultIsError = isError
+            dashboardView.transferTxHash = (obj && obj.tx_hash) ? obj.tx_hash : ""
         }
     }
 
@@ -165,6 +166,7 @@ Rectangle {
                         function(error) {
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
                         })
                 }
                 onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) => {
@@ -176,6 +178,7 @@ Rectangle {
                             dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
                         })
                 }
                 onTransferPrivateOwnedRequested: (fromId, toAccountId, amount) => {
@@ -187,6 +190,7 @@ Rectangle {
                             dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
                         })
                 }
                 onTransferShieldedRequested: (fromId, toKeysJsonOrAddress, amount) => {
@@ -198,6 +202,7 @@ Rectangle {
                             dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
                         })
                 }
                 onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) => {
@@ -209,6 +214,7 @@ Rectangle {
                             dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
                         })
                 }
                 onTransferDeshieldedRequested: (fromId, toAccountId, amount) => {
@@ -220,6 +226,7 @@ Rectangle {
                             dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
                         })
                 }
                 onCopyRequested: (copyText) => {

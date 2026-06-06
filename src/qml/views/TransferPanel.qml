@@ -15,6 +15,7 @@ Rectangle {
     property var publicAccountModel: null
     property var privateAccountModel: null
     property string transferResult: ""
+    property string transferTxHash: ""
     property bool transferResultIsError: false
     property bool transferPending: false
 
@@ -37,9 +38,8 @@ Rectangle {
         readonly property bool isPrivateTab: transferTypeBar.currentIndex === 1
         readonly property bool isShieldedTab: transferTypeBar.currentIndex === 2
         readonly property bool isDeshieldedTab: transferTypeBar.currentIndex === 3
-        readonly property bool showOwnedOption: isPrivateTab || isShieldedTab
-        readonly property bool toComboPermanent: isDeshieldedTab
-        readonly property bool toAddressValid: (toComboPermanent || (showOwnedOption && useOwnedAccountForTo))
+        readonly property bool showOwnedOption: true
+        readonly property bool toAddressValid: useOwnedAccountForTo
             ? (toFilterCount > 0 && toCombo.currentIndex >= 0)
             : (toField && toField.text.trim().length > 0)
         readonly property bool needsProof: isPrivateTab || isShieldedTab || isDeshieldedTab
@@ -142,15 +142,15 @@ Rectangle {
             LogosTextField {
                 id: toField
                 Layout.fillWidth: true
-                placeholderText: d.isPublicTab ? qsTr("Recipient address") : qsTr("Recipient private keys (JSON)")
-                visible: !d.toComboPermanent && (!d.showOwnedOption || !d.useOwnedAccountForTo)
+                placeholderText: (d.isPublicTab || d.isDeshieldedTab) ? qsTr("Recipient address") : qsTr("Recipient private keys (JSON)")
+                visible: !d.useOwnedAccountForTo
             }
 
             AccountComboBox {
                 id: toCombo
                 Layout.fillWidth: true
                 model: (d.isPublicTab || d.isDeshieldedTab) ? root.publicAccountModel : root.privateAccountModel
-                visible: d.toComboPermanent || (d.showOwnedOption && d.useOwnedAccountForTo && toFilterCount > 0)
+                visible: d.useOwnedAccountForTo && toFilterCount > 0
                 onCopyRequested: (text) => root.copyRequested(text)
             }
         }
@@ -184,7 +184,7 @@ Rectangle {
                         ? (fromCombo.currentValue ?? "")
                         : Base58.decode(manualFromField.text.trim())
                 var rawTo = toField.text.trim()
-                var toAddress = (d.toComboPermanent || (d.useOwnedAccountForTo && toCombo.currentIndex >= 0))
+                var toAddress = (d.useOwnedAccountForTo && toCombo.currentIndex >= 0)
                         ? (toCombo.currentValue ?? "")
                         : (rawTo.startsWith("{") ? rawTo : Base58.decode(rawTo))
                 var amount = amountField.text.trim()
@@ -246,7 +246,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignRight
                 Layout.preferredHeight: 40
                 Layout.preferredWidth: 40
-                onCopyText: root.copyRequested(root.transferResult)
+                onCopyText: root.copyRequested(root.transferTxHash || root.transferResult)
                 visible: resultText.text
             }
         }

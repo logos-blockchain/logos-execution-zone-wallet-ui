@@ -13,6 +13,7 @@ Rectangle {
     property var publicAccountModel: null
     property var privateAccountModel: null
     property string transferResult: ""
+    property string transferTxHash: ""
     property bool transferResultIsError: false
     property bool transferPending: false
     property int lastSyncedBlock: 0
@@ -61,6 +62,7 @@ Rectangle {
             publicAccountModel: root.publicAccountModel
             privateAccountModel: root.privateAccountModel
             transferResult: root.transferResult
+            transferTxHash: root.transferTxHash
             transferResultIsError: root.transferResultIsError
             transferPending: root.transferPending
 
