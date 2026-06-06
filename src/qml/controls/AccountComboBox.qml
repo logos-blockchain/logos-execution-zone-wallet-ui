@@ -4,6 +4,7 @@ import QtQuick.Layouts
 
 import Logos.Theme
 import Logos.Controls
+import "../Base58.js" as Base58
 
 ComboBox {
     id: root
@@ -45,7 +46,7 @@ ComboBox {
             selectByMouse: true
             font.pixelSize: Theme.typography.secondaryText
             color: Theme.palette.text
-            text: root.displayText
+            text: root.currentValue ? ("Account " + Base58.encode(root.currentValue).substring(0, 6)) : root.displayText
             verticalAlignment: Text.AlignVCenter
             clip: true
         }

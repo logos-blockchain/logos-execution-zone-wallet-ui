@@ -6,6 +6,7 @@ import Logos.Theme
 import Logos.Controls
 
 import "../controls"
+import "../Base58.js" as Base58
 
 Rectangle {
     id: root
@@ -181,10 +182,11 @@ Rectangle {
             onClicked: {
                 var fromId = fromFilterCount > 0 && fromCombo.currentIndex >= 0
                         ? (fromCombo.currentValue ?? "")
-                        : manualFromField.text.trim()
+                        : Base58.decode(manualFromField.text.trim())
+                var rawTo = toField.text.trim()
                 var toAddress = (d.toComboPermanent || (d.useOwnedAccountForTo && toCombo.currentIndex >= 0))
                         ? (toCombo.currentValue ?? "")
-                        : toField.text.trim()
+                        : (rawTo.startsWith("{") ? rawTo : Base58.decode(rawTo))
                 var amount = amountField.text.trim()
                 if (fromId.length > 0 && toAddress.length > 0 && amount.length > 0) {
                     if (d.isPublicTab)

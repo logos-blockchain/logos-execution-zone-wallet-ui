@@ -4,6 +4,7 @@ import QtQuick.Layouts
 
 import Logos.Theme
 import Logos.Controls
+import "../Base58.js" as Base58
 
 ItemDelegate {
     id: root
@@ -68,7 +69,7 @@ ItemDelegate {
                 id: addressLabel
                 Layout.fillWidth: true
                 verticalAlignment: Text.AlignVCenter
-                text: model.address ?? ""
+                text: Base58.encode(model.address ?? "")
                 font.pixelSize: Theme.typography.secondaryText
                 color: Theme.palette.textMuted
                 elide: Text.ElideMiddle
@@ -76,7 +77,7 @@ ItemDelegate {
             LogosCopyButton {
                 Layout.preferredHeight: 40
                 Layout.preferredWidth: 40
-                onCopyText: root.copyRequested(model.address)
+                onCopyText: root.copyRequested(Base58.encode(model.address ?? ""))
                 visible: addressLabel.text
                 icon.color: Theme.palette.textMuted
             }
