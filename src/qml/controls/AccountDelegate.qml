@@ -35,7 +35,7 @@ ItemDelegate {
             spacing: Theme.spacing.small
 
             LogosText {
-                text: model.name ?? ""
+                text: model.name || ("Account " + Base58.encode(model.accountId ?? "").slice(0, 4))
                 font.pixelSize: Theme.typography.secondaryText
                 font.bold: true
             }
@@ -70,7 +70,7 @@ ItemDelegate {
                 id: addressLabel
                 Layout.fillWidth: true
                 verticalAlignment: Text.AlignVCenter
-                text: Base58.encode(model.address ?? "")
+                text: Base58.encode(model.accountId ?? "")
                 font.pixelSize: Theme.typography.secondaryText
                 color: Theme.palette.textMuted
                 elide: Text.ElideMiddle
@@ -79,8 +79,8 @@ ItemDelegate {
                 Layout.preferredHeight: 40
                 Layout.preferredWidth: 40
                 onCopyText: model.isPublic
-                    ? root.copyRequested(Base58.encode(model.address ?? ""))
-                    : root.copyPublicKeysRequested(model.address ?? "")
+                    ? root.copyRequested(Base58.encode(model.accountId ?? ""))
+                    : root.copyPublicKeysRequested(model.accountId ?? "")
                 visible: addressLabel.text
                 icon.color: Theme.palette.textMuted
             }

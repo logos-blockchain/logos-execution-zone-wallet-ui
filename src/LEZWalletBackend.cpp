@@ -188,11 +188,11 @@ void LEZWalletBackend::updateBalances()
     bool anyFailed = false;
     for (int i = 0; i < m_accountModel->count(); ++i) {
         const QModelIndex idx = m_accountModel->index(i, 0);
-        const QString addr = m_accountModel->data(idx, LEZWalletAccountModel::AddressRole).toString();
+        const QString addr = m_accountModel->data(idx, LEZWalletAccountModel::AccountIdRole).toString();
         const bool isPub = m_accountModel->data(idx, LEZWalletAccountModel::IsPublicRole).toBool();
         const QString bal = getBalance(addr, isPub);
         if (!bal.isEmpty())
-            m_accountModel->setBalanceByAddress(addr, bal);
+            m_accountModel->setBalanceByAccountId(addr, bal);
         else
             anyFailed = true;
     }

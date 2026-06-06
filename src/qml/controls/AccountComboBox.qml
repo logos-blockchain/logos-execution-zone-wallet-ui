@@ -18,7 +18,7 @@ ComboBox {
     rightPadding: 12
     implicitHeight: 40
     textRole: "name"
-    valueRole: "address"
+    valueRole: "accountId"
 
     background: Rectangle {
         radius: Theme.spacing.radiusSmall
@@ -47,7 +47,7 @@ ComboBox {
             selectByMouse: true
             font.pixelSize: Theme.typography.secondaryText
             color: Theme.palette.text
-            text: root.currentValue ? ("Account " + Base58.encode(root.currentValue).substring(0, 6)) : root.displayText
+            text: root.currentValue ? ("Account " + Base58.encode(root.currentValue).substring(0, 4)) : root.displayText
             verticalAlignment: Text.AlignVCenter
             clip: true
         }

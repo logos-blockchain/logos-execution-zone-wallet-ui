@@ -107,7 +107,7 @@ Rectangle {
             LogosTextField {
                 id: manualFromField
                 Layout.fillWidth: true
-                placeholderText: qsTr("Paste or type from address")
+                placeholderText: qsTr("Paste or type from account ID")
                 visible: fromFilterCount === 0
             }
 
@@ -142,7 +142,7 @@ Rectangle {
             LogosTextField {
                 id: toField
                 Layout.fillWidth: true
-                placeholderText: (d.isPublicTab || d.isDeshieldedTab) ? qsTr("Recipient address") : qsTr("Recipient private keys (JSON)")
+                placeholderText: (d.isPublicTab || d.isDeshieldedTab) ? qsTr("Recipient account ID") : qsTr("Recipient public keys (JSON)")
                 visible: !d.useOwnedAccountForTo
             }
 

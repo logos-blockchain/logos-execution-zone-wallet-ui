@@ -31,7 +31,7 @@ bool LEZAccountFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex& s
 int LEZAccountFilterModel::rowForAddress(const QString& address) const
 {
     for (int i = 0; i < rowCount(); ++i) {
-        if (data(index(i, 0), LEZWalletAccountModel::AddressRole).toString() == address)
+        if (data(index(i, 0), LEZWalletAccountModel::AccountIdRole).toString() == address)
             return i;
     }
     return -1;
