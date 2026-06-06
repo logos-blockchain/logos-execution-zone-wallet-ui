@@ -227,6 +227,16 @@ Rectangle {
                     clipHelper.selectAll()
                     clipHelper.copy()
                 }
+                onCopyPublicKeysRequested: (accountIdHex) => {
+                    if (!backend) return
+                    logos.watch(backend.getPrivateAccountKeys(accountIdHex),
+                        function(keys) {
+                            clipHelper.text = keys
+                            clipHelper.selectAll()
+                            clipHelper.copy()
+                        },
+                        function(error) { console.warn("getPrivateAccountKeys failed:", error) })
+                }
             }
         }
     }
