@@ -21,7 +21,7 @@ QVariant LEZWalletAccountModel::data(const QModelIndex& index, int role) const
     const LEZWalletAccountEntry& e = m_entries.at(index.row());
     switch (role) {
     case NameRole:    return e.name;
-    case AddressRole:  return e.address;
+    case AccountIdRole:  return e.accountId;
     case BalanceRole: return e.balance;
     case IsPublicRole: return e.isPublic;
     default:          return QVariant();
@@ -32,7 +32,7 @@ QHash<int, QByteArray> LEZWalletAccountModel::roleNames() const
 {
     return {
         { NameRole,    "name"    },
-        { AddressRole, "address" },
+        { AccountIdRole, "accountId" },
         { BalanceRole, "balance" },
         { IsPublicRole, "isPublic" }
     };
@@ -43,19 +43,18 @@ void LEZWalletAccountModel::replaceFromJsonArray(const QJsonArray& arr)
     beginResetModel();
     int oldCount = m_entries.size();
     m_entries.clear();
-    int idx = 0;
     for (const QJsonValue& v : arr) {
         LEZWalletAccountEntry e;
-        e.name = QStringLiteral("Account %1").arg(++idx);
         e.balance = QString();
         if (v.isObject()) {
             const QJsonObject obj = v.toObject();
-            e.address = obj.value(QStringLiteral("account_id")).toString();
+            e.accountId = obj.value(QStringLiteral("account_id")).toString();
             e.isPublic = obj.value(QStringLiteral("is_public")).toBool(true);
         } else {
-            e.address = v.toString();
+            e.accountId = v.toString();
             e.isPublic = true;
         }
+        e.name = QString();
         m_entries.append(e);
     }
     endResetModel();
@@ -63,10 +62,10 @@ void LEZWalletAccountModel::replaceFromJsonArray(const QJsonArray& arr)
         emit countChanged();
 }
 
-void LEZWalletAccountModel::setBalanceByAddress(const QString& address, const QString& balance)
+void LEZWalletAccountModel::setBalanceByAccountId(const QString& accountId, const QString& balance)
 {
     for (int i = 0; i < m_entries.size(); ++i) {
-        if (m_entries.at(i).address == address) {
+        if (m_entries.at(i).accountId == accountId) {
             if (m_entries.at(i).balance != balance) {
                 m_entries[i].balance = balance;
                 QModelIndex idx = index(i, 0);

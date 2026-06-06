@@ -6,7 +6,7 @@
 
 struct LEZWalletAccountEntry {
     QString name;
-    QString address;
+    QString accountId;
     QString balance;
     bool isPublic = true;
 };
@@ -17,7 +17,7 @@ class LEZWalletAccountModel : public QAbstractListModel {
 public:
     enum Role {
         NameRole = Qt::UserRole + 1,
-        AddressRole,
+        AccountIdRole,
         BalanceRole,
         IsPublicRole
     };
@@ -30,7 +30,7 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     void replaceFromJsonArray(const QJsonArray& arr);
-    void setBalanceByAddress(const QString& address, const QString& balance);
+    void setBalanceByAccountId(const QString& accountId, const QString& balance);
     int count() const { return m_entries.size(); }
 
 signals:

@@ -4,13 +4,19 @@
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSettings>
 #include <QTimer>
 #include <QUrl>
 
 #include "logos_api.h"
+#include "logos_api_client.h"
 #include "logos_sdk.h"
 
 namespace {
@@ -18,7 +24,12 @@ namespace {
     const char SETTINGS_APP[] = "ExecutionZoneWalletUI";
     const char CONFIG_PATH_KEY[] = "configPath";
     const char STORAGE_PATH_KEY[] = "storagePath";
+    const char LEZ_MODULE[] = "logos_execution_zone";
     const int WALLET_FFI_SUCCESS = 0;
+    // Proof generation time is unbounded on commodity hardware.
+    // Timeout(-1) means "wait indefinitely", matching Qt's own convention
+    // for infinite waits (e.g. QRemoteObjectPendingCall::waitForFinished(-1)).
+    const Timeout NO_TIMEOUT{-1};
 
     // Convert a decimal amount string to 32-char hex (16 bytes little-endian)
     // for transfer_public/transfer_private/transfer_private_owned.
@@ -36,9 +47,12 @@ namespace {
 
     // Normalise file:// URLs and OS paths to a plain local path.
     QString toLocalPath(const QString& path) {
-        if (path.startsWith("file://") || path.contains("/"))
-            return QUrl::fromUserInput(path).toLocalFile();
-        return path;
+        QString p = path;
+        if (p.startsWith(QLatin1Char('~')))
+            p = QDir::homePath() + p.mid(1);
+        if (p.startsWith("file://") || p.contains("/"))
+            return QUrl::fromUserInput(p).toLocalFile();
+        return p;
     }
 }
 
@@ -46,10 +60,13 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     : LEZWalletBackendSimpleSource(parent),
       m_accountModel(new LEZWalletAccountModel(this)),
       m_filteredAccountModel(new LEZAccountFilterModel(this)),
+      m_privateAccountModel(new LEZAccountFilterModel(this)),
       m_logosAPI(logosAPI ? logosAPI : new LogosAPI("lez_wallet_ui", this)),
       m_logos(new LogosModules(m_logosAPI))
 {
     m_filteredAccountModel->setSourceModel(m_accountModel);
+    m_privateAccountModel->setFilterByPublic(false);
+    m_privateAccountModel->setSourceModel(m_accountModel);
 
     // Initialise PROP defaults via the generated setters.
     setIsWalletOpen(false);
@@ -111,9 +128,14 @@ void LEZWalletBackend::openIfPathsConfigured()
     if (err == WALLET_FFI_SUCCESS) {
         qDebug() << "LEZWalletBackend: wallet opened successfully";
         setIsWalletOpen(true);
-        refreshAccounts();
-        refreshBlockHeights();
+        QJsonArray arr = m_logos->logos_execution_zone.list_accounts();
+        m_accountModel->replaceFromJsonArray(arr);
+        fetchAndUpdateBlockHeights();
+        startChunkedSync();
         refreshSequencerAddr();
+    } else {
+        qWarning() << "LEZWalletBackend: failed to open wallet, error" << err
+                   << "config:" << configPath() << "storage:" << storagePath();
     }
 }
 
@@ -121,21 +143,66 @@ void LEZWalletBackend::refreshAccounts()
 {
     QJsonArray arr = m_logos->logos_execution_zone.list_accounts();
     m_accountModel->replaceFromJsonArray(arr);
-    refreshBalances();
+    fetchAndUpdateBlockHeights();
+    if (!m_syncing)
+        startChunkedSync();
 }
 
 void LEZWalletBackend::refreshBalances()
 {
-    refreshBlockHeights();
-    syncToBlock(currentBlockHeight());
+    fetchAndUpdateBlockHeights();
+    if (!m_syncing)
+        startChunkedSync();
+}
+
+void LEZWalletBackend::startChunkedSync()
+{
+    m_syncTarget = static_cast<quint64>(currentBlockHeight());
+    if (m_syncTarget == 0 || static_cast<quint64>(lastSyncedBlock()) >= m_syncTarget) {
+        updateBalances();
+        return;
+    }
+    m_syncing = true;
+    syncNextChunk();
+}
+
+void LEZWalletBackend::syncNextChunk()
+{
+    const quint64 synced = static_cast<quint64>(lastSyncedBlock());
+    if (synced >= m_syncTarget) {
+        m_syncing = false;
+        fetchAndUpdateBlockHeights();
+        updateBalances();
+        return;
+    }
+    const quint64 next = qMin(synced + SYNC_CHUNK_SIZE, m_syncTarget);
+    m_logos->logos_execution_zone.sync_to_block(next);
+    // Only read lastSyncedBlock between chunks — avoids a sequencer network
+    // call (get_current_block_height) on every iteration.
+    const int lastVal = m_logos->logos_execution_zone.get_last_synced_block();
+    if (lastSyncedBlock() != lastVal)
+        setLastSyncedBlock(lastVal);
+    QTimer::singleShot(0, this, &LEZWalletBackend::syncNextChunk);
+}
+
+void LEZWalletBackend::updateBalances()
+{
     if (!m_accountModel) return;
+    bool anyFailed = false;
     for (int i = 0; i < m_accountModel->count(); ++i) {
         const QModelIndex idx = m_accountModel->index(i, 0);
-        const QString addr = m_accountModel->data(idx, LEZWalletAccountModel::AddressRole).toString();
+        const QString addr = m_accountModel->data(idx, LEZWalletAccountModel::AccountIdRole).toString();
         const bool isPub = m_accountModel->data(idx, LEZWalletAccountModel::IsPublicRole).toBool();
-        m_accountModel->setBalanceByAddress(addr, getBalance(addr, isPub));
+        const QString bal = getBalance(addr, isPub);
+        if (!bal.isEmpty())
+            m_accountModel->setBalanceByAccountId(addr, bal);
+        else
+            anyFailed = true;
     }
-    saveWallet();
+    if (anyFailed)
+        QTimer::singleShot(3000, this, &LEZWalletBackend::updateBalances);
+    else
+        saveWallet();
 }
 
 void LEZWalletBackend::fetchAndUpdateBlockHeights()
@@ -148,16 +215,6 @@ void LEZWalletBackend::fetchAndUpdateBlockHeights()
         setCurrentBlockHeight(currentVal);
 }
 
-void LEZWalletBackend::refreshBlockHeights()
-{
-    fetchAndUpdateBlockHeights();
-    if (currentBlockHeight() > 0
-        && lastSyncedBlock() < currentBlockHeight()
-        && syncToBlock(currentBlockHeight()))
-    {
-        fetchAndUpdateBlockHeights();
-    }
-}
 
 void LEZWalletBackend::refreshSequencerAddr()
 {
@@ -216,7 +273,6 @@ QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QStrin
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
 
     QString keysPayload = toHex.trimmed();
-    // If "To" is not JSON (e.g. user pasted account id hex), resolve to keys.
     if (!keysPayload.startsWith(QLatin1Char('{'))) {
         qDebug() << "LEZWalletBackend::transferPrivate: resolving keys via get_private_account_keys";
         const QString resolved = getPrivateAccountKeys(keysPayload);
@@ -224,27 +280,97 @@ QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QStrin
             keysPayload = resolved;
     }
 
-    return m_logos->logos_execution_zone.transfer_private(fromHex, keysPayload, amountHex);
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "transfer_private",
+        QVariantList{fromHex.trimmed(), keysPayload, amountHex},
+        NO_TIMEOUT).toString();
 }
 
 QString LEZWalletBackend::transferPrivateOwned(QString fromHex, QString toHex, QString amountStr)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    return m_logos->logos_execution_zone.transfer_private_owned(fromHex, toHex.trimmed(), amountHex);
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "transfer_private_owned",
+        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex},
+        NO_TIMEOUT).toString();
 }
 
-bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password)
+QString LEZWalletBackend::transferShielded(QString fromHex, QString toKeysJson, QString amountStr)
 {
-    const QString localPath = toLocalPath(configPath);
-    int err = m_logos->logos_execution_zone.create_new(localPath, storagePath, password);
+    const QString amountHex = amountToLe16Hex(amountStr);
+    if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
+
+    QString keysPayload = toKeysJson.trimmed();
+    if (!keysPayload.startsWith(QLatin1Char('{'))) {
+        qDebug() << "LEZWalletBackend::transferShielded: resolving keys via get_private_account_keys";
+        const QString resolved = getPrivateAccountKeys(keysPayload);
+        if (!resolved.isEmpty())
+            keysPayload = resolved;
+    }
+
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "transfer_shielded",
+        QVariantList{fromHex.trimmed(), keysPayload, amountHex},
+        NO_TIMEOUT).toString();
+}
+
+QString LEZWalletBackend::transferShieldedOwned(QString fromHex, QString toHex, QString amountStr)
+{
+    const QString amountHex = amountToLe16Hex(amountStr);
+    if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "transfer_shielded_owned",
+        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex},
+        NO_TIMEOUT).toString();
+}
+
+QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QString amountStr)
+{
+    const QString amountHex = amountToLe16Hex(amountStr);
+    if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "transfer_deshielded",
+        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex},
+        NO_TIMEOUT).toString();
+}
+
+void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr)
+{
+    QJsonObject obj;
+    QFile file(configPath);
+    if (file.open(QIODevice::ReadOnly)) {
+        obj = QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+    } else {
+        // Defaults matching WalletConfig::default() in the wallet crate.
+        obj[QStringLiteral("seq_poll_timeout")]        = QStringLiteral("30s");
+        obj[QStringLiteral("seq_tx_poll_max_blocks")]  = 15;
+        obj[QStringLiteral("seq_poll_max_retries")]    = 10;
+        obj[QStringLiteral("seq_block_poll_max_amount")] = 100;
+    }
+    obj[QStringLiteral("sequencer_addr")] = sequencerAddr;
+
+    QDir().mkpath(QFileInfo(configPath).absolutePath());
+    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+}
+
+bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr)
+{
+    const QString localConfigPath = toLocalPath(configPath);
+    const QString localStoragePath = toLocalPath(storagePath);
+
+    if (!sequencerAddr.isEmpty())
+        applySequencerAddrToConfig(localConfigPath, sequencerAddr);
+
+    int err = m_logos->logos_execution_zone.create_new(localConfigPath, localStoragePath, password);
     if (err != WALLET_FFI_SUCCESS) return false;
 
-    persistConfigPath(localPath);
-    persistStoragePath(storagePath);
+    persistConfigPath(localConfigPath);
+    persistStoragePath(localStoragePath);
     setIsWalletOpen(true);
     refreshAccounts();
-    refreshBlockHeights();
     refreshSequencerAddr();
     return true;
 }
