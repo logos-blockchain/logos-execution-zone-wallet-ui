@@ -227,6 +227,8 @@ QString LEZWalletBackend::transferPublic(QString fromHex, QString toHex, QString
     QList<QString> account_ids = { fromHex, toHex };
     QList<bool> signing_requirements = { true, false };
 
+    QByteArray elf_byte_array = m_logos->logos_execution_zone.authenticated_transfer_elf().value<QByteArray>();
+
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
 
@@ -245,7 +247,6 @@ QString LEZWalletBackend::transferPublic(QString fromHex, QString toHex, QString
     const QList<uint8_t>& input_data_raw_ref = input_data_raw;
 
     QList<uint32_t> input_data = m_logos->logos_execution_zone.serialization_helper(input_data_raw_ref);
-    QList<uint8_t> elf = m_logos->logos_execution_zone.authenticated_transfer_elf();
 
     QList<QList<uint8_t>> program_dependencies;
 
@@ -273,31 +274,35 @@ QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QStrin
 
 QString LEZWalletBackend::transferPrivateOwned(QString fromHex, QString toHex, QString amountStr)
 {
-    QList<QString> account_ids = { fromHex, toHex };
+    // QList<QString> account_ids = { fromHex, toHex };
+
+    // const QString amountHex = amountToLe16Hex(amountStr);
+    // if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
+
+    // uint8_t amount[16];
+    // if (!hexToU128(amountHex, &amount)) {
+    //     return QStringLiteral("Error: Invalid amount.");
+    // }
+
+    // QList<uint8_t> input_data_raw;
+    // input_data_raw.reserve(17);
+    // input_data_raw.append(0);
+    // for (int i = 0; i < 16; i++) {
+    //     input_data_raw.append(amount[i]);
+    // }
+
+    // QList<uint32_t> input_data = m_logos->logos_execution_zone.serialization_helper(&input_data_raw);
+    // QList<uint8_t> elf = m_logos->logos_execution_zone.authenticated_transfer_elf();
+
+    // QList<QList<uint8_t>> program_dependencies;
+
+    // const QList<QString>& account_ids_ref = account_ids;
+
+    // return m_logos->logos_execution_zone.send_generic_private_transaction(account_ids_ref, &input_data, &elf, &program_dependencies);
 
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-
-    uint8_t amount[16];
-    if (!hexToU128(amountHex, &amount)) {
-        return QStringLiteral("Error: Invalid amount.");
-    }
-
-    QList<uint8_t> input_data_raw;
-    input_data_raw.reserve(17);
-    input_data_raw.append(0);
-    for (int i = 0; i < 16; i++) {
-        input_data_raw.append(amount[i]);
-    }
-
-    QList<uint32_t> input_data = m_logos->logos_execution_zone.serialization_helper(&input_data_raw);
-    QList<uint8_t> elf = m_logos->logos_execution_zone.authenticated_transfer_elf();
-
-    QList<QList<uint8_t>> program_dependencies;
-
-    const QList<QString>& account_ids_ref = account_ids;
-
-    return m_logos->logos_execution_zone.send_generic_private_transaction(account_ids_ref, &input_data, &elf, &program_dependencies);
+    return m_logos->logos_execution_zone.transfer_private_owned(fromHex, toHex.trimmed(), amountHex);
 }
 
 bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password)
