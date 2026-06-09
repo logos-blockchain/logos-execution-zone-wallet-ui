@@ -11,15 +11,9 @@
 #include <QUrl>
 #include <QList>
 #include <QString>
-#include <QMetaType>
 
 #include "logos_api.h"
 #include "logos_sdk.h"
-
-static const bool s_metaTypesRegistered = []() {
-    qRegisterMetaType<QJsonArray>("QJsonArray");
-    return true;
-}();
 
 namespace {
     const char SETTINGS_ORG[] = "Logos";
