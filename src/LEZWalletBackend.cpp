@@ -9,6 +9,8 @@
 #include <QSettings>
 #include <QTimer>
 #include <QUrl>
+#include <QList>
+#include <QString>
 
 #include "logos_api.h"
 #include "logos_sdk.h"
@@ -40,6 +42,23 @@ namespace {
             return QUrl::fromUserInput(path).toLocalFile();
         return path;
     }
+}
+
+static bool hexToU128(const QString& hex, uint8_t (*output)[16])
+{
+    if (hex.isEmpty() || hex.length() != 32)
+        return false;
+
+    for (int i = 0; i < 16; i++)
+    {
+        bool ok = false;
+        uint8_t byte = static_cast<uint8_t>(hex.mid(i * 2, 2).toUInt(&ok, 16));
+        if (!ok)
+            return false;
+        (*output)[i] = byte;
+    }
+
+    return true;
 }
 
 LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
@@ -205,9 +224,55 @@ bool LEZWalletBackend::syncToBlock(quint64 blockId)
 
 QString LEZWalletBackend::transferPublic(QString fromHex, QString toHex, QString amountStr)
 {
+    QStringList account_ids = { fromHex, toHex };
+    QStringList signing_requirements = { "true", "false" };
+    QStringList elf_json = m_logos->logos_execution_zone.authenticated_transfer_elf();
+    // No dependencies
+    QStringList program_dependencies;
+
+    // Instruction encoding, the hardest part
+    // RISC0 consumes not bytes, but uint32_t words
+    // construction of which is dependant on Rust serialization
+    // In this exact case instruction is:
+    //
+    // Instruction::Transfer {
+    //    amount: u128 
+    // }
+    //
+    // which encodes to [0, word_1, word_2, word_3, word_4]
+    // where 0 - is Transfer enum identifier and words is from le representation of u128.
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    return m_logos->logos_execution_zone.transfer_public(fromHex, toHex, amountHex);
+
+    uint8_t amount[16];
+    if (!hexToU128(amountHex, &amount)) {
+        return QStringLiteral("Error: Invalid amount.");
+    }
+
+    QList<uint32_t> amount_words;
+    amount_words.reserve(5);
+    amount_words.append(0);
+    for (int i = 0; i < 4; ++i) {
+        uint32_t word = static_cast<uint32_t>(amount[i * 4])
+                        | static_cast<uint32_t>(amount[i * 4 + 1]) << 8
+                        | static_cast<uint32_t>(amount[i * 4 + 2]) << 16
+                        | static_cast<uint32_t>(amount[i * 4 + 3]) << 24;
+        amount_words.append(word);
+    }
+
+    QStringList amount_list;
+    amount_list.reserve(amount_words.size());
+    for (const uint32_t word : amount_words) {
+        amount_list.append(QString::number(word));
+    }
+    
+    const QStringList& account_ids_ref = account_ids;
+    const QStringList& signing_requirements_ref = signing_requirements;
+    const QStringList& input_data_ref = amount_list;
+    const QStringList& elf_json_ref = elf_json;
+    const QStringList& program_dependencies_ref = program_dependencies;
+
+    return m_logos->logos_execution_zone.send_generic_public_transaction(account_ids_ref, signing_requirements_ref, input_data_ref, elf_json_ref, program_dependencies_ref);
 }
 
 QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QString amountStr)
