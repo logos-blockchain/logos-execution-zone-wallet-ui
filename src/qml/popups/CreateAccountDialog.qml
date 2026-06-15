@@ -64,7 +64,7 @@ Popup {
 
         LogosText {
             text: tabBar.currentIndex === 0
-                  ? qsTr("Address visible. Balance on-chain.")
+                  ? qsTr("Account ID visible. Balance on-chain.")
                   : qsTr("Private balance and activity.")
             font.pixelSize: Theme.typography.secondaryText
             color: Theme.palette.textSecondary

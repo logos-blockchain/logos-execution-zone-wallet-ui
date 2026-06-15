@@ -4,6 +4,7 @@ import QtQuick.Layouts
 
 import Logos.Theme
 import Logos.Controls
+import "../Base58.js" as Base58
 
 ItemDelegate {
     id: root
@@ -13,6 +14,7 @@ ItemDelegate {
     // the global QML scope for `backend` since it now lives behind the
     // logos.module() bridge in the parent view.
     signal copyRequested(string text)
+    signal copyPublicKeysRequested(string accountIdHex)
 
     leftPadding: Theme.spacing.medium
     rightPadding: Theme.spacing.medium
@@ -33,7 +35,7 @@ ItemDelegate {
             spacing: Theme.spacing.small
 
             LogosText {
-                text: model.name ?? ""
+                text: model.name || ("Account " + Base58.encode(model.accountId ?? "").slice(0, 4))
                 font.pixelSize: Theme.typography.secondaryText
                 font.bold: true
             }
@@ -68,7 +70,7 @@ ItemDelegate {
                 id: addressLabel
                 Layout.fillWidth: true
                 verticalAlignment: Text.AlignVCenter
-                text: model.address ?? ""
+                text: Base58.encode(model.accountId ?? "")
                 font.pixelSize: Theme.typography.secondaryText
                 color: Theme.palette.textMuted
                 elide: Text.ElideMiddle
@@ -76,7 +78,9 @@ ItemDelegate {
             LogosCopyButton {
                 Layout.preferredHeight: 40
                 Layout.preferredWidth: 40
-                onCopyText: root.copyRequested(model.address)
+                onCopyText: model.isPublic
+                    ? root.copyRequested(Base58.encode(model.accountId ?? ""))
+                    : root.copyPublicKeysRequested(model.accountId ?? "")
                 visible: addressLabel.text
                 icon.color: Theme.palette.textMuted
             }

@@ -19,6 +19,7 @@ class LEZWalletBackend : public LEZWalletBackendSimpleSource {
     Q_OBJECT
     Q_PROPERTY(LEZWalletAccountModel* accountModel READ accountModel CONSTANT)
     Q_PROPERTY(LEZAccountFilterModel* filteredAccountModel READ filteredAccountModel CONSTANT)
+    Q_PROPERTY(LEZAccountFilterModel* privateAccountModel READ privateAccountModel CONSTANT)
 
 public:
     explicit LEZWalletBackend(LogosAPI* logosAPI = nullptr, QObject* parent = nullptr);
@@ -26,6 +27,7 @@ public:
 
     LEZWalletAccountModel* accountModel() const { return m_accountModel; }
     LEZAccountFilterModel* filteredAccountModel() const { return m_filteredAccountModel; }
+    LEZAccountFilterModel* privateAccountModel() const { return m_privateAccountModel; }
 
 public slots:
     // Overrides of the pure-virtual slots generated from the .rep.
@@ -40,20 +42,34 @@ public slots:
     QString transferPublic(QString fromHex, QString toHex, QString amountStr) override;
     QString transferPrivate(QString fromHex, QString toHex, QString amountStr) override;
     QString transferPrivateOwned(QString fromHex, QString toHex, QString amountStr) override;
-    bool createNew(QString configPath, QString storagePath, QString password) override;
+    QString transferShielded(QString fromHex, QString toKeysJson, QString amountStr) override;
+    QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr) override;
+    QString transferDeshielded(QString fromHex, QString toHex, QString amountStr) override;
+    bool createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
     void copyToClipboard(QString text) override;
+
+private slots:
+    void syncNextChunk();
 
 private:
     void persistConfigPath(const QString& path);
     void persistStoragePath(const QString& path);
-    void refreshBlockHeights();
+    void applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr);
+    void fetchAndUpdateBlockHeights();
+    void startChunkedSync();
+
+    void updateBalances();
     void refreshSequencerAddr();
     void saveWallet();
-    void fetchAndUpdateBlockHeights();
     void openIfPathsConfigured();
+
+    bool m_syncing = false;
+    quint64 m_syncTarget = 0;
+    static constexpr quint64 SYNC_CHUNK_SIZE = 100;
 
     LEZWalletAccountModel* m_accountModel;
     LEZAccountFilterModel* m_filteredAccountModel;
+    LEZAccountFilterModel* m_privateAccountModel;
 
     LogosAPI* m_logosAPI;
     LogosModules* m_logos;
