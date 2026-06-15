@@ -11,6 +11,8 @@ Rectangle {
 
     readonly property var backend: logos.module("lez_wallet_ui")
     readonly property var accountModel: logos.model("lez_wallet_ui", "accountModel")
+    readonly property var publicAccountModel: logos.model("lez_wallet_ui", "filteredAccountModel")
+    readonly property var privateAccountModel: logos.model("lez_wallet_ui", "privateAccountModel")
     property bool ready: false
 
     Connections {
@@ -59,7 +61,6 @@ Rectangle {
         }
 
         // Parse a transfer result JSON string and write to dashboardView.
-        // Used by all three transfer handlers below.
         function applyTransferResult(dashboardView, raw) {
             var msg = raw || ""
             var isError = false
@@ -76,6 +77,7 @@ Rectangle {
             }
             dashboardView.transferResult = msg
             dashboardView.transferResultIsError = isError
+            dashboardView.transferTxHash = (obj && obj.tx_hash) ? obj.tx_hash : ""
         }
     }
 
@@ -114,9 +116,9 @@ Rectangle {
             OnboardingView {
                 storePath: backend ? backend.storagePath : ""
                 configPath: backend ? backend.configPath : ""
-                onCreateWallet: function(configPath, storagePath, password) {
+                onCreateWallet: function(configPath, storagePath, password, sequencerUrl) {
                     if (!backend) return
-                    logos.watch(backend.createNew(configPath, storagePath, password),
+                    logos.watch(backend.createNew(configPath, storagePath, password, sequencerUrl),
                         function(ok) {
                             if (!ok)
                                 createError = qsTr("Failed to create wallet. Check paths and try again.")
@@ -134,6 +136,10 @@ Rectangle {
             DashboardView {
                 id: dashboardView
                 accountModel: root.accountModel
+                publicAccountModel: root.publicAccountModel
+                privateAccountModel: root.privateAccountModel
+                lastSyncedBlock: backend ? backend.lastSyncedBlock : 0
+                currentBlockHeight: backend ? backend.currentBlockHeight : 0
 
                 onCreatePublicAccountRequested: {
                     if (!backend) { console.warn("backend is null"); return }
@@ -160,30 +166,83 @@ Rectangle {
                         function(error) {
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
                         })
                 }
                 onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) => {
                     if (!backend) return
+                    dashboardView.transferPending = true
                     logos.watch(backend.transferPrivate(fromId, toKeysJsonOrAddress, amount),
-                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
                         function(error) {
+                            dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
                         })
                 }
                 onTransferPrivateOwnedRequested: (fromId, toAccountId, amount) => {
                     if (!backend) return
+                    dashboardView.transferPending = true
                     logos.watch(backend.transferPrivateOwned(fromId, toAccountId, amount),
-                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
                         function(error) {
+                            dashboardView.transferPending = false
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)
                             dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
+                        })
+                }
+                onTransferShieldedRequested: (fromId, toKeysJsonOrAddress, amount) => {
+                    if (!backend) return
+                    dashboardView.transferPending = true
+                    logos.watch(backend.transferShielded(fromId, toKeysJsonOrAddress, amount),
+                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(error) {
+                            dashboardView.transferPending = false
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
+                        })
+                }
+                onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) => {
+                    if (!backend) return
+                    dashboardView.transferPending = true
+                    logos.watch(backend.transferShieldedOwned(fromId, toAccountId, amount),
+                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(error) {
+                            dashboardView.transferPending = false
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
+                        })
+                }
+                onTransferDeshieldedRequested: (fromId, toAccountId, amount) => {
+                    if (!backend) return
+                    dashboardView.transferPending = true
+                    logos.watch(backend.transferDeshielded(fromId, toAccountId, amount),
+                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(error) {
+                            dashboardView.transferPending = false
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
                         })
                 }
                 onCopyRequested: (copyText) => {
                     clipHelper.text = copyText
                     clipHelper.selectAll()
                     clipHelper.copy()
+                }
+                onCopyPublicKeysRequested: (accountIdHex) => {
+                    if (!backend) return
+                    logos.watch(backend.getPrivateAccountKeys(accountIdHex),
+                        function(keys) {
+                            clipHelper.text = keys
+                            clipHelper.selectAll()
+                            clipHelper.copy()
+                        },
+                        function(error) { console.warn("getPrivateAccountKeys failed:", error) })
                 }
             }
         }

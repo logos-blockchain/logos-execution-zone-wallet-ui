@@ -13,12 +13,15 @@ Rectangle {
 
     // --- Public API: data in ---
     property var accountModel: null
+    property int lastSyncedBlock: 0
+    property int currentBlockHeight: 0
 
     // --- Public API: signals out ---
     signal createPublicAccountRequested()
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
     signal copyRequested(string text)
+    signal copyPublicKeysRequested(string accountIdHex)
 
     radius: Theme.spacing.radiusXlarge
     color: Theme.palette.backgroundSecondary
@@ -57,6 +60,50 @@ Rectangle {
             }
         }
 
+        // Sync progress
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacing.xsmall
+            visible: root.currentBlockHeight > 0 && root.lastSyncedBlock < root.currentBlockHeight
+
+            RowLayout {
+                Layout.fillWidth: true
+                LogosText {
+                    text: qsTr("Syncing")
+                    font.pixelSize: Theme.typography.secondaryText
+                    color: Theme.palette.textSecondary
+                }
+                Item { Layout.fillWidth: true }
+                LogosText {
+                    text: root.lastSyncedBlock + " / " + root.currentBlockHeight
+                    font.pixelSize: Theme.typography.secondaryText
+                    color: Theme.palette.textSecondary
+                }
+            }
+            ProgressBar {
+                Layout.fillWidth: true
+                from: 0
+                to: root.currentBlockHeight
+                value: root.lastSyncedBlock
+
+                contentItem: Item {
+                    Rectangle {
+                        width: parent.width * (root.currentBlockHeight > 0
+                               ? root.lastSyncedBlock / root.currentBlockHeight : 0)
+                        height: parent.height
+                        radius: height / 2
+                        color: Theme.palette.overlayOrange
+                    }
+                }
+
+                background: Rectangle {
+                    implicitHeight: 6
+                    radius: height / 2
+                    color: Theme.palette.backgroundElevated
+                }
+            }
+        }
+
         // Empty state (when no real model and we don't show showcase)
         LogosText {
             Layout.fillWidth: true
@@ -83,6 +130,7 @@ Rectangle {
             delegate: AccountDelegate {
                 width: listView.width
                 onCopyRequested: (text) => root.copyRequested(text)
+                onCopyPublicKeysRequested: (id) => root.copyPublicKeysRequested(id)
             }
         }
 
