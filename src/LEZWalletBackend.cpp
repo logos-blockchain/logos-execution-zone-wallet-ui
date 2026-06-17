@@ -175,6 +175,10 @@ void LEZWalletBackend::syncNextChunk()
     const quint64 synced = static_cast<quint64>(lastSyncedBlock());
     if (synced >= m_syncTarget) {
         m_syncing = false;
+        // Sync may have discovered new private accounts (e.g. shielded transfers to a
+        // foreign NPK/VPK); re-list so the model picks them up without a restart.
+        QVariantList arr = m_logos->logos_execution_zone.list_accounts();
+        m_accountModel->replaceFromVariantList(arr);
         fetchAndUpdateBlockHeights();
         updateBalances();
         return;
