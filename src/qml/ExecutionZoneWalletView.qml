@@ -118,10 +118,13 @@ Rectangle {
                 configPath: backend ? backend.configPath : ""
                 onCreateWallet: function(configPath, storagePath, password, sequencerUrl) {
                     if (!backend) return
+                    // createNew() returns an empty string on success, or a
+                    // human-readable error message (e.g. existing files at
+                    // the chosen paths failed to load) otherwise.
                     logos.watch(backend.createNew(configPath, storagePath, password, sequencerUrl),
-                        function(ok) {
-                            if (!ok)
-                                createError = qsTr("Failed to create wallet. Check paths and try again.")
+                        function(errorMessage) {
+                            if (errorMessage)
+                                createError = errorMessage
                         },
                         function(error) {
                             createError = qsTr("Error creating wallet: %1").arg(error)

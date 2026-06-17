@@ -1,5 +1,5 @@
 #include "LEZWalletAccountModel.h"
-#include <QJsonObject>
+#include <QVariantMap>
 
 LEZWalletAccountModel::LEZWalletAccountModel(QObject* parent)
     : QAbstractListModel(parent)
@@ -38,23 +38,23 @@ QHash<int, QByteArray> LEZWalletAccountModel::roleNames() const
     };
 }
 
-void LEZWalletAccountModel::replaceFromJsonArray(const QJsonArray& arr)
+void LEZWalletAccountModel::replaceFromVariantList(const QVariantList& list)
 {
     beginResetModel();
     int oldCount = m_entries.size();
     m_entries.clear();
-    for (const QJsonValue& v : arr) {
+    for (const QVariant& v : list) {
         LEZWalletAccountEntry e;
         e.balance = QString();
-        if (v.isObject()) {
-            const QJsonObject obj = v.toObject();
-            e.accountId = obj.value(QStringLiteral("account_id")).toString();
-            e.isPublic = obj.value(QStringLiteral("is_public")).toBool(true);
+        e.name = QString();
+        if (v.type() == QVariant::Map) {
+            const QVariantMap map = v.toMap();
+            e.accountId = map.value(QStringLiteral("account_id")).toString();
+            e.isPublic = map.value(QStringLiteral("is_public"), true).toBool();
         } else {
             e.accountId = v.toString();
             e.isPublic = true;
         }
-        e.name = QString();
         m_entries.append(e);
     }
     endResetModel();

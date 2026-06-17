@@ -45,7 +45,7 @@ public slots:
     QString transferShielded(QString fromHex, QString toKeysJson, QString amountStr) override;
     QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr) override;
     QString transferDeshielded(QString fromHex, QString toHex, QString amountStr) override;
-    bool createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
+    QString createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
     void copyToClipboard(QString text) override;
 
 private slots:
@@ -62,6 +62,7 @@ private:
     void refreshSequencerAddr();
     void saveWallet();
     void openIfPathsConfigured();
+    void finishOpeningWallet();
 
     bool m_syncing = false;
     quint64 m_syncTarget = 0;

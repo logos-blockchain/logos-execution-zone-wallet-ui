@@ -23,7 +23,7 @@ class LEZWalletBackend
     SLOT(QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr))
     SLOT(QString transferDeshielded(QString fromHex, QString toHex, QString amountStr))
 
-    SLOT(bool createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr))
+    SLOT(QString createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr))
 
     SLOT(void copyToClipboard(QString text))
 }

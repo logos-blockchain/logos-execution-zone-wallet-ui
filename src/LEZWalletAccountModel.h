@@ -1,7 +1,7 @@
 #pragma once
 
 #include <QAbstractListModel>
-#include <QJsonArray>
+#include <QVariant>
 #include <QString>
 
 struct LEZWalletAccountEntry {
@@ -29,7 +29,7 @@ public:
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    void replaceFromJsonArray(const QJsonArray& arr);
+    void replaceFromVariantList(const QVariantList& list);
     void setBalanceByAccountId(const QString& accountId, const QString& balance);
     int count() const { return m_entries.size(); }
 

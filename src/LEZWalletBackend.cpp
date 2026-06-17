@@ -8,7 +8,6 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
-#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSettings>
@@ -127,22 +126,27 @@ void LEZWalletBackend::openIfPathsConfigured()
     int err = m_logos->logos_execution_zone.open(configPath(), storagePath());
     if (err == WALLET_FFI_SUCCESS) {
         qDebug() << "LEZWalletBackend: wallet opened successfully";
-        setIsWalletOpen(true);
-        QJsonArray arr = m_logos->logos_execution_zone.list_accounts();
-        m_accountModel->replaceFromJsonArray(arr);
-        fetchAndUpdateBlockHeights();
-        startChunkedSync();
-        refreshSequencerAddr();
+        finishOpeningWallet();
     } else {
         qWarning() << "LEZWalletBackend: failed to open wallet, error" << err
                    << "config:" << configPath() << "storage:" << storagePath();
     }
 }
 
+void LEZWalletBackend::finishOpeningWallet()
+{
+    setIsWalletOpen(true);
+    QVariantList arr = m_logos->logos_execution_zone.list_accounts();
+    m_accountModel->replaceFromVariantList(arr);
+    fetchAndUpdateBlockHeights();
+    startChunkedSync();
+    refreshSequencerAddr();
+}
+
 void LEZWalletBackend::refreshAccounts()
 {
-    QJsonArray arr = m_logos->logos_execution_zone.list_accounts();
-    m_accountModel->replaceFromJsonArray(arr);
+    QVariantList arr = m_logos->logos_execution_zone.list_accounts();
+    m_accountModel->replaceFromVariantList(arr);
     fetchAndUpdateBlockHeights();
     if (!m_syncing)
         startChunkedSync();
@@ -356,23 +360,39 @@ void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, con
         file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
 }
 
-bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr)
+QString LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr)
 {
     const QString localConfigPath = toLocalPath(configPath);
     const QString localStoragePath = toLocalPath(storagePath);
+
+    // Both files already on disk: this is most likely an existing wallet the
+    // user pointed us at (e.g. from the setup screen), not a request to
+    // overwrite it. Try to load it instead of blindly creating a new one.
+    if (QFile::exists(localConfigPath) && QFile::exists(localStoragePath)) {
+        int err = m_logos->logos_execution_zone.open(localConfigPath, localStoragePath);
+        if (err != WALLET_FFI_SUCCESS) {
+            return QStringLiteral(
+                "Could not load the wallet at the selected paths. Pick "
+                "different existing config/storage files, or choose paths "
+                "that don't exist yet to create a new wallet there.");
+        }
+        persistConfigPath(localConfigPath);
+        persistStoragePath(localStoragePath);
+        finishOpeningWallet();
+        return QString();
+    }
 
     if (!sequencerAddr.isEmpty())
         applySequencerAddrToConfig(localConfigPath, sequencerAddr);
 
     int err = m_logos->logos_execution_zone.create_new(localConfigPath, localStoragePath, password);
-    if (err != WALLET_FFI_SUCCESS) return false;
+    if (err != WALLET_FFI_SUCCESS)
+        return QStringLiteral("Failed to create wallet. Check paths and try again.");
 
     persistConfigPath(localConfigPath);
     persistStoragePath(localStoragePath);
-    setIsWalletOpen(true);
-    refreshAccounts();
-    refreshSequencerAddr();
-    return true;
+    finishOpeningWallet();
+    return QString();
 }
 
 void LEZWalletBackend::copyToClipboard(QString text)
