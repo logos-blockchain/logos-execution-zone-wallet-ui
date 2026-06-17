@@ -133,11 +133,34 @@ void LEZWalletBackend::openIfPathsConfigured()
     }
 }
 
+// Tags each private account with the NPK of the key group it belongs to (plus that
+// group's {nullifier_public_key, viewing_public_key} JSON), so the model can section
+// accounts by key group instead of listing them flat. Public accounts are untouched.
+QVariantList LEZWalletBackend::buildEnrichedAccountList()
+{
+    QVariantList raw = m_logos->logos_execution_zone.list_accounts();
+    QVariantList enriched;
+    enriched.reserve(raw.size());
+    for (const QVariant& v : raw) {
+        QVariantMap map = v.toMap();
+        if (!map.value(QStringLiteral("is_public"), true).toBool()) {
+            const QString accountId = map.value(QStringLiteral("account_id")).toString();
+            const QString keysJson = getPrivateAccountKeys(accountId);
+            const QJsonDocument doc = QJsonDocument::fromJson(keysJson.toUtf8());
+            if (doc.isObject()) {
+                map[QStringLiteral("npk")] = doc.object().value(QStringLiteral("nullifier_public_key")).toString();
+                map[QStringLiteral("keys_json")] = keysJson;
+            }
+        }
+        enriched.append(map);
+    }
+    return enriched;
+}
+
 void LEZWalletBackend::finishOpeningWallet()
 {
     setIsWalletOpen(true);
-    QVariantList arr = m_logos->logos_execution_zone.list_accounts();
-    m_accountModel->replaceFromVariantList(arr);
+    m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
     fetchAndUpdateBlockHeights();
     startChunkedSync();
     refreshSequencerAddr();
@@ -145,8 +168,7 @@ void LEZWalletBackend::finishOpeningWallet()
 
 void LEZWalletBackend::refreshAccounts()
 {
-    QVariantList arr = m_logos->logos_execution_zone.list_accounts();
-    m_accountModel->replaceFromVariantList(arr);
+    m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
     fetchAndUpdateBlockHeights();
     if (!m_syncing)
         startChunkedSync();
@@ -177,8 +199,7 @@ void LEZWalletBackend::syncNextChunk()
         m_syncing = false;
         // Sync may have discovered new private accounts (e.g. shielded transfers to a
         // foreign NPK/VPK); re-list so the model picks them up without a restart.
-        QVariantList arr = m_logos->logos_execution_zone.list_accounts();
-        m_accountModel->replaceFromVariantList(arr);
+        m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
         fetchAndUpdateBlockHeights();
         updateBalances();
         return;

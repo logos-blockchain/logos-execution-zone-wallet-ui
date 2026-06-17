@@ -30,7 +30,6 @@ Rectangle {
     signal transferShieldedOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal transferDeshieldedRequested(string fromAccountId, string toAccountId, string amount)
     signal copyRequested(string copyText)
-    signal copyPublicKeysRequested(string accountIdHex)
 
     color: Theme.palette.background
 
@@ -52,7 +51,6 @@ Rectangle {
             onCreatePrivateAccountRequested: root.createPrivateAccountRequested()
             onFetchBalancesRequested: root.fetchBalancesRequested()
             onCopyRequested: (text) => root.copyRequested(text)
-            onCopyPublicKeysRequested: (id) => root.copyPublicKeysRequested(id)
         }
 
         TransferPanel {

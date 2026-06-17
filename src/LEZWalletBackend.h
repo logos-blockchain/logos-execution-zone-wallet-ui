@@ -57,6 +57,7 @@ private:
     void applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr);
     void fetchAndUpdateBlockHeights();
     void startChunkedSync();
+    QVariantList buildEnrichedAccountList();
 
     void updateBalances();
     void refreshSequencerAddr();

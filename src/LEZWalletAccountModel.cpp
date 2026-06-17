@@ -1,5 +1,6 @@
 #include "LEZWalletAccountModel.h"
 #include <QVariantMap>
+#include <algorithm>
 
 LEZWalletAccountModel::LEZWalletAccountModel(QObject* parent)
     : QAbstractListModel(parent)
@@ -24,6 +25,9 @@ QVariant LEZWalletAccountModel::data(const QModelIndex& index, int role) const
     case AccountIdRole:  return e.accountId;
     case BalanceRole: return e.balance;
     case IsPublicRole: return e.isPublic;
+    case SectionKeyRole: return e.sectionKey;
+    case KeysJsonRole: return e.keysJson;
+    case IsFirstInGroupRole: return e.isFirstInGroup;
     default:          return QVariant();
     }
 }
@@ -34,7 +38,10 @@ QHash<int, QByteArray> LEZWalletAccountModel::roleNames() const
         { NameRole,    "name"    },
         { AccountIdRole, "accountId" },
         { BalanceRole, "balance" },
-        { IsPublicRole, "isPublic" }
+        { IsPublicRole, "isPublic" },
+        { SectionKeyRole, "sectionKey" },
+        { KeysJsonRole, "keysJson" },
+        { IsFirstInGroupRole, "isFirstInGroup" }
     };
 }
 
@@ -51,12 +58,28 @@ void LEZWalletAccountModel::replaceFromVariantList(const QVariantList& list)
             const QVariantMap map = v.toMap();
             e.accountId = map.value(QStringLiteral("account_id")).toString();
             e.isPublic = map.value(QStringLiteral("is_public"), true).toBool();
+            if (e.isPublic) {
+                e.sectionKey = PublicSectionKey;
+            } else {
+                e.sectionKey = map.value(QStringLiteral("npk")).toString();
+                e.keysJson = map.value(QStringLiteral("keys_json")).toString();
+            }
         } else {
             e.accountId = v.toString();
             e.isPublic = true;
+            e.sectionKey = PublicSectionKey;
         }
         m_entries.append(e);
     }
+    // Keep entries grouped by section (public first) so consecutive rows of the same
+    // group are contiguous, then mark each group's first row for the QML header.
+    std::stable_sort(m_entries.begin(), m_entries.end(),
+        [](const LEZWalletAccountEntry& a, const LEZWalletAccountEntry& b) {
+            if (a.isPublic != b.isPublic) return a.isPublic;
+            return a.sectionKey < b.sectionKey;
+        });
+    for (int i = 0; i < m_entries.size(); ++i)
+        m_entries[i].isFirstInGroup = (i == 0) || (m_entries[i].sectionKey != m_entries[i - 1].sectionKey);
     endResetModel();
     if (oldCount != m_entries.size())
         emit countChanged();

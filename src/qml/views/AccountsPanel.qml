@@ -7,6 +7,7 @@ import Logos.Controls
 // TODO: remove relative paths and use qmldir instead
 import "../controls"
 import "../popups"
+import "../Base58.js" as Base58
 
 Rectangle {
     id: root
@@ -21,7 +22,6 @@ Rectangle {
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
     signal copyRequested(string text)
-    signal copyPublicKeysRequested(string accountIdHex)
 
     radius: Theme.spacing.radiusXlarge
     color: Theme.palette.backgroundSecondary
@@ -63,7 +63,7 @@ Rectangle {
         // Sync progress
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: Theme.spacing.xsmall
+            spacing: Theme.spacing.small
             visible: root.currentBlockHeight > 0 && root.lastSyncedBlock < root.currentBlockHeight
 
             RowLayout {
@@ -127,10 +127,44 @@ Rectangle {
             spacing: Theme.spacing.small
             model: root.accountModel
 
-            delegate: AccountDelegate {
+            // Each private account's "keysJson"/"sectionKey"/"isFirstInGroup" are plain
+            // model roles (replicated like any other row data), so the group header for
+            // the section a row starts is rendered inline here rather than via
+            // ListView.section — section.delegate only gets the section's string value,
+            // with no way back to that row's data once the model is a remote replica.
+            delegate: ColumnLayout {
                 width: listView.width
-                onCopyRequested: (text) => root.copyRequested(text)
-                onCopyPublicKeysRequested: (id) => root.copyPublicKeysRequested(id)
+                spacing: Theme.spacing.small
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: model.isFirstInGroup ?? false
+                    spacing: Theme.spacing.small
+
+                    LogosText {
+                        text: model.isPublic
+                            ? qsTr("Public Accounts")
+                            : qsTr("Private — %1").arg(Base58.encode(model.sectionKey ?? "").slice(0, 8))
+                        font.pixelSize: Theme.typography.secondaryText
+                        font.bold: true
+                        color: Theme.palette.textSecondary
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    LogosCopyButton {
+                        Layout.preferredHeight: 32
+                        Layout.preferredWidth: 32
+                        visible: !model.isPublic
+                        icon.color: Theme.palette.textMuted
+                        onCopyText: root.copyRequested(model.keysJson ?? "")
+                    }
+                }
+
+                AccountDelegate {
+                    Layout.fillWidth: true
+                    onCopyRequested: (text) => root.copyRequested(text)
+                }
             }
         }
 

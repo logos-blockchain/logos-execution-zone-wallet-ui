@@ -13,8 +13,10 @@ ItemDelegate {
     // to backend.copyToClipboard(...) — AccountDelegate doesn't reach into
     // the global QML scope for `backend` since it now lives behind the
     // logos.module() bridge in the parent view.
+    // Public accounts only — private accounts copy their group's NPK/VPK via
+    // the section header instead, since an individual account ID isn't an
+    // address you'd hand out (only the (npk, vpk) group identity is).
     signal copyRequested(string text)
-    signal copyPublicKeysRequested(string accountIdHex)
 
     leftPadding: Theme.spacing.medium
     rightPadding: Theme.spacing.medium
@@ -78,10 +80,8 @@ ItemDelegate {
             LogosCopyButton {
                 Layout.preferredHeight: 40
                 Layout.preferredWidth: 40
-                onCopyText: model.isPublic
-                    ? root.copyRequested(Base58.encode(model.accountId ?? ""))
-                    : root.copyPublicKeysRequested(model.accountId ?? "")
-                visible: addressLabel.text
+                onCopyText: root.copyRequested(Base58.encode(model.accountId ?? ""))
+                visible: addressLabel.text && model.isPublic
                 icon.color: Theme.palette.textMuted
             }
         }

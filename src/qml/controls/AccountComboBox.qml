@@ -12,7 +12,6 @@ ComboBox {
     // Forwarded from AccountDelegate's copy button — bubble up to the parent
     // view, which calls backend.copyToClipboard().
     signal copyRequested(string text)
-    signal copyPublicKeysRequested(string accountIdHex)
 
     leftPadding: 12
     rightPadding: 12
@@ -62,7 +61,6 @@ ComboBox {
         width: root.popup ? (root.popup.width - root.popup.leftPadding - root.popup.rightPadding) : 368
         highlighted: root.highlightedIndex === index
         onCopyRequested: (text) => root.copyRequested(text)
-        onCopyPublicKeysRequested: (id) => root.copyPublicKeysRequested(id)
     }
 
     popup: Popup {
