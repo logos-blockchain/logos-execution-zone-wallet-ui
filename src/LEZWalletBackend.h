@@ -7,6 +7,7 @@
 #include "rep_LEZWalletBackend_source.h"
 
 #include "LEZAccountFilterModel.h"
+#include "LEZClaimableAccountFilterModel.h"
 #include "LEZWalletAccountModel.h"
 
 class LogosAPI;
@@ -20,6 +21,7 @@ class LEZWalletBackend : public LEZWalletBackendSimpleSource {
     Q_PROPERTY(LEZWalletAccountModel* accountModel READ accountModel CONSTANT)
     Q_PROPERTY(LEZAccountFilterModel* filteredAccountModel READ filteredAccountModel CONSTANT)
     Q_PROPERTY(LEZAccountFilterModel* privateAccountModel READ privateAccountModel CONSTANT)
+    Q_PROPERTY(LEZClaimableAccountFilterModel* claimableAccountModel READ claimableAccountModel CONSTANT)
 
 public:
     explicit LEZWalletBackend(LogosAPI* logosAPI = nullptr, QObject* parent = nullptr);
@@ -28,6 +30,7 @@ public:
     LEZWalletAccountModel* accountModel() const { return m_accountModel; }
     LEZAccountFilterModel* filteredAccountModel() const { return m_filteredAccountModel; }
     LEZAccountFilterModel* privateAccountModel() const { return m_privateAccountModel; }
+    LEZClaimableAccountFilterModel* claimableAccountModel() const { return m_claimableAccountModel; }
 
 public slots:
     // Overrides of the pure-virtual slots generated from the .rep.
@@ -45,7 +48,10 @@ public slots:
     QString transferShielded(QString fromHex, QString toKeysJson, QString amountStr) override;
     QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr) override;
     QString transferDeshielded(QString fromHex, QString toHex, QString amountStr) override;
-    bool createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
+    QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount) override;
+    void refreshVaultBalances() override;
+    QString vaultClaim(QString fromHex, bool isPublic, QString amountStr) override;
+    QString createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
     void copyToClipboard(QString text) override;
 
 private slots:
@@ -57,11 +63,14 @@ private:
     void applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr);
     void fetchAndUpdateBlockHeights();
     void startChunkedSync();
+    QVariantList buildEnrichedAccountList();
 
     void updateBalances();
+    QString getVaultBalance(const QString& accountIdHex);
     void refreshSequencerAddr();
     void saveWallet();
-    void openIfPathsConfigured();
+    void openIfPathsConfigured(int attempt = 0);
+    void finishOpeningWallet();
 
     bool m_syncing = false;
     quint64 m_syncTarget = 0;
@@ -70,6 +79,7 @@ private:
     LEZWalletAccountModel* m_accountModel;
     LEZAccountFilterModel* m_filteredAccountModel;
     LEZAccountFilterModel* m_privateAccountModel;
+    LEZClaimableAccountFilterModel* m_claimableAccountModel;
 
     LogosAPI* m_logosAPI;
     LogosModules* m_logos;

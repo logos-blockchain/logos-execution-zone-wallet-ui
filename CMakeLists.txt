@@ -20,6 +20,8 @@ logos_module(
         src/LEZWalletAccountModel.cpp
         src/LEZAccountFilterModel.h
         src/LEZAccountFilterModel.cpp
+        src/LEZClaimableAccountFilterModel.h
+        src/LEZClaimableAccountFilterModel.cpp
     FIND_PACKAGES
         Qt6Gui
     LINK_LIBRARIES

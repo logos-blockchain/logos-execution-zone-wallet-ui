@@ -12,6 +12,7 @@ Rectangle {
     property var accountModel: null
     property var publicAccountModel: null
     property var privateAccountModel: null
+    property var claimableAccountModel: null
     property string transferResult: ""
     property string transferTxHash: ""
     property bool transferResultIsError: false
@@ -29,8 +30,10 @@ Rectangle {
     signal transferShieldedRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
     signal transferShieldedOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal transferDeshieldedRequested(string fromAccountId, string toAccountId, string amount)
+    signal bridgeWithdrawRequested(string fromAccountId, string bedrockAccountPkHex, string amount)
+    signal vaultClaimRequested(string fromAccountId, bool isPublic, string amount)
+    signal refreshClaimableDepositsRequested()
     signal copyRequested(string copyText)
-    signal copyPublicKeysRequested(string accountIdHex)
 
     color: Theme.palette.background
 
@@ -52,7 +55,6 @@ Rectangle {
             onCreatePrivateAccountRequested: root.createPrivateAccountRequested()
             onFetchBalancesRequested: root.fetchBalancesRequested()
             onCopyRequested: (text) => root.copyRequested(text)
-            onCopyPublicKeysRequested: (id) => root.copyPublicKeysRequested(id)
         }
 
         TransferPanel {
@@ -61,6 +63,7 @@ Rectangle {
             Layout.fillHeight: true
             publicAccountModel: root.publicAccountModel
             privateAccountModel: root.privateAccountModel
+            claimableAccountModel: root.claimableAccountModel
             transferResult: root.transferResult
             transferTxHash: root.transferTxHash
             transferResultIsError: root.transferResultIsError
@@ -72,6 +75,9 @@ Rectangle {
             onTransferShieldedRequested: (fromId, toKeysJsonOrAddress, amount) => root.transferShieldedRequested(fromId, toKeysJsonOrAddress, amount)
             onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) => root.transferShieldedOwnedRequested(fromId, toAccountId, amount)
             onTransferDeshieldedRequested: (fromId, toAccountId, amount) => root.transferDeshieldedRequested(fromId, toAccountId, amount)
+            onBridgeWithdrawRequested: (fromId, bedrockAccountPkHex, amount) => root.bridgeWithdrawRequested(fromId, bedrockAccountPkHex, amount)
+            onVaultClaimRequested: (fromId, isPublic, amount) => root.vaultClaimRequested(fromId, isPublic, amount)
+            onRefreshClaimableDepositsRequested: root.refreshClaimableDepositsRequested()
             onCopyRequested: (copyText) => root.copyRequested(copyText)
         }
     }
