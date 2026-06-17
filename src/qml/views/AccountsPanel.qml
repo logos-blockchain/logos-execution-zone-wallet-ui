@@ -7,7 +7,6 @@ import Logos.Controls
 // TODO: remove relative paths and use qmldir instead
 import "../controls"
 import "../popups"
-import "../Base58.js" as Base58
 
 Rectangle {
     id: root
@@ -144,7 +143,7 @@ Rectangle {
                     LogosText {
                         text: model.isPublic
                             ? qsTr("Public Accounts")
-                            : qsTr("Private — %1").arg(Base58.encode(model.sectionKey ?? "").slice(0, 8))
+                            : qsTr("Private")
                         font.pixelSize: Theme.typography.secondaryText
                         font.bold: true
                         color: Theme.palette.textSecondary
