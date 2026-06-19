@@ -1,5 +1,6 @@
 {
   "name": "lez_wallet_ui",
+  "display_name": "LEZ Wallet",
   "version": "1.0.0",
   "type": "ui_qml",
   "category": "wallet",
