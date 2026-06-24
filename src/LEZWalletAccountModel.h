@@ -3,6 +3,7 @@
 #include <QAbstractListModel>
 #include <QJsonArray>
 #include <QString>
+#include <QVariantList>
 
 struct LEZWalletAccountEntry {
     QString name;
@@ -30,6 +31,7 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     void replaceFromJsonArray(const QJsonArray& arr);
+    void replaceFromVariantList(const QVariantList& list);
     void setBalanceByAccountId(const QString& accountId, const QString& balance);
     int count() const { return m_entries.size(); }
 
