@@ -62,6 +62,30 @@ void LEZWalletAccountModel::replaceFromJsonArray(const QJsonArray& arr)
         emit countChanged();
 }
 
+void LEZWalletAccountModel::replaceFromVariantList(const QVariantList& list)
+{
+    beginResetModel();
+    int oldCount = m_entries.size();
+    m_entries.clear();
+    for (const QVariant& v : list) {
+        LEZWalletAccountEntry e;
+        e.balance = QString();
+        if (v.canConvert<QVariantMap>()) {
+            const QVariantMap obj = v.toMap();
+            e.accountId = obj.value(QStringLiteral("account_id")).toString();
+            e.isPublic = obj.value(QStringLiteral("is_public"), true).toBool();
+        } else {
+            e.accountId = v.toString();
+            e.isPublic = true;
+        }
+        e.name = QString();
+        m_entries.append(e);
+    }
+    endResetModel();
+    if (oldCount != m_entries.size())
+        emit countChanged();
+}
+
 void LEZWalletAccountModel::setBalanceByAccountId(const QString& accountId, const QString& balance)
 {
     for (int i = 0; i < m_entries.size(); ++i) {

@@ -128,8 +128,7 @@ void LEZWalletBackend::openIfPathsConfigured()
     if (err == WALLET_FFI_SUCCESS) {
         qDebug() << "LEZWalletBackend: wallet opened successfully";
         setIsWalletOpen(true);
-        QJsonArray arr = m_logos->logos_execution_zone.list_accounts();
-        m_accountModel->replaceFromJsonArray(arr);
+        m_accountModel->replaceFromVariantList(m_logos->logos_execution_zone.list_accounts());
         fetchAndUpdateBlockHeights();
         startChunkedSync();
         refreshSequencerAddr();
@@ -141,8 +140,7 @@ void LEZWalletBackend::openIfPathsConfigured()
 
 void LEZWalletBackend::refreshAccounts()
 {
-    QJsonArray arr = m_logos->logos_execution_zone.list_accounts();
-    m_accountModel->replaceFromJsonArray(arr);
+    m_accountModel->replaceFromVariantList(m_logos->logos_execution_zone.list_accounts());
     fetchAndUpdateBlockHeights();
     if (!m_syncing)
         startChunkedSync();
@@ -364,8 +362,9 @@ bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QStrin
     if (!sequencerAddr.isEmpty())
         applySequencerAddrToConfig(localConfigPath, sequencerAddr);
 
-    int err = m_logos->logos_execution_zone.create_new(localConfigPath, localStoragePath, password);
-    if (err != WALLET_FFI_SUCCESS) return false;
+    const QString mnemonic = m_logos->logos_execution_zone.create_new(
+        localConfigPath, localStoragePath, password);
+    if (mnemonic.isEmpty()) return false;
 
     persistConfigPath(localConfigPath);
     persistStoragePath(localStoragePath);
