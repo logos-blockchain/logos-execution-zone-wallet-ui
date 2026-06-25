@@ -8,7 +8,6 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
-#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSettings>
@@ -30,6 +29,10 @@ namespace {
     // Timeout(-1) means "wait indefinitely", matching Qt's own convention
     // for infinite waits (e.g. QRemoteObjectPendingCall::waitForFinished(-1)).
     const Timeout NO_TIMEOUT{-1};
+    // Warm-up retry budget for openIfPathsConfigured(), 50ms x up to 100 attempts
+    // ~= 5s, matching LogosAPIConsumer's own connect-retry budget.
+    const int MODULE_WARMUP_RETRY_MS = 50;
+    const int MODULE_WARMUP_MAX_ATTEMPTS = 100;
 
     // Convert a decimal amount string to 32-char hex (16 bytes little-endian)
     // for transfer_public/transfer_private/transfer_private_owned.
@@ -61,12 +64,14 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
       m_accountModel(new LEZWalletAccountModel(this)),
       m_filteredAccountModel(new LEZAccountFilterModel(this)),
       m_privateAccountModel(new LEZAccountFilterModel(this)),
+      m_claimableAccountModel(new LEZClaimableAccountFilterModel(this)),
       m_logosAPI(logosAPI ? logosAPI : new LogosAPI("lez_wallet_ui", this)),
       m_logos(new LogosModules(m_logosAPI))
 {
     m_filteredAccountModel->setSourceModel(m_accountModel);
     m_privateAccountModel->setFilterByPublic(false);
     m_privateAccountModel->setSourceModel(m_accountModel);
+    m_claimableAccountModel->setSourceModel(m_accountModel);
 
     // Initialise PROP defaults via the generated setters.
     setIsWalletOpen(false);
@@ -118,29 +123,74 @@ void LEZWalletBackend::persistStoragePath(const QString& path)
     QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(STORAGE_PATH_KEY, localPath);
 }
 
-void LEZWalletBackend::openIfPathsConfigured()
+void LEZWalletBackend::openIfPathsConfigured(int attempt)
 {
     if (configPath().isEmpty() || storagePath().isEmpty()) return;
+
+    // The first cross-process call this module makes to logos_execution_zone can race
+    // the inter-module capability/auth-token handshake: if it goes out before the
+    // target has been informed of our token, ModuleProxy rejects it and the call
+    // resolves to a default-constructed return value -- 0 for open()'s int64_t, which
+    // is indistinguishable from WALLET_FFI_SUCCESS. Warm up with a harmless,
+    // wallet-state-free call first: version() defaults to "" on that same rejection,
+    // which IS distinguishable from its real non-empty value, so we can retry here
+    // until the handshake has settled before trusting open()'s result. Once any call
+    // to logos_execution_zone succeeds, its token is cached for the rest of the
+    // session, so open() itself won't hit this race afterwards.
+    if (m_logos->logos_execution_zone.version().isEmpty() && attempt < MODULE_WARMUP_MAX_ATTEMPTS) {
+        QTimer::singleShot(MODULE_WARMUP_RETRY_MS, this,
+            [this, attempt]() { openIfPathsConfigured(attempt + 1); });
+        return;
+    }
 
     qDebug() << "LEZWalletBackend: opening wallet with config" << configPath()
              << "storage" << storagePath();
     int err = m_logos->logos_execution_zone.open(configPath(), storagePath());
     if (err == WALLET_FFI_SUCCESS) {
         qDebug() << "LEZWalletBackend: wallet opened successfully";
-        setIsWalletOpen(true);
-        m_accountModel->replaceFromVariantList(m_logos->logos_execution_zone.list_accounts());
-        fetchAndUpdateBlockHeights();
-        startChunkedSync();
-        refreshSequencerAddr();
+        finishOpeningWallet();
     } else {
         qWarning() << "LEZWalletBackend: failed to open wallet, error" << err
                    << "config:" << configPath() << "storage:" << storagePath();
     }
 }
 
+// Tags each private account with the NPK of the key group it belongs to (plus that
+// group's {nullifier_public_key, viewing_public_key} JSON), so the model can section
+// accounts by key group instead of listing them flat. Public accounts are untouched.
+QVariantList LEZWalletBackend::buildEnrichedAccountList()
+{
+    QVariantList raw = m_logos->logos_execution_zone.list_accounts();
+    QVariantList enriched;
+    enriched.reserve(raw.size());
+    for (const QVariant& v : raw) {
+        QVariantMap map = v.toMap();
+        if (!map.value(QStringLiteral("is_public"), true).toBool()) {
+            const QString accountId = map.value(QStringLiteral("account_id")).toString();
+            const QString keysJson = getPrivateAccountKeys(accountId);
+            const QJsonDocument doc = QJsonDocument::fromJson(keysJson.toUtf8());
+            if (doc.isObject()) {
+                map[QStringLiteral("npk")] = doc.object().value(QStringLiteral("nullifier_public_key")).toString();
+                map[QStringLiteral("keys_json")] = keysJson;
+            }
+        }
+        enriched.append(map);
+    }
+    return enriched;
+}
+
+void LEZWalletBackend::finishOpeningWallet()
+{
+    setIsWalletOpen(true);
+    m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
+    fetchAndUpdateBlockHeights();
+    startChunkedSync();
+    refreshSequencerAddr();
+}
+
 void LEZWalletBackend::refreshAccounts()
 {
-    m_accountModel->replaceFromVariantList(m_logos->logos_execution_zone.list_accounts());
+    m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
     fetchAndUpdateBlockHeights();
     if (!m_syncing)
         startChunkedSync();
@@ -169,6 +219,9 @@ void LEZWalletBackend::syncNextChunk()
     const quint64 synced = static_cast<quint64>(lastSyncedBlock());
     if (synced >= m_syncTarget) {
         m_syncing = false;
+        // Sync may have discovered new private accounts (e.g. shielded transfers to a
+        // foreign NPK/VPK); re-list so the model picks them up without a restart.
+        m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
         fetchAndUpdateBlockHeights();
         updateBalances();
         return;
@@ -333,6 +386,50 @@ QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QSt
         NO_TIMEOUT).toString();
 }
 
+QString LEZWalletBackend::bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount)
+{
+    return m_logos->logos_execution_zone.bridge_withdraw(fromHex, bedrockAccountPkHex, amount);
+}
+
+QString LEZWalletBackend::getVaultBalance(const QString& accountIdHex)
+{
+    return m_logos->logos_execution_zone.get_vault_balance(accountIdHex);
+}
+
+void LEZWalletBackend::refreshVaultBalances()
+{
+    if (!m_accountModel) return;
+    for (int i = 0; i < m_accountModel->count(); ++i) {
+        const QModelIndex idx = m_accountModel->index(i, 0);
+        const QString addr = m_accountModel->data(idx, LEZWalletAccountModel::AccountIdRole).toString();
+        const QString vaultBal = getVaultBalance(addr);
+        if (!vaultBal.isEmpty())
+            m_accountModel->setVaultBalanceByAccountId(addr, vaultBal);
+    }
+}
+
+QString LEZWalletBackend::vaultClaim(QString fromHex, bool isPublic, QString amountStr)
+{
+    const QString amountHex = amountToLe16Hex(amountStr);
+    if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
+    // Don't trust the caller-supplied isPublic — the account model is the source of
+    // truth for which accounts the wallet owns and whether each is public or private.
+    const bool actuallyPublic = m_accountModel
+        ? m_accountModel->isPublicAccount(fromHex, isPublic)
+        : isPublic;
+    if (actuallyPublic)
+        return m_logos->logos_execution_zone.vault_claim(fromHex, amountHex);
+
+    // vault_claim_private generates a proof, like transfer_private/transfer_shielded
+    // above — go through invokeRemoteMethod with NO_TIMEOUT instead of the generated
+    // accessor, which applies the SDK's default 20s Timeout and returns before the
+    // proof is actually done and the tx submitted.
+    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+        LEZ_MODULE, "vault_claim_private",
+        QVariantList{fromHex.trimmed(), amountHex},
+        NO_TIMEOUT).toString();
+}
+
 void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr)
 {
     QJsonObject obj;
@@ -354,24 +451,40 @@ void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, con
         file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
 }
 
-bool LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr)
+QString LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr)
 {
     const QString localConfigPath = toLocalPath(configPath);
     const QString localStoragePath = toLocalPath(storagePath);
+
+    // Both files already on disk: this is most likely an existing wallet the
+    // user pointed us at (e.g. from the setup screen), not a request to
+    // overwrite it. Try to load it instead of blindly creating a new one.
+    if (QFile::exists(localConfigPath) && QFile::exists(localStoragePath)) {
+        int err = m_logos->logos_execution_zone.open(localConfigPath, localStoragePath);
+        if (err != WALLET_FFI_SUCCESS) {
+            return QStringLiteral(
+                "Could not load the wallet at the selected paths. Pick "
+                "different existing config/storage files, or choose paths "
+                "that don't exist yet to create a new wallet there.");
+        }
+        persistConfigPath(localConfigPath);
+        persistStoragePath(localStoragePath);
+        finishOpeningWallet();
+        return QString();
+    }
 
     if (!sequencerAddr.isEmpty())
         applySequencerAddrToConfig(localConfigPath, sequencerAddr);
 
     const QString mnemonic = m_logos->logos_execution_zone.create_new(
         localConfigPath, localStoragePath, password);
-    if (mnemonic.isEmpty()) return false;
+    if (mnemonic.isEmpty())
+        return QStringLiteral("Failed to create wallet. Check paths and try again.");
 
     persistConfigPath(localConfigPath);
     persistStoragePath(localStoragePath);
-    setIsWalletOpen(true);
-    refreshAccounts();
-    refreshSequencerAddr();
-    return true;
+    finishOpeningWallet();
+    return QString();
 }
 
 void LEZWalletBackend::copyToClipboard(QString text)

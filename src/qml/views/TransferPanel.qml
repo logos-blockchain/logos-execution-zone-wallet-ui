@@ -6,7 +6,6 @@ import Logos.Theme
 import Logos.Controls
 
 import "../controls"
-import "../Base58.js" as Base58
 
 Rectangle {
     id: root
@@ -14,41 +13,23 @@ Rectangle {
     // --- Public API: data in ---
     property var publicAccountModel: null
     property var privateAccountModel: null
+    property var claimableAccountModel: null
     property string transferResult: ""
     property string transferTxHash: ""
     property bool transferResultIsError: false
     property bool transferPending: false
 
-    // --- Public API: signals out (match backend: transfer_public, transfer_private, transfer_private_owned, transfer_shielded, transfer_shielded_owned) ---
+    // --- Public API: signals out (match backend: transfer_public, transfer_private, transfer_private_owned, transfer_shielded, transfer_shielded_owned, transfer_deshielded, bridge_withdraw, vault_claim) ---
     signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
     signal transferPrivateRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
     signal transferPrivateOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal transferShieldedRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
     signal transferShieldedOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal transferDeshieldedRequested(string fromAccountId, string toAccountId, string amount)
+    signal bridgeWithdrawRequested(string fromAccountId, string bedrockAccountPkHex, string amount)
+    signal vaultClaimRequested(string fromAccountId, bool isPublic, string amount)
+    signal refreshClaimableDepositsRequested()
     signal copyRequested(string copyText)
-
-    readonly property int fromFilterCount: fromCombo.count
-    readonly property int toFilterCount: toCombo.count
-
-    QtObject {
-        id: d
-        property bool useOwnedAccountForTo: false
-        readonly property bool isPublicTab: transferTypeBar.currentIndex === 0
-        readonly property bool isPrivateTab: transferTypeBar.currentIndex === 1
-        readonly property bool isShieldedTab: transferTypeBar.currentIndex === 2
-        readonly property bool isDeshieldedTab: transferTypeBar.currentIndex === 3
-        readonly property bool showOwnedOption: true
-        readonly property bool toAddressValid: useOwnedAccountForTo
-            ? (toFilterCount > 0 && toCombo.currentIndex >= 0)
-            : (toField && toField.text.trim().length > 0)
-        readonly property bool needsProof: isPrivateTab || isShieldedTab || isDeshieldedTab
-        readonly property bool sendEnabled: !root.transferPending
-                                            && amountField && manualFromField
-                                            && amountField.text.length > 0 && d.toAddressValid
-                                            && ((fromFilterCount > 0 && fromCombo.currentIndex >= 0)
-                                                || (fromFilterCount === 0 && manualFromField.text.trim().length > 0))
-    }
 
     radius: Theme.spacing.radiusXlarge
     color: Theme.palette.backgroundSecondary
@@ -58,17 +39,11 @@ Rectangle {
         anchors.margins: Theme.spacing.large
         spacing: Theme.spacing.large
 
-        LogosText {
-            text: qsTr("Transfer")
-            font.pixelSize: Theme.typography.titleText
-            font.weight: Theme.typography.weightBold
-            color: Theme.palette.text
-        }
-
-        // Transfer type toggle
+        // Main section toggle
         TabBar {
-            id: transferTypeBar
-            Layout.preferredWidth: 400
+            id: mainSectionBar
+            Layout.fillWidth: true
+            spacing: Theme.spacing.small
             currentIndex: 0
 
             background: Rectangle {
@@ -77,134 +52,42 @@ Rectangle {
             }
 
             LogosTabButton {
-                text: qsTr("Public")
+                text: qsTr("Transfer")
             }
 
             LogosTabButton {
-                text: qsTr("Private")
-            }
-
-            LogosTabButton {
-                text: qsTr("Shielded")
-            }
-
-            LogosTabButton {
-                text: qsTr("Deshielded")
+                text: qsTr("Bridge")
             }
         }
 
-        // From: dropdown when accounts exist, or manual entry when list is empty
-        ColumnLayout {
+        StackLayout {
             Layout.fillWidth: true
-            spacing: Theme.spacing.small
+            Layout.fillHeight: true
+            currentIndex: mainSectionBar.currentIndex
 
-            LogosText {
-                text: qsTr("From")
-                font.pixelSize: Theme.typography.secondaryText
-                color: Theme.palette.textSecondary
+            TransferTypesPanel {
+                publicAccountModel: root.publicAccountModel
+                privateAccountModel: root.privateAccountModel
+                transferPending: root.transferPending
+
+                onTransferPublicRequested: (fromId, toAddress, amount) => root.transferPublicRequested(fromId, toAddress, amount)
+                onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) => root.transferPrivateRequested(fromId, toKeysJsonOrAddress, amount)
+                onTransferPrivateOwnedRequested: (fromId, toAccountId, amount) => root.transferPrivateOwnedRequested(fromId, toAccountId, amount)
+                onTransferShieldedRequested: (fromId, toKeysJsonOrAddress, amount) => root.transferShieldedRequested(fromId, toKeysJsonOrAddress, amount)
+                onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) => root.transferShieldedOwnedRequested(fromId, toAccountId, amount)
+                onTransferDeshieldedRequested: (fromId, toAccountId, amount) => root.transferDeshieldedRequested(fromId, toAccountId, amount)
+                onCopyRequested: (copyText) => root.copyRequested(copyText)
             }
 
-            LogosTextField {
-                id: manualFromField
-                Layout.fillWidth: true
-                placeholderText: qsTr("Paste or type from account ID")
-                visible: fromFilterCount === 0
-            }
+            BridgePanel {
+                publicAccountModel: root.publicAccountModel
+                claimableAccountModel: root.claimableAccountModel
+                transferPending: root.transferPending
 
-            AccountComboBox {
-                id: fromCombo
-                Layout.fillWidth: true
-                model: (d.isPrivateTab || d.isDeshieldedTab) ? root.privateAccountModel : root.publicAccountModel
-                visible: fromFilterCount > 0
-                onCopyRequested: (text) => root.copyRequested(text)
-            }
-        }
-
-        // To field
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacing.small
-
-            LogosText {
-                text: qsTr("To")
-                font.pixelSize: Theme.typography.secondaryText
-                color: Theme.palette.textSecondary
-            }
-
-            LogosCheckbox {
-                id: useOwnedToCheck
-                visible: d.showOwnedOption
-                checked: d.useOwnedAccountForTo
-                onCheckedChanged: d.useOwnedAccountForTo = checked
-                text: qsTr("Use owned account")
-            }
-
-            LogosTextField {
-                id: toField
-                Layout.fillWidth: true
-                placeholderText: (d.isPublicTab || d.isDeshieldedTab) ? qsTr("Recipient account ID") : qsTr("Recipient public keys (JSON)")
-                visible: !d.useOwnedAccountForTo
-            }
-
-            AccountComboBox {
-                id: toCombo
-                Layout.fillWidth: true
-                model: (d.isPublicTab || d.isDeshieldedTab) ? root.publicAccountModel : root.privateAccountModel
-                visible: d.useOwnedAccountForTo && toFilterCount > 0
-                onCopyRequested: (text) => root.copyRequested(text)
-            }
-        }
-
-        // Amount field
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacing.small
-
-            LogosText {
-                text: qsTr("Amount")
-                font.pixelSize: Theme.typography.secondaryText
-                color: Theme.palette.textSecondary
-            }
-
-            LogosTextField {
-                id: amountField
-                Layout.fillWidth: true
-                placeholderText: "0.00"
-            }
-        }
-
-        // Send button
-        LogosButton {
-            Layout.fillWidth: true
-            text: qsTr("Send")
-            font.pixelSize: Theme.typography.secondaryText
-            enabled: d.sendEnabled
-            onClicked: {
-                var fromId = fromFilterCount > 0 && fromCombo.currentIndex >= 0
-                        ? (fromCombo.currentValue ?? "")
-                        : Base58.decode(manualFromField.text.trim())
-                var rawTo = toField.text.trim()
-                var toAddress = (d.useOwnedAccountForTo && toCombo.currentIndex >= 0)
-                        ? (toCombo.currentValue ?? "")
-                        : (rawTo.startsWith("{") ? rawTo : Base58.decode(rawTo))
-                var amount = amountField.text.trim()
-                if (fromId.length > 0 && toAddress.length > 0 && amount.length > 0) {
-                    if (d.isPublicTab)
-                        root.transferPublicRequested(fromId, toAddress, amount)
-                    else if (d.isPrivateTab) {
-                        if (d.useOwnedAccountForTo)
-                            root.transferPrivateOwnedRequested(fromId, toAddress, amount)
-                        else
-                            root.transferPrivateRequested(fromId, toAddress, amount)
-                    } else if (d.isShieldedTab) {
-                        if (d.useOwnedAccountForTo)
-                            root.transferShieldedOwnedRequested(fromId, toAddress, amount)
-                        else
-                            root.transferShieldedRequested(fromId, toAddress, amount)
-                    } else if (d.isDeshieldedTab) {
-                        root.transferDeshieldedRequested(fromId, toAddress, amount)
-                    }
-                }
+                onBridgeWithdrawRequested: (fromId, bedrockAccountPkHex, amount) => root.bridgeWithdrawRequested(fromId, bedrockAccountPkHex, amount)
+                onVaultClaimRequested: (fromId, isPublic, amount) => root.vaultClaimRequested(fromId, isPublic, amount)
+                onRefreshClaimableDepositsRequested: root.refreshClaimableDepositsRequested()
+                onCopyRequested: (copyText) => root.copyRequested(copyText)
             }
         }
 
@@ -249,10 +132,6 @@ Rectangle {
                 onCopyText: root.copyRequested(root.transferTxHash || root.transferResult)
                 visible: resultText.text
             }
-        }
-
-        Item {
-            Layout.fillHeight: true
         }
     }
 }

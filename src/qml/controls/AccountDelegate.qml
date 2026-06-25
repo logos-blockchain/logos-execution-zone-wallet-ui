@@ -14,7 +14,6 @@ ItemDelegate {
     // the global QML scope for `backend` since it now lives behind the
     // logos.module() bridge in the parent view.
     signal copyRequested(string text)
-    signal copyPublicKeysRequested(string accountIdHex)
 
     leftPadding: Theme.spacing.medium
     rightPadding: Theme.spacing.medium
@@ -78,9 +77,7 @@ ItemDelegate {
             LogosCopyButton {
                 Layout.preferredHeight: 40
                 Layout.preferredWidth: 40
-                onCopyText: model.isPublic
-                    ? root.copyRequested(Base58.encode(model.accountId ?? ""))
-                    : root.copyPublicKeysRequested(model.accountId ?? "")
+                onCopyText: root.copyRequested(Base58.encode(model.accountId ?? ""))
                 visible: addressLabel.text
                 icon.color: Theme.palette.textMuted
             }

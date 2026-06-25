@@ -13,6 +13,7 @@ Rectangle {
     readonly property var accountModel: logos.model("lez_wallet_ui", "accountModel")
     readonly property var publicAccountModel: logos.model("lez_wallet_ui", "filteredAccountModel")
     readonly property var privateAccountModel: logos.model("lez_wallet_ui", "privateAccountModel")
+    readonly property var claimableAccountModel: logos.model("lez_wallet_ui", "claimableAccountModel")
     property bool ready: false
 
     Connections {
@@ -118,10 +119,13 @@ Rectangle {
                 configPath: backend ? backend.configPath : ""
                 onCreateWallet: function(configPath, storagePath, password, sequencerUrl) {
                     if (!backend) return
+                    // createNew() returns an empty string on success, or a
+                    // human-readable error message (e.g. existing files at
+                    // the chosen paths failed to load) otherwise.
                     logos.watch(backend.createNew(configPath, storagePath, password, sequencerUrl),
-                        function(ok) {
-                            if (!ok)
-                                createError = qsTr("Failed to create wallet. Check paths and try again.")
+                        function(errorMessage) {
+                            if (errorMessage)
+                                createError = errorMessage
                         },
                         function(error) {
                             createError = qsTr("Error creating wallet: %1").arg(error)
@@ -138,6 +142,7 @@ Rectangle {
                 accountModel: root.accountModel
                 publicAccountModel: root.publicAccountModel
                 privateAccountModel: root.privateAccountModel
+                claimableAccountModel: root.claimableAccountModel
                 lastSyncedBlock: backend ? backend.lastSyncedBlock : 0
                 currentBlockHeight: backend ? backend.currentBlockHeight : 0
 
@@ -229,20 +234,48 @@ Rectangle {
                             dashboardView.transferTxHash = ""
                         })
                 }
+                onBridgeWithdrawRequested: (fromId, bedrockAccountPkHex, amount) => {
+                    if (!backend) return
+                    var parsedAmount = Number(amount)
+                    if (!Number.isInteger(parsedAmount) || parsedAmount <= 0) {
+                        dashboardView.transferResult = qsTr("Error: Invalid amount.")
+                        dashboardView.transferResultIsError = true
+                        dashboardView.transferTxHash = ""
+                        return
+                    }
+                    logos.watch(backend.bridgeWithdraw(fromId, bedrockAccountPkHex, parsedAmount),
+                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
+                        function(error) {
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
+                        })
+                }
+                onVaultClaimRequested: (fromId, isPublic, amount) => {
+                    if (!backend) return
+                    dashboardView.transferPending = !isPublic
+                    logos.watch(backend.vaultClaim(fromId, isPublic, amount),
+                        function(raw) {
+                            dashboardView.transferPending = false
+                            ffiErrors.applyTransferResult(dashboardView, raw)
+                            backend.refreshVaultBalances()
+                            backend.refreshBalances()
+                        },
+                        function(error) {
+                            dashboardView.transferPending = false
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
+                        })
+                }
+                onRefreshClaimableDepositsRequested: {
+                    if (!backend) return
+                    backend.refreshVaultBalances()  // void slot, fire-and-forget
+                }
                 onCopyRequested: (copyText) => {
                     clipHelper.text = copyText
                     clipHelper.selectAll()
                     clipHelper.copy()
-                }
-                onCopyPublicKeysRequested: (accountIdHex) => {
-                    if (!backend) return
-                    logos.watch(backend.getPrivateAccountKeys(accountIdHex),
-                        function(keys) {
-                            clipHelper.text = keys
-                            clipHelper.selectAll()
-                            clipHelper.copy()
-                        },
-                        function(error) { console.warn("getPrivateAccountKeys failed:", error) })
                 }
             }
         }
