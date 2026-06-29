@@ -2246,17 +2246,17 @@
         "rust-rapidsnark": "rust-rapidsnark"
       },
       "locked": {
-        "lastModified": 1782310268,
-        "narHash": "sha256-tIIIO+V+w/C/KLtKnLIv8O8/GoJ4PzgJSWrlQCXJ2P4=",
+        "lastModified": 1782428741,
+        "narHash": "sha256-ltLcysXUdVUXAe25Tl8x7e7ZsTzj1sHlyS3glp97TAo=",
         "owner": "logos-blockchain",
         "repo": "logos-execution-zone",
-        "rev": "fb8cbac40e0bda4f152415ff4f181cdc6bca6d4a",
+        "rev": "e37876a64028a335eb693198a1ed6a0e875ec5b4",
         "type": "github"
       },
       "original": {
         "owner": "logos-blockchain",
         "repo": "logos-execution-zone",
-        "rev": "fb8cbac40e0bda4f152415ff4f181cdc6bca6d4a",
+        "rev": "e37876a64028a335eb693198a1ed6a0e875ec5b4",
         "type": "github"
       }
     },
@@ -16800,17 +16800,17 @@
         "nix-bundle-lgx": "nix-bundle-lgx_28"
       },
       "locked": {
-        "lastModified": 1782397060,
-        "narHash": "sha256-IBnUVkRZKQ029m1DLw7ctLDJpOJzl0bKsDzzxRD9d4U=",
+        "lastModified": 1782741385,
+        "narHash": "sha256-kN6xb1b/Jvu9Ninaqtmi/C4fx8poisGYbThIBIXwvHw=",
         "owner": "logos-blockchain",
         "repo": "logos-execution-zone-module",
-        "rev": "b27f7b4e600e9041694e8cd29c03579ccdab9fbb",
+        "rev": "d70225ced646934d2294fd9e8f8b03615c104b80",
         "type": "github"
       },
       "original": {
         "owner": "logos-blockchain",
         "repo": "logos-execution-zone-module",
-        "rev": "b27f7b4e600e9041694e8cd29c03579ccdab9fbb",
+        "rev": "d70225ced646934d2294fd9e8f8b03615c104b80",
         "type": "github"
       }
     },
