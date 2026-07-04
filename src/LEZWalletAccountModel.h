@@ -19,6 +19,10 @@ struct LEZWalletAccountEntry {
     QString sectionKey;
     QString keysJson; // {nullifier_public_key, viewing_public_key} shared by the whole section; private only
     bool isFirstInGroup = false; // QML renders the section header above rows where this is true
+    // Whether some program (in practice, the authenticated-transfer program) has claimed
+    // this account yet. Defaults to false (shown as needing init) so an account whose
+    // state we failed to enrich isn't silently mistaken for a usable one.
+    bool isInitialized = false;
 };
 
 // Note: this model is exposed to QML via Qt Remote Objects model replication (see
@@ -37,7 +41,8 @@ public:
         IsPublicRole,
         SectionKeyRole,
         KeysJsonRole,
-        IsFirstInGroupRole
+        IsFirstInGroupRole,
+        IsInitializedRole
     };
     Q_ENUM(Role)
 

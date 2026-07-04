@@ -1,5 +1,6 @@
 #include "LEZWalletBackend.h"
 
+#include <algorithm>
 #include <QAbstractItemModel>
 #include <QClipboard>
 #include <QCoreApplication>
@@ -56,6 +57,21 @@ namespace {
         if (p.startsWith("file://") || p.contains("/"))
             return QUrl::fromUserInput(p).toLocalFile();
         return p;
+    }
+
+    // An account is uninitialized until some program claims it (program_owner goes
+    // from all-zero to that program's ID) — see DEFAULT_PROGRAM_ID in the execution
+    // zone's state machine. Accounts this wallet creates are only ever claimed by the
+    // authenticated-transfer program (via an explicit init or as a side effect of
+    // receiving a transfer to a still-unclaimed account), so "non-zero owner" is
+    // enough to show as initialized without needing that program's ID here.
+    bool accountJsonIsInitialized(const QString& accountJson) {
+        const QJsonDocument doc = QJsonDocument::fromJson(accountJson.toUtf8());
+        if (!doc.isObject())
+            return false;
+        const QString programOwner = doc.object().value(QStringLiteral("program_owner")).toString();
+        return std::any_of(programOwner.cbegin(), programOwner.cend(),
+            [](QChar c) { return c != QLatin1Char('0'); });
     }
 }
 
@@ -165,8 +181,9 @@ QVariantList LEZWalletBackend::buildEnrichedAccountList()
     enriched.reserve(raw.size());
     for (const QVariant& v : raw) {
         QVariantMap map = v.toMap();
-        if (!map.value(QStringLiteral("is_public"), true).toBool()) {
-            const QString accountId = map.value(QStringLiteral("account_id")).toString();
+        const QString accountId = map.value(QStringLiteral("account_id")).toString();
+        const bool isPublic = map.value(QStringLiteral("is_public"), true).toBool();
+        if (!isPublic) {
             const QString keysJson = getPrivateAccountKeys(accountId);
             const QJsonDocument doc = QJsonDocument::fromJson(keysJson.toUtf8());
             if (doc.isObject()) {
@@ -174,6 +191,10 @@ QVariantList LEZWalletBackend::buildEnrichedAccountList()
                 map[QStringLiteral("keys_json")] = keysJson;
             }
         }
+        const QString accountJson = isPublic
+            ? m_logos->logos_execution_zone.get_account_public(accountId)
+            : m_logos->logos_execution_zone.get_account_private(accountId);
+        map[QStringLiteral("is_initialized")] = accountJsonIsInitialized(accountJson);
         enriched.append(map);
     }
     return enriched;
@@ -303,6 +324,25 @@ QString LEZWalletBackend::getPublicAccountKey(QString accountIdHex)
 QString LEZWalletBackend::getPrivateAccountKeys(QString accountIdHex)
 {
     return m_logos->lez_core.get_private_account_keys(accountIdHex);
+}
+
+QString LEZWalletBackend::initializeAccount(QString accountIdHex, bool isPublic)
+{
+    // Public registration is a plain public tx (like transferPublic, no proof needed),
+    // so the generated accessor's default timeout is fine. Private registration
+    // generates a proof, like transferPrivate/vaultClaim above, so it goes through
+    // invokeRemoteMethod with NO_TIMEOUT instead.
+    const QString result = isPublic
+        ? m_logos->logos_execution_zone.register_public_account(accountIdHex)
+        : m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
+              LEZ_MODULE, "register_private_account",
+              QVariantList{accountIdHex.trimmed()},
+              NO_TIMEOUT).toString();
+
+    const QJsonDocument doc = QJsonDocument::fromJson(result.toUtf8());
+    if (doc.isObject() && doc.object().value(QStringLiteral("success")).toBool())
+        refreshAccounts();
+    return result;
 }
 
 bool LEZWalletBackend::syncToBlock(quint64 blockId)

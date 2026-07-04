@@ -6,6 +6,8 @@ import QtQuick.Dialogs
 import Logos.Theme
 import Logos.Controls
 
+import "../controls"
+
 Control {
     id: root
 
@@ -66,7 +68,7 @@ Control {
                 placeholderText: qsTr("Add store path")
                 text: root.storePath
             }
-            LogosButton {
+            FeedbackButton {
                 text: qsTr("Browse")
                 onClicked: storageFolderDialog.open()
             }
@@ -86,7 +88,7 @@ Control {
                 placeholderText: qsTr("Add path to config")
                 text: root.configPath
             }
-            LogosButton {
+            FeedbackButton {
                 Layout.preferredHeight: configPathField.height
                 text: qsTr("Browse")
                 onClicked: configFileDialog.open()
@@ -113,12 +115,12 @@ Control {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.spacing.small
-            LogosButton {
+            FeedbackButton {
                 text: qsTr("Testnet")
                 opacity: sequencerUrlField.text === root.testnetUrl ? 1.0 : 0.4
                 onClicked: sequencerUrlField.text = root.testnetUrl
             }
-            LogosButton {
+            FeedbackButton {
                 text: qsTr("Localhost")
                 opacity: sequencerUrlField.text === root.localhostUrl ? 1.0 : 0.4
                 onClicked: sequencerUrlField.text = root.localhostUrl
@@ -155,7 +157,7 @@ Control {
             text: root.createError
         }
 
-        LogosButton {
+        FeedbackButton {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Create Wallet")
             font.pixelSize: Theme.typography.secondaryText

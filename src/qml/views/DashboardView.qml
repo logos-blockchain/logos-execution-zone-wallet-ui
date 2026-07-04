@@ -19,9 +19,10 @@ Rectangle {
     property bool transferPending: false
     property int lastSyncedBlock: 0
     property int currentBlockHeight: 0
+    property var pendingInitializations: ({})
 
     // --- Public API: output signals (parent connects and calls backend) ---
-    signal createPublicAccountRequested()
+    signal createPublicAccountRequested(bool initializeOnCreate)
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
     signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
@@ -34,6 +35,7 @@ Rectangle {
     signal vaultClaimRequested(string fromAccountId, bool isPublic, string amount)
     signal refreshClaimableDepositsRequested()
     signal copyRequested(string copyText)
+    signal initializeAccountRequested(string accountId, bool isPublic)
 
     color: Theme.palette.background
 
@@ -50,11 +52,13 @@ Rectangle {
             accountModel: root.accountModel
             lastSyncedBlock: root.lastSyncedBlock
             currentBlockHeight: root.currentBlockHeight
+            pendingInitializations: root.pendingInitializations
 
-            onCreatePublicAccountRequested: root.createPublicAccountRequested()
+            onCreatePublicAccountRequested: (initializeOnCreate) => root.createPublicAccountRequested(initializeOnCreate)
             onCreatePrivateAccountRequested: root.createPrivateAccountRequested()
             onFetchBalancesRequested: root.fetchBalancesRequested()
             onCopyRequested: (text) => root.copyRequested(text)
+            onInitializeAccountRequested: (accountId, isPublic) => root.initializeAccountRequested(accountId, isPublic)
         }
 
         TransferPanel {

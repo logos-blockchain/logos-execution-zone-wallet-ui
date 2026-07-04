@@ -41,6 +41,7 @@ public slots:
     void refreshBalances() override;
     QString getPublicAccountKey(QString accountIdHex) override;
     QString getPrivateAccountKeys(QString accountIdHex) override;
+    QString initializeAccount(QString accountIdHex, bool isPublic) override;
     bool syncToBlock(quint64 blockId) override;
     QString transferPublic(QString fromHex, QString toHex, QString amountStr) override;
     QString transferPrivate(QString fromHex, QString toHex, QString amountStr) override;

@@ -15,19 +15,22 @@ Rectangle {
     property var accountModel: null
     property int lastSyncedBlock: 0
     property int currentBlockHeight: 0
+    // Maps accountId -> true while that account's initializeAccount() call is in flight.
+    property var pendingInitializations: ({})
 
     // --- Public API: signals out ---
-    signal createPublicAccountRequested()
+    signal createPublicAccountRequested(bool initializeOnCreate)
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
     signal copyRequested(string text)
+    signal initializeAccountRequested(string accountId, bool isPublic)
 
     radius: Theme.spacing.radiusXlarge
     color: Theme.palette.backgroundSecondary
 
     CreateAccountDialog {
         id: createAccountDialog
-        onCreatePublicRequested: root.createPublicAccountRequested()
+        onCreatePublicRequested: (initializeOnCreate) => root.createPublicAccountRequested(initializeOnCreate)
         onCreatePrivateRequested: root.createPrivateAccountRequested()
     }
 
@@ -51,7 +54,7 @@ Rectangle {
 
             Item { Layout.fillWidth: true }
 
-            LogosButton {
+            FeedbackButton {
                 Layout.preferredHeight: 40
                 Layout.preferredWidth: 80
                 text: qsTr("+ Create")
@@ -172,13 +175,15 @@ Rectangle {
 
                 AccountDelegate {
                     Layout.fillWidth: true
+                    initializing: root.pendingInitializations[model.accountId] === true
                     onCopyRequested: (text) => root.copyRequested(text)
+                    onInitializeRequested: (accountId, isPublic) => root.initializeAccountRequested(accountId, isPublic)
                 }
             }
         }
 
         // Footer: Fetch / Refresh Balances
-        LogosButton {
+        FeedbackButton {
             Layout.fillWidth: true
             text: qsTr("Refresh Balances")
             onClicked: root.fetchBalancesRequested()

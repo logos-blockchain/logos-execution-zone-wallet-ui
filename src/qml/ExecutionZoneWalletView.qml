@@ -15,6 +15,9 @@ Rectangle {
     readonly property var privateAccountModel: logos.model("lez_wallet_ui", "privateAccountModel")
     readonly property var claimableAccountModel: logos.model("lez_wallet_ui", "claimableAccountModel")
     property bool ready: false
+    // Maps accountId -> true while that account's initializeAccount() call is in flight,
+    // so AccountDelegate can show the click was registered instead of appearing inert.
+    property var pendingInitializations: ({})
 
     Connections {
         target: logos
@@ -145,13 +148,18 @@ Rectangle {
                 claimableAccountModel: root.claimableAccountModel
                 lastSyncedBlock: backend ? backend.lastSyncedBlock : 0
                 currentBlockHeight: backend ? backend.currentBlockHeight : 0
+                pendingInitializations: root.pendingInitializations
 
-                onCreatePublicAccountRequested: {
+                onCreatePublicAccountRequested: (initializeOnCreate) => {
                     if (!backend) { console.warn("backend is null"); return }
-                    // Result not consumed here — accountModel updates via NOTIFY when
-                    // the backend's refreshAccounts() runs after creation.
+                    // accountModel updates via NOTIFY when the backend's refreshAccounts()
+                    // runs after creation; the id is only needed to chase it with an
+                    // initializeAccount() call when the user asked for that.
                     logos.watch(backend.createAccountPublic(),
-                        function(_id) { /* ignored */ },
+                        function(id) {
+                            if (initializeOnCreate && id)
+                                dashboardView.initializeAccount(id, true)
+                        },
                         function(error) { console.warn("createAccountPublic failed:", error) })
                 }
                 onCreatePrivateAccountRequested: {
@@ -276,6 +284,38 @@ Rectangle {
                     clipHelper.text = copyText
                     clipHelper.selectAll()
                     clipHelper.copy()
+                }
+                onInitializeAccountRequested: (accountId, isPublic) => dashboardView.initializeAccount(accountId, isPublic)
+
+                // Shared by the manual Initialize button (onInitializeAccountRequested)
+                // and initialize-on-create (onCreatePublicAccountRequested above).
+                function initializeAccount(accountId, isPublic) {
+                    if (!backend) return
+                    // Reassign (not mutate) so the pendingInitializations binding
+                    // propagated down to each AccountDelegate re-evaluates.
+                    var pending = Object.assign({}, root.pendingInitializations)
+                    pending[accountId] = true
+                    root.pendingInitializations = pending
+                    function clearPending() {
+                        var updated = Object.assign({}, root.pendingInitializations)
+                        delete updated[accountId]
+                        root.pendingInitializations = updated
+                    }
+                    // Same {success, tx_hash, error} shape as the transfer/vaultClaim
+                    // slots below, so it gets the same result-panel feedback. The
+                    // accountModel's tag updates via NOTIFY once the backend
+                    // refreshes accounts after a successful initialization.
+                    logos.watch(backend.initializeAccount(accountId, isPublic),
+                        function(raw) {
+                            clearPending()
+                            ffiErrors.applyTransferResult(dashboardView, raw)
+                        },
+                        function(error) {
+                            clearPending()
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
+                        })
                 }
             }
         }
