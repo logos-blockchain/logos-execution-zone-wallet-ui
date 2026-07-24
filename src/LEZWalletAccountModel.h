@@ -18,7 +18,8 @@ struct LEZWalletAccountEntry {
     bool isPublic = true;
     QString sectionKey;
     QString keysJson; // {nullifier_public_key, viewing_public_key} shared by the whole section; private only
-    bool isFirstInGroup = false; // QML renders the section header above rows where this is true
+    bool isFirstInGroup = false; // QML renders the per-key-set header (copy button) above rows where this is true
+    bool isFirstPrivate = false; // QML renders the single "Private" section title above rows where this is true
     // Whether some program (in practice, the authenticated-transfer program) has claimed
     // this account yet. Defaults to false (shown as needing init) so an account whose
     // state we failed to enrich isn't silently mistaken for a usable one.
@@ -42,6 +43,7 @@ public:
         SectionKeyRole,
         KeysJsonRole,
         IsFirstInGroupRole,
+        IsFirstPrivateRole,
         IsInitializedRole
     };
     Q_ENUM(Role)

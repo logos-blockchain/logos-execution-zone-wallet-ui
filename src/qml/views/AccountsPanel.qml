@@ -149,26 +149,124 @@ Rectangle {
                 // row is created.
                 property string keysJsonWarm: model.keysJson ?? ""
 
+                // "Public Accounts" title: the public section is a single group, so this
+                // is equivalent to showing it once above the first public row.
                 RowLayout {
                     Layout.fillWidth: true
-                    visible: model.isFirstInGroup ?? false
+                    visible: model.isPublic && (model.isFirstInGroup ?? false)
                     spacing: Theme.spacing.small
 
                     LogosText {
-                        text: model.isPublic
-                            ? qsTr("Public Accounts")
-                            : qsTr("Private")
-                        font.pixelSize: Theme.typography.secondaryText
+                        text: qsTr("Public Accounts")
+                        font.pixelSize: Theme.typography.primaryText
                         font.bold: true
-                        color: Theme.palette.textSecondary
+                        color: Theme.palette.text
+                    }
+                }
+
+                // "Private Accounts" title: shown once above the whole private section,
+                // unlike the per-key-set row below which repeats for every private key
+                // group. Wrapped the same way as the "Public Accounts" title above so
+                // both line up identically.
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: model.isFirstPrivate ?? false
+                    spacing: Theme.spacing.small
+
+                    LogosText {
+                        text: qsTr("Private Accounts")
+                        font.pixelSize: Theme.typography.primaryText
+                        font.bold: true
+                        color: Theme.palette.text
+                    }
+                }
+
+                // Per-key-set row: separates each private key group within the Private
+                // section, naming the group by its Npk/Vpk pair, and holds the copy
+                // button for that pair.
+                RowLayout {
+                    id: keyGroupHeader
+                    Layout.fillWidth: true
+                    visible: !model.isPublic && (model.isFirstInGroup ?? false)
+                    spacing: Theme.spacing.small
+
+                    property var groupKeys: {
+                        try { return JSON.parse(model.keysJson ?? "{}") } catch (e) { return {} }
                     }
 
-                    Item { Layout.fillWidth: true }
+                    function shortKey(key) {
+                        return key && key.length > 12 ? key.slice(0, 6) + "…" + key.slice(-4) : (key || "")
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        LogosText {
+                            Layout.fillWidth: true
+                            text: qsTr("Accounts under keys")
+                            font.pixelSize: Theme.typography.secondaryText
+                            color: Theme.palette.textSecondary
+                        }
+
+                        // Each of Npk/Vpk gets its own bullet, aligned with "Private
+                        // Accounts"/"Accounts under keys" above. Labels share a fixed
+                        // width (the wider of the two) so the value column still lines
+                        // up between the two rows.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacing.small
+
+                            LogosText {
+                                text: "•"
+                                font.pixelSize: Theme.typography.secondaryText
+                                color: Theme.palette.textSecondary
+                            }
+                            LogosText {
+                                id: npkLabel
+                                Layout.preferredWidth: Math.max(npkLabel.implicitWidth, vpkLabel.implicitWidth)
+                                text: qsTr("Npk:")
+                                font.pixelSize: Theme.typography.secondaryText
+                                color: Theme.palette.textSecondary
+                            }
+                            LogosText {
+                                Layout.fillWidth: true
+                                text: keyGroupHeader.shortKey(keyGroupHeader.groupKeys.nullifier_public_key)
+                                font.pixelSize: Theme.typography.secondaryText
+                                color: Theme.palette.textSecondary
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacing.small
+
+                            LogosText {
+                                text: "•"
+                                font.pixelSize: Theme.typography.secondaryText
+                                color: Theme.palette.textSecondary
+                            }
+                            LogosText {
+                                id: vpkLabel
+                                Layout.preferredWidth: Math.max(npkLabel.implicitWidth, vpkLabel.implicitWidth)
+                                text: qsTr("Vpk:")
+                                font.pixelSize: Theme.typography.secondaryText
+                                color: Theme.palette.textSecondary
+                            }
+                            LogosText {
+                                Layout.fillWidth: true
+                                text: keyGroupHeader.shortKey(keyGroupHeader.groupKeys.viewing_public_key)
+                                font.pixelSize: Theme.typography.secondaryText
+                                color: Theme.palette.textSecondary
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
 
                     LogosCopyButton {
                         Layout.preferredHeight: 32
                         Layout.preferredWidth: 32
-                        visible: !model.isPublic
                         icon.color: Theme.palette.textMuted
                         onCopyText: root.copyRequested(model.keysJson ?? "")
                     }
