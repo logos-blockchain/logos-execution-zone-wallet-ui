@@ -20,6 +20,11 @@ ItemDelegate {
     // copyRequested above.
     signal initializeRequested(string accountId, bool isPublic)
 
+    // Emitted when the user clicks "Add label", so the parent can open
+    // SetLabelDialog for this account. Only reachable for unlabeled accounts —
+    // the wallet core has no way to rename or remove a label once added.
+    signal labelRequested(string accountId, bool isPublic)
+
     // Set by the parent while this account's initializeAccount() call is in flight,
     // so the button can show it took the click instead of appearing to do nothing.
     property bool initializing: false
@@ -47,6 +52,38 @@ ItemDelegate {
                 font.pixelSize: Theme.typography.secondaryText
                 font.bold: true
             }
+
+            LogosText {
+                // The wallet core only supports adding a label, never renaming or
+                // removing one — so once an account has one, there's nothing left
+                // to offer here.
+                text: qsTr("Add label")
+                visible: !model.name
+                font.pixelSize: Theme.typography.secondaryText
+                font.underline: labelLinkArea.containsMouse
+                color: Theme.palette.textMuted
+
+                MouseArea {
+                    id: labelLinkArea
+                    anchors.fill: parent
+                    anchors.margins: -Theme.spacing.small
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.labelRequested(model.accountId ?? "", model.isPublic ?? true)
+                }
+            }
+
+            Item { Layout.fillWidth: true }
+
+            LogosText {
+                text: model.balance && model.balance.length > 0 ? model.balance : "—"
+                font.bold: true
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacing.small
 
             Rectangle {
                 Layout.preferredWidth: tagLabel.implicitWidth + Theme.spacing.small * 2
@@ -80,11 +117,6 @@ ItemDelegate {
             }
 
             Item { Layout.fillWidth: true }
-
-            LogosText {
-                text: model.balance && model.balance.length > 0 ? model.balance : "—"
-                font.bold: true
-            }
         }
 
         RowLayout {

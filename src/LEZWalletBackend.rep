@@ -32,4 +32,7 @@ class LEZWalletBackend
     SLOT(QString createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr))
 
     SLOT(void copyToClipboard(QString text))
+
+    SLOT(bool checkLabelAvailable(QString label))
+    SLOT(QString addLabel(QString label, QString accountIdHex, bool isPublic))
 }

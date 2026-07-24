@@ -24,6 +24,7 @@ Rectangle {
     signal fetchBalancesRequested()
     signal copyRequested(string text)
     signal initializeAccountRequested(string accountId, bool isPublic)
+    signal labelRequested(string accountId, bool isPublic)
 
     radius: Theme.spacing.radiusXlarge
     color: Theme.palette.backgroundSecondary
@@ -178,6 +179,7 @@ Rectangle {
                     initializing: root.pendingInitializations[model.accountId] === true
                     onCopyRequested: (text) => root.copyRequested(text)
                     onInitializeRequested: (accountId, isPublic) => root.initializeAccountRequested(accountId, isPublic)
+                    onLabelRequested: (accountId, isPublic) => root.labelRequested(accountId, isPublic)
                 }
             }
         }

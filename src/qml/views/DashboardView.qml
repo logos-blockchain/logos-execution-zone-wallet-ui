@@ -36,6 +36,7 @@ Rectangle {
     signal refreshClaimableDepositsRequested()
     signal copyRequested(string copyText)
     signal initializeAccountRequested(string accountId, bool isPublic)
+    signal labelRequested(string accountId, bool isPublic)
 
     color: Theme.palette.background
 
@@ -59,6 +60,7 @@ Rectangle {
             onFetchBalancesRequested: root.fetchBalancesRequested()
             onCopyRequested: (text) => root.copyRequested(text)
             onInitializeAccountRequested: (accountId, isPublic) => root.initializeAccountRequested(accountId, isPublic)
+            onLabelRequested: (accountId, isPublic) => root.labelRequested(accountId, isPublic)
         }
 
         TransferPanel {

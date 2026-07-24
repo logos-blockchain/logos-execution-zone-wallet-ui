@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Logos.Theme
 import Logos.Controls
 import "views"
+import "popups"
 
 Rectangle {
     id: root
@@ -109,6 +110,56 @@ Rectangle {
     TextEdit {
         id: clipHelper
         visible: false
+    }
+
+    SetLabelDialog {
+        id: setLabelDialog
+
+        onCheckAvailabilityRequested: (label) => {
+            if (!backend) return
+            logos.watch(backend.checkLabelAvailable(label),
+                function(available) {
+                    // The user may have kept typing while this round-trip was in
+                    // flight — only apply the result if it still matches the
+                    // current text, otherwise it's stale.
+                    if (label === setLabelDialog.trimmedText) {
+                        setLabelDialog.checkingAvailability = false
+                        setLabelDialog.labelAvailable = available
+                    }
+                },
+                function(error) {
+                    console.warn("checkLabelAvailable failed:", error)
+                    if (label === setLabelDialog.trimmedText) {
+                        setLabelDialog.checkingAvailability = false
+                        // Fail open — addLabel() itself still validates on submit.
+                        setLabelDialog.labelAvailable = true
+                    }
+                })
+        }
+
+        onSaveRequested: (accountId, isPublic, label) => {
+            if (!backend) {
+                setLabelDialog.reportSaveError(qsTr("Wallet backend unavailable."))
+                return
+            }
+            logos.watch(backend.addLabel(label, accountId, isPublic),
+                function(errorMessage) {
+                    // The dialog may have been reopened for a different account while
+                    // this round-trip was in flight — only apply the result if it's
+                    // still about the same account, otherwise it's stale.
+                    if (setLabelDialog.accountId !== accountId || setLabelDialog.isPublic !== isPublic)
+                        return
+                    if (errorMessage)
+                        setLabelDialog.reportSaveError(ffiErrors.format(errorMessage))
+                    else
+                        setLabelDialog.closeOnSaveSuccess()
+                },
+                function(error) {
+                    if (setLabelDialog.accountId !== accountId || setLabelDialog.isPublic !== isPublic)
+                        return
+                    setLabelDialog.reportSaveError(error)
+                })
+        }
     }
 
     StackView {
@@ -286,6 +337,11 @@ Rectangle {
                     clipHelper.copy()
                 }
                 onInitializeAccountRequested: (accountId, isPublic) => dashboardView.initializeAccount(accountId, isPublic)
+                onLabelRequested: (accountId, isPublic) => {
+                    setLabelDialog.accountId = accountId
+                    setLabelDialog.isPublic = isPublic
+                    setLabelDialog.open()
+                }
 
                 // Shared by the manual Initialize button (onInitializeAccountRequested)
                 // and initialize-on-create (onCreatePublicAccountRequested above).

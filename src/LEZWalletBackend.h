@@ -54,6 +54,8 @@ public slots:
     QString vaultClaim(QString fromHex, bool isPublic, QString amountStr) override;
     QString createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
     void copyToClipboard(QString text) override;
+    bool checkLabelAvailable(QString label) override;
+    QString addLabel(QString label, QString accountIdHex, bool isPublic) override;
 
 private slots:
     void syncNextChunk();

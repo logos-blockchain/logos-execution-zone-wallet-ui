@@ -74,6 +74,7 @@ void LEZWalletAccountModel::replaceFromVariantList(const QVariantList& list)
             e.accountId = map.value(QStringLiteral("account_id")).toString();
             e.isPublic = map.value(QStringLiteral("is_public"), true).toBool();
             e.isInitialized = map.value(QStringLiteral("is_initialized"), false).toBool();
+            e.name = map.value(QStringLiteral("name")).toString();
             if (e.isPublic) {
                 e.sectionKey = PublicSectionKey;
             } else {
