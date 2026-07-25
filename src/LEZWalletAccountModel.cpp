@@ -31,6 +31,8 @@ QVariant LEZWalletAccountModel::data(const QModelIndex& index, int role) const
     case SectionKeyRole: return e.sectionKey;
     case KeysJsonRole: return e.keysJson;
     case IsFirstInGroupRole: return e.isFirstInGroup;
+    case IsFirstPrivateRole: return e.isFirstPrivate;
+    case IsInitializedRole: return e.isInitialized;
     default:          return QVariant();
     }
 }
@@ -45,7 +47,9 @@ QHash<int, QByteArray> LEZWalletAccountModel::roleNames() const
         { IsPublicRole, "isPublic" },
         { SectionKeyRole, "sectionKey" },
         { KeysJsonRole, "keysJson" },
-        { IsFirstInGroupRole, "isFirstInGroup" }
+        { IsFirstInGroupRole, "isFirstInGroup" },
+        { IsFirstPrivateRole, "isFirstPrivate" },
+        { IsInitializedRole, "isInitialized" }
     };
 }
 
@@ -71,6 +75,8 @@ void LEZWalletAccountModel::replaceFromVariantList(const QVariantList& list)
             const QVariantMap map = v.toMap();
             e.accountId = map.value(QStringLiteral("account_id")).toString();
             e.isPublic = map.value(QStringLiteral("is_public"), true).toBool();
+            e.isInitialized = map.value(QStringLiteral("is_initialized"), false).toBool();
+            e.name = map.value(QStringLiteral("name")).toString();
             if (e.isPublic) {
                 e.sectionKey = PublicSectionKey;
             } else {
@@ -96,8 +102,13 @@ void LEZWalletAccountModel::replaceFromVariantList(const QVariantList& list)
             if (a.isPublic != b.isPublic) return a.isPublic;
             return a.sectionKey < b.sectionKey;
         });
-    for (int i = 0; i < m_entries.size(); ++i)
+    for (int i = 0; i < m_entries.size(); ++i) {
         m_entries[i].isFirstInGroup = (i == 0) || (m_entries[i].sectionKey != m_entries[i - 1].sectionKey);
+        // All private key-groups sit under a single "Private" title (unlike the public
+        // section, they don't each get their own top-level header) — so only the very
+        // first private row across all groups needs to flag it.
+        m_entries[i].isFirstPrivate = !m_entries[i].isPublic && (i == 0 || m_entries[i - 1].isPublic);
+    }
     endResetModel();
     if (oldCount != m_entries.size())
         emit countChanged();

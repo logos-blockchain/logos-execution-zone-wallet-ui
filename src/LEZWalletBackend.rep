@@ -6,6 +6,7 @@ class LEZWalletBackend
     PROP(int lastSyncedBlock READONLY)
     PROP(int currentBlockHeight READONLY)
     PROP(QString sequencerAddr READONLY)
+    PROP(QString lastCreatedMnemonic READONLY)
 
     SLOT(QString createAccountPublic())
     SLOT(QString createAccountPrivate())
@@ -14,6 +15,7 @@ class LEZWalletBackend
     SLOT(void refreshBalances())
     SLOT(QString getPublicAccountKey(QString accountIdHex))
     SLOT(QString getPrivateAccountKeys(QString accountIdHex))
+    SLOT(QString initializeAccount(QString accountIdHex, bool isPublic))
     SLOT(bool syncToBlock(quint64 blockId))
 
     SLOT(QString transferPublic(QString fromHex, QString toHex, QString amountStr))
@@ -29,6 +31,11 @@ class LEZWalletBackend
     SLOT(QString vaultClaim(QString fromHex, bool isPublic, QString amountStr))
 
     SLOT(QString createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr))
+    SLOT(QString restoreFromMnemonic(QString configPath, QString storagePath, QString mnemonic, QString password, QString sequencerAddr))
 
     SLOT(void copyToClipboard(QString text))
+    SLOT(void clearLastCreatedMnemonic())
+
+    SLOT(bool checkLabelAvailable(QString label))
+    SLOT(QString addLabel(QString label, QString accountIdHex, bool isPublic))
 }

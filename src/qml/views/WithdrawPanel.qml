@@ -99,7 +99,7 @@ Item {
         }
 
         // Withdraw button
-        LogosButton {
+        FeedbackButton {
             Layout.fillWidth: true
             text: qsTr("Withdraw")
             font.pixelSize: Theme.typography.secondaryText

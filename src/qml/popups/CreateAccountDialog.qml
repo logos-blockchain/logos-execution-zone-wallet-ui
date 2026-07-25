@@ -5,10 +5,12 @@ import QtQuick.Layouts
 import Logos.Theme
 import Logos.Controls
 
+import "../controls"
+
 Popup {
     id: root
 
-    signal createPublicRequested()
+    signal createPublicRequested(bool initializeOnCreate)
     signal createPrivateRequested()
 
     modal: true
@@ -72,20 +74,27 @@ Popup {
             Layout.fillWidth: true
         }
 
+        LogosCheckbox {
+            id: initializeOnCreateCheck
+            checked: true
+            text: qsTr("Initialize on creation")
+            visible: tabBar.currentIndex === 0
+        }
+
         RowLayout {
             Layout.topMargin: Theme.spacing.medium
             spacing: Theme.spacing.medium
             Layout.fillWidth: true
             Item { Layout.fillWidth: true }
-            LogosButton {
+            FeedbackButton {
                 text: qsTr("Cancel")
                 onClicked: root.close()
             }
-            LogosButton {
+            FeedbackButton {
                 text: qsTr("Create")
                 onClicked: {
                     if (tabBar.currentIndex === 0)
-                        root.createPublicRequested()
+                        root.createPublicRequested(initializeOnCreateCheck.checked)
                     else
                         root.createPrivateRequested()
                     root.close()

@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Logos.Theme
 import Logos.Controls
 import "views"
+import "popups"
 
 Rectangle {
     id: root
@@ -15,6 +16,9 @@ Rectangle {
     readonly property var privateAccountModel: logos.model("lez_wallet_ui", "privateAccountModel")
     readonly property var claimableAccountModel: logos.model("lez_wallet_ui", "claimableAccountModel")
     property bool ready: false
+    // Maps accountId -> true while that account's initializeAccount() call is in flight,
+    // so AccountDelegate can show the click was registered instead of appearing inert.
+    property var pendingInitializations: ({})
 
     Connections {
         target: logos
@@ -108,6 +112,77 @@ Rectangle {
         visible: false
     }
 
+    MnemonicRevealDialog {
+        id: mnemonicDialog
+
+        onCopyRequested: (text) => {
+            clipHelper.text = text
+            clipHelper.selectAll()
+            clipHelper.copy()
+        }
+        onAcknowledged: if (backend) backend.clearLastCreatedMnemonic()
+    }
+
+    Connections {
+        target: backend
+        function onLastCreatedMnemonicChanged() {
+            if (backend.lastCreatedMnemonic.length > 0) {
+                mnemonicDialog.mnemonic = backend.lastCreatedMnemonic
+                mnemonicDialog.open()
+            }
+        }
+    }
+
+    SetLabelDialog {
+        id: setLabelDialog
+
+        onCheckAvailabilityRequested: (label) => {
+            if (!backend) return
+            logos.watch(backend.checkLabelAvailable(label),
+                function(available) {
+                    // The user may have kept typing while this round-trip was in
+                    // flight — only apply the result if it still matches the
+                    // current text, otherwise it's stale.
+                    if (label === setLabelDialog.trimmedText) {
+                        setLabelDialog.checkingAvailability = false
+                        setLabelDialog.labelAvailable = available
+                    }
+                },
+                function(error) {
+                    console.warn("checkLabelAvailable failed:", error)
+                    if (label === setLabelDialog.trimmedText) {
+                        setLabelDialog.checkingAvailability = false
+                        // Fail open — addLabel() itself still validates on submit.
+                        setLabelDialog.labelAvailable = true
+                    }
+                })
+        }
+
+        onSaveRequested: (accountId, isPublic, label) => {
+            if (!backend) {
+                setLabelDialog.reportSaveError(qsTr("Wallet backend unavailable."))
+                return
+            }
+            logos.watch(backend.addLabel(label, accountId, isPublic),
+                function(errorMessage) {
+                    // The dialog may have been reopened for a different account while
+                    // this round-trip was in flight — only apply the result if it's
+                    // still about the same account, otherwise it's stale.
+                    if (setLabelDialog.accountId !== accountId || setLabelDialog.isPublic !== isPublic)
+                        return
+                    if (errorMessage)
+                        setLabelDialog.reportSaveError(ffiErrors.format(errorMessage))
+                    else
+                        setLabelDialog.closeOnSaveSuccess()
+                },
+                function(error) {
+                    if (setLabelDialog.accountId !== accountId || setLabelDialog.isPublic !== isPublic)
+                        return
+                    setLabelDialog.reportSaveError(error)
+                })
+        }
+    }
+
     StackView {
         id: stackView
         anchors.fill: parent
@@ -132,6 +207,20 @@ Rectangle {
                         }
                     )
                 }
+                onRecoverWallet: function(configPath, storagePath, mnemonic, password, sequencerUrl) {
+                    if (!backend) return
+                    // restoreFromMnemonic() returns an empty string on success, or a
+                    // human-readable error message otherwise.
+                    logos.watch(backend.restoreFromMnemonic(configPath, storagePath, mnemonic, password, sequencerUrl),
+                        function(errorMessage) {
+                            if (errorMessage)
+                                createError = errorMessage
+                        },
+                        function(error) {
+                            createError = qsTr("Error restoring wallet: %1").arg(error)
+                        }
+                    )
+                }
             }
         }
 
@@ -145,13 +234,18 @@ Rectangle {
                 claimableAccountModel: root.claimableAccountModel
                 lastSyncedBlock: backend ? backend.lastSyncedBlock : 0
                 currentBlockHeight: backend ? backend.currentBlockHeight : 0
+                pendingInitializations: root.pendingInitializations
 
-                onCreatePublicAccountRequested: {
+                onCreatePublicAccountRequested: (initializeOnCreate) => {
                     if (!backend) { console.warn("backend is null"); return }
-                    // Result not consumed here — accountModel updates via NOTIFY when
-                    // the backend's refreshAccounts() runs after creation.
+                    // accountModel updates via NOTIFY when the backend's refreshAccounts()
+                    // runs after creation; the id is only needed to chase it with an
+                    // initializeAccount() call when the user asked for that.
                     logos.watch(backend.createAccountPublic(),
-                        function(_id) { /* ignored */ },
+                        function(id) {
+                            if (initializeOnCreate && id)
+                                dashboardView.initializeAccount(id, true)
+                        },
                         function(error) { console.warn("createAccountPublic failed:", error) })
                 }
                 onCreatePrivateAccountRequested: {
@@ -276,6 +370,43 @@ Rectangle {
                     clipHelper.text = copyText
                     clipHelper.selectAll()
                     clipHelper.copy()
+                }
+                onInitializeAccountRequested: (accountId, isPublic) => dashboardView.initializeAccount(accountId, isPublic)
+                onLabelRequested: (accountId, isPublic) => {
+                    setLabelDialog.accountId = accountId
+                    setLabelDialog.isPublic = isPublic
+                    setLabelDialog.open()
+                }
+
+                // Shared by the manual Initialize button (onInitializeAccountRequested)
+                // and initialize-on-create (onCreatePublicAccountRequested above).
+                function initializeAccount(accountId, isPublic) {
+                    if (!backend) return
+                    // Reassign (not mutate) so the pendingInitializations binding
+                    // propagated down to each AccountDelegate re-evaluates.
+                    var pending = Object.assign({}, root.pendingInitializations)
+                    pending[accountId] = true
+                    root.pendingInitializations = pending
+                    function clearPending() {
+                        var updated = Object.assign({}, root.pendingInitializations)
+                        delete updated[accountId]
+                        root.pendingInitializations = updated
+                    }
+                    // Same {success, tx_hash, error} shape as the transfer/vaultClaim
+                    // slots below, so it gets the same result-panel feedback. The
+                    // accountModel's tag updates via NOTIFY once the backend
+                    // refreshes accounts after a successful initialization.
+                    logos.watch(backend.initializeAccount(accountId, isPublic),
+                        function(raw) {
+                            clearPending()
+                            ffiErrors.applyTransferResult(dashboardView, raw)
+                        },
+                        function(error) {
+                            clearPending()
+                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
+                            dashboardView.transferResultIsError = true
+                            dashboardView.transferTxHash = ""
+                        })
                 }
             }
         }

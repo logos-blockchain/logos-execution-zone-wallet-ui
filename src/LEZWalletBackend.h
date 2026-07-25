@@ -41,6 +41,7 @@ public slots:
     void refreshBalances() override;
     QString getPublicAccountKey(QString accountIdHex) override;
     QString getPrivateAccountKeys(QString accountIdHex) override;
+    QString initializeAccount(QString accountIdHex, bool isPublic) override;
     bool syncToBlock(quint64 blockId) override;
     QString transferPublic(QString fromHex, QString toHex, QString amountStr) override;
     QString transferPrivate(QString fromHex, QString toHex, QString amountStr) override;
@@ -52,7 +53,11 @@ public slots:
     void refreshVaultBalances() override;
     QString vaultClaim(QString fromHex, bool isPublic, QString amountStr) override;
     QString createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
+    QString restoreFromMnemonic(QString configPath, QString storagePath, QString mnemonic, QString password, QString sequencerAddr) override;
     void copyToClipboard(QString text) override;
+    void clearLastCreatedMnemonic() override;
+    bool checkLabelAvailable(QString label) override;
+    QString addLabel(QString label, QString accountIdHex, bool isPublic) override;
 
 private slots:
     void syncNextChunk();

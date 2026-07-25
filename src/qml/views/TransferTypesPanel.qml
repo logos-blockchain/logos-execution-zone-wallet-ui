@@ -188,7 +188,7 @@ Item {
         }
 
         // Send button
-        LogosButton {
+        FeedbackButton {
             Layout.fillWidth: true
             text: qsTr("Send")
             font.pixelSize: Theme.typography.secondaryText
