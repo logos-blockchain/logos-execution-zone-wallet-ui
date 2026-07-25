@@ -112,6 +112,27 @@ Rectangle {
         visible: false
     }
 
+    MnemonicRevealDialog {
+        id: mnemonicDialog
+
+        onCopyRequested: (text) => {
+            clipHelper.text = text
+            clipHelper.selectAll()
+            clipHelper.copy()
+        }
+        onAcknowledged: if (backend) backend.clearLastCreatedMnemonic()
+    }
+
+    Connections {
+        target: backend
+        function onLastCreatedMnemonicChanged() {
+            if (backend.lastCreatedMnemonic.length > 0) {
+                mnemonicDialog.mnemonic = backend.lastCreatedMnemonic
+                mnemonicDialog.open()
+            }
+        }
+    }
+
     SetLabelDialog {
         id: setLabelDialog
 
@@ -183,6 +204,20 @@ Rectangle {
                         },
                         function(error) {
                             createError = qsTr("Error creating wallet: %1").arg(error)
+                        }
+                    )
+                }
+                onRecoverWallet: function(configPath, storagePath, mnemonic, password, sequencerUrl) {
+                    if (!backend) return
+                    // restoreFromMnemonic() returns an empty string on success, or a
+                    // human-readable error message otherwise.
+                    logos.watch(backend.restoreFromMnemonic(configPath, storagePath, mnemonic, password, sequencerUrl),
+                        function(errorMessage) {
+                            if (errorMessage)
+                                createError = errorMessage
+                        },
+                        function(error) {
+                            createError = qsTr("Error restoring wallet: %1").arg(error)
                         }
                     )
                 }
