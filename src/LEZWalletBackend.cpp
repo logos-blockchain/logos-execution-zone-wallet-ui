@@ -59,6 +59,13 @@ namespace {
         return p;
     }
 
+    // The wallet treats a missing statistics file as empty stats and (re)creates it
+    // on save, so it needs no user-facing setting — derive it next to the storage
+    // file, matching the wallet CLI's "<wallet home>/statistics.json" convention.
+    QString statisticsPathFor(const QString& storagePath) {
+        return QFileInfo(storagePath).absoluteDir().filePath(QStringLiteral("statistics.json"));
+    }
+
     // An account is uninitialized until some program claims it (program_owner goes
     // from all-zero to that program's ID) — see DEFAULT_PROGRAM_ID in the execution
     // zone's state machine. Accounts this wallet creates are only ever claimed by the
@@ -166,7 +173,7 @@ void LEZWalletBackend::openIfPathsConfigured(int attempt)
 
     qDebug() << "LEZWalletBackend: opening wallet with config" << configPath()
              << "storage" << storagePath();
-    int err = m_logos->lez_core.open(configPath(), storagePath());
+    int err = m_logos->lez_core.open(configPath(), storagePath(), statisticsPathFor(storagePath()));
     if (err == WALLET_FFI_SUCCESS) {
         qDebug() << "LEZWalletBackend: wallet opened successfully";
         finishOpeningWallet();
@@ -517,7 +524,7 @@ QString LEZWalletBackend::createNew(QString configPath, QString storagePath, QSt
     // user pointed us at (e.g. from the setup screen), not a request to
     // overwrite it. Try to load it instead of blindly creating a new one.
     if (QFile::exists(localConfigPath) && QFile::exists(localStoragePath)) {
-        int err = m_logos->lez_core.open(localConfigPath, localStoragePath);
+        int err = m_logos->lez_core.open(localConfigPath, localStoragePath, statisticsPathFor(localStoragePath));
         if (err != WALLET_FFI_SUCCESS) {
             return QStringLiteral(
                 "Could not load the wallet at the selected paths. Pick "
@@ -534,7 +541,7 @@ QString LEZWalletBackend::createNew(QString configPath, QString storagePath, QSt
         applySequencerAddrToConfig(localConfigPath, sequencerAddr);
 
     const QString mnemonic = m_logos->lez_core.create_new(
-        localConfigPath, localStoragePath, password);
+        localConfigPath, localStoragePath, statisticsPathFor(localStoragePath), password);
     if (mnemonic.isEmpty())
         return QStringLiteral("Failed to create wallet. Check paths and try again.");
 
