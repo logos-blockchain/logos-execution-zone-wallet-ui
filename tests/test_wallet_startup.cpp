@@ -1,11 +1,15 @@
 #include <logos_test.h>
 
+#include <QCoreApplication>
+
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <deque>
 #include <functional>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,14 +21,41 @@ namespace {
 std::string textOf(const std::filesystem::path& path)
 {
     std::ifstream input(path);
+    if (!input.is_open())
+        throw std::runtime_error("required test fixture is unavailable: " + path.filename().string());
     std::ostringstream contents;
     contents << input.rdbuf();
+    if (input.bad())
+        throw std::runtime_error("failed to read required test fixture: " + path.filename().string());
     return contents.str();
 }
 
 std::filesystem::path repositoryRoot()
 {
-    return std::filesystem::path(__FILE__).parent_path().parent_path();
+    const auto isFixtureRoot = [](const std::filesystem::path& candidate) {
+        return std::filesystem::is_regular_file(candidate / "metadata.json")
+            && std::filesystem::is_regular_file(candidate / "src/LEZWalletBackend.cpp")
+            && std::filesystem::is_regular_file(candidate / "src/qml/views/OnboardingView.qml");
+    };
+
+    if (const char* explicitRoot = std::getenv("LEZ_WALLET_UI_TEST_FIXTURES")) {
+        const std::filesystem::path candidate(explicitRoot);
+        if (isFixtureRoot(candidate))
+            return candidate;
+        throw std::runtime_error("LEZ_WALLET_UI_TEST_FIXTURES is not a valid fixture root");
+    }
+
+    const std::filesystem::path applicationDirectory(
+        QCoreApplication::applicationDirPath().toStdString());
+    for (const std::filesystem::path& candidate : {
+            applicationDirectory / "fixtures",
+            std::filesystem::current_path() / "fixtures",
+        }) {
+        if (isFixtureRoot(candidate))
+            return std::filesystem::weakly_canonical(candidate);
+    }
+
+    throw std::runtime_error("required wallet startup test fixtures were not found");
 }
 
 const QString OpenEnvelope = QStringLiteral(
@@ -92,6 +123,21 @@ LOGOS_TEST(handshake_retries_only_within_budget)
     const auto unavailable = WalletStartupFlow::coreUnavailable();
     LOGOS_ASSERT_EQ(unavailable.state.toStdString(), std::string("error"));
     LOGOS_ASSERT_EQ(unavailable.errorCode.toStdString(), std::string("core_unavailable"));
+}
+
+LOGOS_TEST(source_fixture_contract_is_present_and_missing_files_fail_closed)
+{
+    const auto root = repositoryRoot();
+    LOGOS_ASSERT_TRUE(!textOf(root / "metadata.json").empty());
+    LOGOS_ASSERT_TRUE(!textOf(root / "src/LEZWalletBackend.cpp").empty());
+
+    bool rejectedMissingFixture = false;
+    try {
+        static_cast<void>(textOf(root / "missing-required-fixture"));
+    } catch (const std::runtime_error&) {
+        rejectedMissingFixture = true;
+    }
+    LOGOS_ASSERT_TRUE(rejectedMissingFixture);
 }
 
 LOGOS_TEST(core_version_must_be_an_exact_compatible_release)

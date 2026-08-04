@@ -23,7 +23,14 @@
     in
       (builtins.removeAttrs moduleOutputs [ "apps" ]) // {
         checks = builtins.mapAttrs (system: testChecks:
-          (moduleOutputs.checks.${system} or {}) // testChecks
+          (moduleOutputs.checks.${system} or {}) // (testChecks // {
+            # The Qt binary wrapper carries a fresh Mach-O UUID/signature on every
+            # build. These tests need no Qt plugin discovery, so retain the directly
+            # linked executable and keep the check output reproducible.
+            unit-tests = testChecks.unit-tests.overrideAttrs (_: {
+              dontWrapQtApps = true;
+            });
+          })
         ) testOutputs;
       };
 }
