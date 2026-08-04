@@ -66,7 +66,7 @@ logos-execution-zone-wallet-ui/
 
 ## Shared wallet startup
 
-`lez_core` owns the default wallet profile for the Basecamp instance. On startup this UI waits for the inter-module handshake, calls `wallet_status`, calls `open_default` when the profile is closed, and refreshes accounts only after the shared profile reports `open`.
+`lez_core` owns the default wallet profile for the Basecamp instance. This release requires `lez_core` 0.5.x. On startup the UI waits for the inter-module handshake, verifies that compatible version, calls `wallet_status`, calls `open_default` when the profile is closed, and refreshes accounts only after the shared profile reports `open`.
 
 This startup slice does not create or restore wallets. Those actions remain blocked on the secure core lifecycle release tracked by [execution-zone#156](https://github.com/logos-blockchain/logos-execution-zone/issues/156) and [lez_core PR #47](https://github.com/logos-blockchain/logos-execution-zone-module/pull/47).
 

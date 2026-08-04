@@ -3,6 +3,10 @@
 
 #include <QObject>
 #include <QString>
+#include <QVariant>
+
+#include <functional>
+#include <memory>
 
 #include "rep_LEZWalletBackend_source.h"
 
@@ -61,15 +65,37 @@ private slots:
     void syncNextChunk();
 
 private:
+    using VariantCompletion = std::function<void(QVariant, bool)>;
+
     void fetchAndUpdateBlockHeights();
     void startChunkedSync();
-    QVariantList buildEnrichedAccountList();
+    QVariantList buildEnrichedAccountList(const QVariantList& raw, bool* success);
+    bool replaceAccountsFromCore();
+    void invokeCoreAsync(
+        const QString& method,
+        const QVariantList& arguments,
+        VariantCompletion completion
+    );
+    void refreshAccountsForStartup(WalletStartupFlow::Coordinator::RefreshCompletion completion);
+    void enrichAccountsForStartup(
+        QVariantList raw,
+        int index,
+        QVariantList enriched,
+        WalletStartupFlow::Coordinator::RefreshCompletion completion
+    );
+    void enrichAccountDetailsForStartup(
+        QVariantList raw,
+        int index,
+        QVariantList enriched,
+        QVariantMap account,
+        bool isPublic,
+        WalletStartupFlow::Coordinator::RefreshCompletion completion
+    );
 
     void updateBalances();
     QString getVaultBalance(const QString& accountIdHex);
     void refreshSequencerAddr();
     void saveWallet();
-    void openSharedWallet(int attempt = 0);
     void applyStartupResult(const WalletStartupFlow::Result& result);
     void finishOpeningSharedWallet();
 
@@ -84,6 +110,7 @@ private:
 
     LogosAPI* m_logosAPI;
     LogosModules* m_logos;
+    std::unique_ptr<WalletStartupFlow::Coordinator> m_startup;
 };
 
 #endif // LEZ_WALLET_BACKEND_H

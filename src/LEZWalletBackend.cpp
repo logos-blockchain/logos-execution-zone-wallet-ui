@@ -6,10 +6,14 @@
 #include <QDebug>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
 #include <QTimer>
+
+#include <utility>
 
 #include "logos_api.h"
 #include "logos_api_client.h"
+#include "logos_call_error.h"
 #include "logos_sdk.h"
 
 namespace {
@@ -81,13 +85,35 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     setLastSyncedBlock(0);
     setCurrentBlockHeight(0);
 
+    WalletStartupFlow::Coordinator::Hooks startupHooks;
+    startupHooks.invoke = [this](const QString& method,
+                              WalletStartupFlow::Coordinator::CallCompletion completion) {
+        invokeCoreAsync(method, {},
+            [completion = std::move(completion)](QVariant value, const bool ok) mutable {
+                completion(value.toString(), ok);
+            });
+    };
+    startupHooks.schedule = [this](const int delayMs,
+                                WalletStartupFlow::Coordinator::Task task) {
+        QTimer::singleShot(delayMs, this, std::move(task));
+    };
+    startupHooks.refreshAccounts = [this](
+                                       WalletStartupFlow::Coordinator::RefreshCompletion completion) {
+        refreshAccountsForStartup(std::move(completion));
+    };
+    startupHooks.publish = [this](const WalletStartupFlow::Result& result) {
+        applyStartupResult(result);
+    };
+    m_startup = std::make_unique<WalletStartupFlow::Coordinator>(
+        std::move(startupHooks), MODULE_WARMUP_MAX_ATTEMPTS, MODULE_WARMUP_RETRY_MS);
+
     // ui-host runs our constructor inside initLogos(), synchronously, BEFORE
     // it enables remoting and emits READY. Any blocking RPC here (open,
     // list_accounts, block-height queries, sequencer lookup) would stall
     // ui-host startup past ViewModuleHost's 30s ready watchdog and get the
     // child SIGTERM'd. Defer the whole open+refresh chain to the first
     // event-loop tick so ui-host finishes wiring itself up first.
-    QTimer::singleShot(0, this, [this]() { openSharedWallet(); });
+    QTimer::singleShot(0, this, [this]() { m_startup->start(); });
 
     // Save wallet when app quits; host may not call destructors so this is best-effort.
     connect(qApp, &QCoreApplication::aboutToQuit, this,
@@ -96,6 +122,7 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
 
 LEZWalletBackend::~LEZWalletBackend()
 {
+    m_startup.reset();
     saveWallet();
     delete m_logos;
 }
@@ -103,41 +130,9 @@ LEZWalletBackend::~LEZWalletBackend()
 void LEZWalletBackend::saveWallet()
 {
     if (isWalletOpen()) {
-        m_logos->lez_core.save();
+        logos::CallError error;
+        m_logos->lez_core.save(&error);
     }
-}
-
-void LEZWalletBackend::openSharedWallet(int attempt)
-{
-    // The first cross-process call this module makes to lez_core can race
-    // the inter-module capability/auth-token handshake: if it goes out before the
-    // target has been informed of our token, ModuleProxy rejects it and the call
-    // resolves to a default-constructed return value -- 0 for open()'s int64_t, which
-    // is indistinguishable from WALLET_FFI_SUCCESS. Warm up with a harmless,
-    // wallet-state-free call first: version() defaults to "" on that same rejection,
-    // which IS distinguishable from its real non-empty value, so we can retry here
-    // until the handshake has settled before trusting lifecycle results. Once any
-    // call to lez_core succeeds, its token is cached for the rest of the session,
-    // so wallet_status() and open_default() won't hit this race afterwards.
-    const QString version = m_logos->lez_core.version();
-    if (WalletStartupFlow::shouldRetryHandshake(version, attempt, MODULE_WARMUP_MAX_ATTEMPTS)) {
-        QTimer::singleShot(MODULE_WARMUP_RETRY_MS, this,
-            [this, attempt]() { openSharedWallet(attempt + 1); });
-        return;
-    }
-    if (version.isEmpty()) {
-        applyStartupResult(WalletStartupFlow::coreUnavailable());
-        return;
-    }
-
-    const WalletStartupFlow::Result status =
-        WalletStartupFlow::fromStatusEnvelope(m_logos->lez_core.wallet_status());
-    applyStartupResult(status);
-    if (status.action != WalletStartupFlow::Action::OpenDefault)
-        return;
-
-    applyStartupResult(
-        WalletStartupFlow::fromOpenEnvelope(m_logos->lez_core.open_default()));
 }
 
 void LEZWalletBackend::applyStartupResult(const WalletStartupFlow::Result& result)
@@ -146,25 +141,21 @@ void LEZWalletBackend::applyStartupResult(const WalletStartupFlow::Result& resul
     setWalletErrorCode(result.errorCode);
     setWalletError(result.errorMessage);
     setIsWalletOpen(result.state == QStringLiteral("open"));
-    if (result.action == WalletStartupFlow::Action::RefreshAccounts)
+    if (result.state == QStringLiteral("open"))
         finishOpeningSharedWallet();
 }
 
 void LEZWalletBackend::retryWalletOpen()
 {
-    setIsWalletOpen(false);
-    setWalletState(QStringLiteral("closed"));
-    setWalletErrorCode(QString());
-    setWalletError(QString());
-    QTimer::singleShot(0, this, [this]() { openSharedWallet(); });
+    m_startup->retry();
 }
 
 // Tags each private account with the NPK of the key group it belongs to (plus that
 // group's {nullifier_public_key, viewing_public_key} JSON), so the model can section
 // accounts by key group instead of listing them flat. Public accounts are untouched.
-QVariantList LEZWalletBackend::buildEnrichedAccountList()
+QVariantList LEZWalletBackend::buildEnrichedAccountList(const QVariantList& raw, bool* success)
 {
-    QVariantList raw = m_logos->lez_core.list_accounts();
+    *success = false;
     QVariantList enriched;
     enriched.reserve(raw.size());
     for (const QVariant& v : raw) {
@@ -172,29 +163,179 @@ QVariantList LEZWalletBackend::buildEnrichedAccountList()
         const QString accountId = map.value(QStringLiteral("account_id")).toString();
         const bool isPublic = map.value(QStringLiteral("is_public"), true).toBool();
         if (!isPublic) {
-            const QString keysJson = getPrivateAccountKeys(accountId);
+            logos::CallError error;
+            const QString keysJson = m_logos->lez_core.get_private_account_keys(accountId, &error);
+            if (!error.ok())
+                return {};
             const QJsonDocument doc = QJsonDocument::fromJson(keysJson.toUtf8());
             if (doc.isObject()) {
                 map[QStringLiteral("npk")] = doc.object().value(QStringLiteral("nullifier_public_key")).toString();
                 map[QStringLiteral("keys_json")] = keysJson;
             }
         }
+        logos::CallError accountError;
         const QString accountJson = isPublic
-            ? m_logos->lez_core.get_account_public(accountId)
-            : m_logos->lez_core.get_account_private(accountId);
+            ? m_logos->lez_core.get_account_public(accountId, &accountError)
+            : m_logos->lez_core.get_account_private(accountId, &accountError);
+        if (!accountError.ok())
+            return {};
         map[QStringLiteral("is_initialized")] = accountJsonIsInitialized(accountJson);
-        const QStringList labels = m_logos->lez_core.get_all_labels_for_account(accountId, !isPublic);
+        logos::CallError labelsError;
+        const QStringList labels =
+            m_logos->lez_core.get_all_labels_for_account(accountId, !isPublic, &labelsError);
+        if (!labelsError.ok())
+            return {};
         if (!labels.isEmpty())
             map[QStringLiteral("name")] = labels.join(QStringLiteral(", "));
         enriched.append(map);
     }
+    *success = true;
     return enriched;
+}
+
+bool LEZWalletBackend::replaceAccountsFromCore()
+{
+    logos::CallError error;
+    const QVariantList raw = m_logos->lez_core.list_accounts(&error);
+    if (!error.ok())
+        return false;
+
+    bool success = false;
+    const QVariantList enriched = buildEnrichedAccountList(raw, &success);
+    if (!success)
+        return false;
+    m_accountModel->replaceFromVariantList(enriched);
+    return true;
+}
+
+void LEZWalletBackend::invokeCoreAsync(
+    const QString& method,
+    const QVariantList& arguments,
+    VariantCompletion completion)
+{
+    const QPointer<LEZWalletBackend> self(this);
+    m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethodAsync(
+        LEZ_MODULE,
+        method,
+        arguments,
+        LogosAPIClient::AsyncResultErrorCallback(
+            [self, completion = std::move(completion)](
+                QVariant value, const logos::CallError& error) mutable {
+                if (!self)
+                    return;
+                // Transport detail may contain private paths or provider internals.
+                // Discard it here and expose only the typed success bit.
+                completion(std::move(value), error.ok());
+            }));
+}
+
+void LEZWalletBackend::refreshAccountsForStartup(
+    WalletStartupFlow::Coordinator::RefreshCompletion completion)
+{
+    invokeCoreAsync(QStringLiteral("list_accounts"), {},
+        [this, completion = std::move(completion)](QVariant value, const bool ok) mutable {
+            if (!ok) {
+                completion(false);
+                return;
+            }
+            enrichAccountsForStartup(value.toList(), 0, {}, std::move(completion));
+        });
+}
+
+void LEZWalletBackend::enrichAccountsForStartup(
+    QVariantList raw,
+    const int index,
+    QVariantList enriched,
+    WalletStartupFlow::Coordinator::RefreshCompletion completion)
+{
+    if (index >= raw.size()) {
+        m_accountModel->replaceFromVariantList(enriched);
+        completion(true);
+        return;
+    }
+
+    QVariantMap account = raw.at(index).toMap();
+    const QString accountId = account.value(QStringLiteral("account_id")).toString();
+    const bool isPublic = account.value(QStringLiteral("is_public"), true).toBool();
+    if (isPublic) {
+        enrichAccountDetailsForStartup(
+            std::move(raw), index, std::move(enriched), std::move(account), true,
+            std::move(completion));
+        return;
+    }
+
+    invokeCoreAsync(QStringLiteral("get_private_account_keys"), {accountId},
+        [this,
+         raw = std::move(raw),
+         index,
+         enriched = std::move(enriched),
+         account = std::move(account),
+         completion = std::move(completion)](QVariant value, const bool ok) mutable {
+            if (!ok) {
+                completion(false);
+                return;
+            }
+            const QString keysJson = value.toString();
+            const QJsonDocument document = QJsonDocument::fromJson(keysJson.toUtf8());
+            if (document.isObject()) {
+                account[QStringLiteral("npk")] =
+                    document.object().value(QStringLiteral("nullifier_public_key")).toString();
+                account[QStringLiteral("keys_json")] = keysJson;
+            }
+            enrichAccountDetailsForStartup(
+                std::move(raw), index, std::move(enriched), std::move(account), false,
+                std::move(completion));
+        });
+}
+
+void LEZWalletBackend::enrichAccountDetailsForStartup(
+    QVariantList raw,
+    const int index,
+    QVariantList enriched,
+    QVariantMap account,
+    const bool isPublic,
+    WalletStartupFlow::Coordinator::RefreshCompletion completion)
+{
+    const QString accountId = account.value(QStringLiteral("account_id")).toString();
+    invokeCoreAsync(
+        isPublic ? QStringLiteral("get_account_public") : QStringLiteral("get_account_private"),
+        {accountId},
+        [this,
+         raw = std::move(raw),
+         index,
+         enriched = std::move(enriched),
+         account = std::move(account),
+         accountId,
+         isPublic,
+         completion = std::move(completion)](QVariant value, const bool ok) mutable {
+            if (!ok) {
+                completion(false);
+                return;
+            }
+            account[QStringLiteral("is_initialized")] = accountJsonIsInitialized(value.toString());
+            invokeCoreAsync(QStringLiteral("get_all_labels_for_account"), {accountId, !isPublic},
+                [this,
+                 raw = std::move(raw),
+                 index,
+                 enriched = std::move(enriched),
+                 account = std::move(account),
+                 completion = std::move(completion)](QVariant value, const bool ok) mutable {
+                    if (!ok) {
+                        completion(false);
+                        return;
+                    }
+                    const QStringList labels = value.toStringList();
+                    if (!labels.isEmpty())
+                        account[QStringLiteral("name")] = labels.join(QStringLiteral(", "));
+                    enriched.append(account);
+                    enrichAccountsForStartup(
+                        std::move(raw), index + 1, std::move(enriched), std::move(completion));
+                });
+        });
 }
 
 void LEZWalletBackend::finishOpeningSharedWallet()
 {
-    setIsWalletOpen(true);
-    m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
     fetchAndUpdateBlockHeights();
     startChunkedSync();
     refreshSequencerAddr();
@@ -202,7 +343,8 @@ void LEZWalletBackend::finishOpeningSharedWallet()
 
 void LEZWalletBackend::refreshAccounts()
 {
-    m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
+    if (!replaceAccountsFromCore())
+        return;
     fetchAndUpdateBlockHeights();
     if (!m_syncing)
         startChunkedSync();
@@ -233,16 +375,26 @@ void LEZWalletBackend::syncNextChunk()
         m_syncing = false;
         // Sync may have discovered new private accounts (e.g. shielded transfers to a
         // foreign NPK/VPK); re-list so the model picks them up without a restart.
-        m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
+        replaceAccountsFromCore();
         fetchAndUpdateBlockHeights();
         updateBalances();
         return;
     }
     const quint64 next = qMin(synced + SYNC_CHUNK_SIZE, m_syncTarget);
-    m_logos->lez_core.sync_to_block(next);
+    logos::CallError syncError;
+    m_logos->lez_core.sync_to_block(next, &syncError);
+    if (!syncError.ok()) {
+        m_syncing = false;
+        return;
+    }
     // Only read lastSyncedBlock between chunks — avoids a sequencer network
     // call (get_current_block_height) on every iteration.
-    const int lastVal = m_logos->lez_core.get_last_synced_block();
+    logos::CallError heightError;
+    const int lastVal = m_logos->lez_core.get_last_synced_block(&heightError);
+    if (!heightError.ok()) {
+        m_syncing = false;
+        return;
+    }
     if (lastSyncedBlock() != lastVal)
         setLastSyncedBlock(lastVal);
     QTimer::singleShot(0, this, &LEZWalletBackend::syncNextChunk);
@@ -269,11 +421,14 @@ void LEZWalletBackend::updateBalances()
         // another manual Initialize click.
         const bool alreadyInitialized = m_accountModel->data(idx, LEZWalletAccountModel::IsInitializedRole).toBool();
         if (!alreadyInitialized) {
+            logos::CallError error;
             const QString accountJson = isPub
-                ? m_logos->lez_core.get_account_public(addr)
-                : m_logos->lez_core.get_account_private(addr);
-            if (accountJsonIsInitialized(accountJson))
+                ? m_logos->lez_core.get_account_public(addr, &error)
+                : m_logos->lez_core.get_account_private(addr, &error);
+            if (error.ok() && accountJsonIsInitialized(accountJson))
                 m_accountModel->setInitializedByAccountId(addr, true);
+            else if (!error.ok())
+                anyFailed = true;
         }
     }
     if (anyFailed)
@@ -284,8 +439,14 @@ void LEZWalletBackend::updateBalances()
 
 void LEZWalletBackend::fetchAndUpdateBlockHeights()
 {
-    const int lastVal = m_logos->lez_core.get_last_synced_block();
-    const int currentVal = m_logos->lez_core.get_current_block_height();
+    logos::CallError lastError;
+    const int lastVal = m_logos->lez_core.get_last_synced_block(&lastError);
+    if (!lastError.ok())
+        return;
+    logos::CallError currentError;
+    const int currentVal = m_logos->lez_core.get_current_block_height(&currentError);
+    if (!currentError.ok())
+        return;
     if (lastSyncedBlock() != lastVal)
         setLastSyncedBlock(lastVal);
     if (currentBlockHeight() != currentVal)
@@ -295,7 +456,10 @@ void LEZWalletBackend::fetchAndUpdateBlockHeights()
 
 void LEZWalletBackend::refreshSequencerAddr()
 {
-    const QString addr = m_logos->lez_core.get_sequencer_addr();
+    logos::CallError error;
+    const QString addr = m_logos->lez_core.get_sequencer_addr(&error);
+    if (!error.ok())
+        return;
     if (sequencerAddr() != addr)
         setSequencerAddr(addr);
 }
@@ -318,17 +482,23 @@ QString LEZWalletBackend::createAccountPrivate()
 
 QString LEZWalletBackend::getBalance(QString accountIdHex, bool isPublic)
 {
-    return m_logos->lez_core.get_balance(accountIdHex, isPublic);
+    logos::CallError error;
+    const QString balance = m_logos->lez_core.get_balance(accountIdHex, isPublic, &error);
+    return error.ok() ? balance : QString();
 }
 
 QString LEZWalletBackend::getPublicAccountKey(QString accountIdHex)
 {
-    return m_logos->lez_core.get_public_account_key(accountIdHex);
+    logos::CallError error;
+    const QString key = m_logos->lez_core.get_public_account_key(accountIdHex, &error);
+    return error.ok() ? key : QString();
 }
 
 QString LEZWalletBackend::getPrivateAccountKeys(QString accountIdHex)
 {
-    return m_logos->lez_core.get_private_account_keys(accountIdHex);
+    logos::CallError error;
+    const QString keys = m_logos->lez_core.get_private_account_keys(accountIdHex, &error);
+    return error.ok() ? keys : QString();
 }
 
 QString LEZWalletBackend::initializeAccount(QString accountIdHex)
