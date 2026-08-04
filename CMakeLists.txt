@@ -16,6 +16,8 @@ logos_module(
         src/LEZWalletPlugin.cpp
         src/LEZWalletBackend.h
         src/LEZWalletBackend.cpp
+        src/WalletStartupFlow.h
+        src/WalletStartupFlow.cpp
         src/LEZWalletAccountModel.h
         src/LEZWalletAccountModel.cpp
         src/LEZAccountFilterModel.h

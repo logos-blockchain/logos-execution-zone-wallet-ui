@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 
 import Logos.Theme
 import Logos.Controls
@@ -11,184 +10,86 @@ import "../controls"
 Control {
     id: root
 
-    property string configPath: ""
-    property string storePath: ""
-    property string createError: ""
+    property string walletState: "closed"
+    property string walletErrorCode: ""
+    property string walletError: ""
 
-    signal createWallet(string configPath, string storagePath, string password, string sequencerUrl)
+    signal retryRequested()
 
-    readonly property string testnetUrl: "https://testnet.lez.logos.co"
-    readonly property string localhostUrl: "http://127.0.0.1:3040"
-
-
-    QtObject {
-        id: d
-        function configParentFolderUrl(path) {
-            if (!path || path.length === 0) return ""
-            var p = path
-            var i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"))
-            if (i <= 0) return ""
-            var dir = p.substring(0, i)
-            return dir.indexOf("file://") === 0 ? dir : "file://" + dir
-        }
-    }
+    readonly property bool isOpening: walletState === "closed"
+    readonly property bool isMissing: walletState === "missing"
+    readonly property bool hasError: walletState === "error"
 
     ColumnLayout {
-        id: cardColumn
-
-        anchors.fill: parent
-        anchors.margins: Theme.spacing.xlarge
+        anchors.centerIn: parent
+        width: Math.min(parent.width - Theme.spacing.xlarge * 2, 560)
         spacing: Theme.spacing.large
 
         LogosText {
-            text: qsTr("Set up LEZ Wallet")
+            Layout.fillWidth: true
+            text: root.isOpening
+                ? qsTr("Opening shared wallet")
+                : root.isMissing
+                    ? qsTr("Shared wallet not set up")
+                    : qsTr("Shared wallet unavailable")
             font.pixelSize: Theme.typography.titleText
             font.weight: Theme.typography.weightBold
             color: Theme.palette.text
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
         }
+
+        BusyIndicator {
+            Layout.alignment: Qt.AlignHCenter
+            running: root.isOpening
+            visible: running
+        }
+
         LogosText {
-            text: qsTr("Configure storage and secure with a password.")
+            Layout.fillWidth: true
+            visible: root.isOpening
+            text: qsTr("Connecting to the wallet profile shared by modules in this Basecamp instance…")
             font.pixelSize: Theme.typography.secondaryText
             color: Theme.palette.textSecondary
-            Layout.topMargin: -Theme.spacing.small
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
         }
 
         LogosText {
-            text: qsTr("Storage")
+            Layout.fillWidth: true
+            visible: root.isMissing
+            text: qsTr("This version can open an existing shared wallet, but secure create and restore are not available yet. Existing wallet files and legacy settings have not been moved, changed, or deleted.")
             font.pixelSize: Theme.typography.secondaryText
-            font.weight: Theme.typography.weightMedium
-            color: Theme.palette.text
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacing.small
-            LogosTextField {
-                id: storagePathField
-                Layout.fillWidth: true
-                placeholderText: qsTr("Add store path")
-                text: root.storePath
-            }
-            FeedbackButton {
-                text: qsTr("Browse")
-                onClicked: storageFolderDialog.open()
-            }
-        }
-        LogosText {
-            text: qsTr("Config file")
-            font.pixelSize: Theme.typography.secondaryText
-            font.weight: Theme.typography.weightMedium
-            color: Theme.palette.text
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacing.small
-            LogosTextField {
-                id: configPathField
-                Layout.fillWidth: true
-                placeholderText: qsTr("Add path to config")
-                text: root.configPath
-            }
-            FeedbackButton {
-                Layout.preferredHeight: configPathField.height
-                text: qsTr("Browse")
-                onClicked: configFileDialog.open()
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.topMargin: Theme.spacing.medium
-            spacing: Theme.spacing.small
-            LogosText {
-                text: qsTr("Network")
-                font.pixelSize: Theme.typography.secondaryText
-                font.weight: Theme.typography.weightMedium
-                color: Theme.palette.text
-            }
-            LogosTextField {
-                id: sequencerUrlField
-                Layout.fillWidth: true
-                placeholderText: qsTr("Sequencer URL")
-                text: root.testnetUrl
-            }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacing.small
-            FeedbackButton {
-                text: qsTr("Testnet")
-                opacity: sequencerUrlField.text === root.testnetUrl ? 1.0 : 0.4
-                onClicked: sequencerUrlField.text = root.testnetUrl
-            }
-            FeedbackButton {
-                text: qsTr("Localhost")
-                opacity: sequencerUrlField.text === root.localhostUrl ? 1.0 : 0.4
-                onClicked: sequencerUrlField.text = root.localhostUrl
-            }
+            color: Theme.palette.textSecondary
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
         }
 
         LogosText {
-            text: qsTr("Security")
-            font.pixelSize: Theme.typography.secondaryText
-            font.weight: Theme.typography.weightMedium
-            color: Theme.palette.text
-            Layout.topMargin: Theme.spacing.medium
-        }
-        LogosTextField {
-            id: passwordField
             Layout.fillWidth: true
-            placeholderText: qsTr("Password")
-            echoMode: TextInput.Password
-        }
-        LogosTextField {
-            id: confirmField
-            Layout.fillWidth: true
-            placeholderText: qsTr("Confirm")
-            echoMode: TextInput.Password
-        }
-
-        LogosText {
-            id: errorLabel
-            Layout.fillWidth: true
+            visible: root.hasError
+            text: root.walletError || qsTr("The shared wallet could not be opened. Try again.")
             font.pixelSize: Theme.typography.secondaryText
             color: Theme.palette.error
+            horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            visible: text.length > 0
-            text: root.createError
+        }
+
+        LogosText {
+            Layout.fillWidth: true
+            visible: root.hasError && root.walletErrorCode.length > 0
+            text: qsTr("Error code: %1").arg(root.walletErrorCode)
+            font.pixelSize: Theme.typography.secondaryText
+            color: Theme.palette.textSecondary
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
         }
 
         FeedbackButton {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Create Wallet")
-            font.pixelSize: Theme.typography.secondaryText
-            onClicked: {
-                if (passwordField.text.length === 0) {
-                    root.createError = qsTr("Password cannot be empty.")
-                } else if (passwordField.text !== confirmField.text) {
-                    root.createError = qsTr("Passwords do not match.")
-                } else {
-                    root.createError = ""
-                    root.createWallet(configPathField.text, storagePathField.text, passwordField.text, sequencerUrlField.text)
-                }
-            }
-        }
-    }
-
-    FileDialog {
-        id: storageFolderDialog
-        modality: Qt.NonModal
-        nameFilters: ["JSON files (*.json)"]
-        currentFolder: root.storePath ? d.configParentFolderUrl(root.storePath) : ""
-        onAccepted: storagePathField.text = selectedFile.toString().replace(/^file:\/\//, "")
-    }
-
-    FileDialog {
-        id: configFileDialog
-        modality: Qt.NonModal
-        nameFilters: ["JSON files (*.json)"]
-        currentFolder: root.configPath ? d.configParentFolderUrl(root.configPath) : ""
-        onAccepted: {
-            if (selectedFile) configPathField.text = selectedFile.toString().replace(/^file:\/\//, "")
+            Layout.alignment: Qt.AlignHCenter
+            visible: root.isMissing || root.hasError
+            text: qsTr("Try again")
+            onClicked: root.retryRequested()
         }
     }
 }

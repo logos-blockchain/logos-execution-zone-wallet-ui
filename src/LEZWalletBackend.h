@@ -9,6 +9,7 @@
 #include "LEZAccountFilterModel.h"
 #include "LEZClaimableAccountFilterModel.h"
 #include "LEZWalletAccountModel.h"
+#include "WalletStartupFlow.h"
 
 class LogosAPI;
 struct LogosModules;
@@ -52,8 +53,7 @@ public slots:
     QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount) override;
     void refreshVaultBalances() override;
     QString vaultClaim(QString fromHex, bool isPublic, QString amountStr) override;
-    QString createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
-    void copyToClipboard(QString text) override;
+    void retryWalletOpen() override;
     bool checkLabelAvailable(QString label) override;
     QString addLabel(QString label, QString accountIdHex, bool isPublic) override;
 
@@ -61,9 +61,6 @@ private slots:
     void syncNextChunk();
 
 private:
-    void persistConfigPath(const QString& path);
-    void persistStoragePath(const QString& path);
-    void applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr);
     void fetchAndUpdateBlockHeights();
     void startChunkedSync();
     QVariantList buildEnrichedAccountList();
@@ -72,8 +69,9 @@ private:
     QString getVaultBalance(const QString& accountIdHex);
     void refreshSequencerAddr();
     void saveWallet();
-    void openIfPathsConfigured(int attempt = 0);
-    void finishOpeningWallet();
+    void openSharedWallet(int attempt = 0);
+    void applyStartupResult(const WalletStartupFlow::Result& result);
+    void finishOpeningSharedWallet();
 
     bool m_syncing = false;
     quint64 m_syncTarget = 0;

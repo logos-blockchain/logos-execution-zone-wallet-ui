@@ -2,36 +2,24 @@
 
 #include <algorithm>
 #include <QAbstractItemModel>
-#include <QClipboard>
 #include <QCoreApplication>
 #include <QDebug>
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
-#include <QGuiApplication>
-#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QSettings>
 #include <QTimer>
-#include <QUrl>
 
 #include "logos_api.h"
 #include "logos_api_client.h"
 #include "logos_sdk.h"
 
 namespace {
-    const char SETTINGS_ORG[] = "Logos";
-    const char SETTINGS_APP[] = "ExecutionZoneWalletUI";
-    const char CONFIG_PATH_KEY[] = "configPath";
-    const char STORAGE_PATH_KEY[] = "storagePath";
     const char LEZ_MODULE[] = "lez_core";
     const int WALLET_FFI_SUCCESS = 0;
     // Proof generation time is unbounded on commodity hardware.
     // Timeout(-1) means "wait indefinitely", matching Qt's own convention
     // for infinite waits (e.g. QRemoteObjectPendingCall::waitForFinished(-1)).
     const Timeout NO_TIMEOUT{-1};
-    // Warm-up retry budget for openIfPathsConfigured(), 50ms x up to 100 attempts
+    // Warm-up retry budget for the shared-core handshake, 50ms x up to 100 attempts
     // ~= 5s, matching LogosAPIConsumer's own connect-retry budget.
     const int MODULE_WARMUP_RETRY_MS = 50;
     const int MODULE_WARMUP_MAX_ATTEMPTS = 100;
@@ -48,23 +36,6 @@ namespace {
         for (int i = 0; i < 8; ++i)
             bytes[i] = static_cast<uint8_t>((value >> (i * 8)) & 0xff);
         return QByteArray(reinterpret_cast<const char*>(bytes), 16).toHex();
-    }
-
-    // Normalise file:// URLs and OS paths to a plain local path.
-    QString toLocalPath(const QString& path) {
-        QString p = path;
-        if (p.startsWith(QLatin1Char('~')))
-            p = QDir::homePath() + p.mid(1);
-        if (p.startsWith("file://") || p.contains("/"))
-            return QUrl::fromUserInput(p).toLocalFile();
-        return p;
-    }
-
-    // lez_core has no UI-facing concept of a statistics file; derive one deterministically
-    // next to the storage file so onboarding doesn't need a third path picker.
-    QString statisticsPathFor(const QString& localStoragePath) {
-        const QFileInfo info(localStoragePath);
-        return info.absolutePath() + QStringLiteral("/statistics.json");
     }
 
     // An account is uninitialized until some program claims it (program_owner goes
@@ -104,13 +75,11 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
 
     // Initialise PROP defaults via the generated setters.
     setIsWalletOpen(false);
+    setWalletState(QStringLiteral("closed"));
+    setWalletErrorCode(QString());
+    setWalletError(QString());
     setLastSyncedBlock(0);
     setCurrentBlockHeight(0);
-
-    // Load persisted config/storage paths.
-    QSettings s(SETTINGS_ORG, SETTINGS_APP);
-    setConfigPath(s.value(CONFIG_PATH_KEY).toString());
-    setStoragePath(s.value(STORAGE_PATH_KEY).toString());
 
     // ui-host runs our constructor inside initLogos(), synchronously, BEFORE
     // it enables remoting and emits READY. Any blocking RPC here (open,
@@ -118,7 +87,7 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     // ui-host startup past ViewModuleHost's 30s ready watchdog and get the
     // child SIGTERM'd. Defer the whole open+refresh chain to the first
     // event-loop tick so ui-host finishes wiring itself up first.
-    QTimer::singleShot(0, this, [this]() { openIfPathsConfigured(); });
+    QTimer::singleShot(0, this, [this]() { openSharedWallet(); });
 
     // Save wallet when app quits; host may not call destructors so this is best-effort.
     connect(qApp, &QCoreApplication::aboutToQuit, this,
@@ -138,24 +107,8 @@ void LEZWalletBackend::saveWallet()
     }
 }
 
-void LEZWalletBackend::persistConfigPath(const QString& path)
+void LEZWalletBackend::openSharedWallet(int attempt)
 {
-    const QString localPath = toLocalPath(path);
-    setConfigPath(localPath);
-    QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(CONFIG_PATH_KEY, localPath);
-}
-
-void LEZWalletBackend::persistStoragePath(const QString& path)
-{
-    const QString localPath = toLocalPath(path);
-    setStoragePath(localPath);
-    QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(STORAGE_PATH_KEY, localPath);
-}
-
-void LEZWalletBackend::openIfPathsConfigured(int attempt)
-{
-    if (configPath().isEmpty() || storagePath().isEmpty()) return;
-
     // The first cross-process call this module makes to lez_core can race
     // the inter-module capability/auth-token handshake: if it goes out before the
     // target has been informed of our token, ModuleProxy rejects it and the call
@@ -163,25 +116,47 @@ void LEZWalletBackend::openIfPathsConfigured(int attempt)
     // is indistinguishable from WALLET_FFI_SUCCESS. Warm up with a harmless,
     // wallet-state-free call first: version() defaults to "" on that same rejection,
     // which IS distinguishable from its real non-empty value, so we can retry here
-    // until the handshake has settled before trusting open()'s result. Once any call
-    // to lez_core succeeds, its token is cached for the rest of the
-    // session, so open() itself won't hit this race afterwards.
-    if (m_logos->lez_core.version().isEmpty() && attempt < MODULE_WARMUP_MAX_ATTEMPTS) {
+    // until the handshake has settled before trusting lifecycle results. Once any
+    // call to lez_core succeeds, its token is cached for the rest of the session,
+    // so wallet_status() and open_default() won't hit this race afterwards.
+    const QString version = m_logos->lez_core.version();
+    if (WalletStartupFlow::shouldRetryHandshake(version, attempt, MODULE_WARMUP_MAX_ATTEMPTS)) {
         QTimer::singleShot(MODULE_WARMUP_RETRY_MS, this,
-            [this, attempt]() { openIfPathsConfigured(attempt + 1); });
+            [this, attempt]() { openSharedWallet(attempt + 1); });
+        return;
+    }
+    if (version.isEmpty()) {
+        applyStartupResult(WalletStartupFlow::coreUnavailable());
         return;
     }
 
-    qDebug() << "LEZWalletBackend: opening wallet with config" << configPath()
-             << "storage" << storagePath();
-    int err = m_logos->lez_core.open(configPath(), storagePath(), statisticsPathFor(storagePath()));
-    if (err == WALLET_FFI_SUCCESS) {
-        qDebug() << "LEZWalletBackend: wallet opened successfully";
-        finishOpeningWallet();
-    } else {
-        qWarning() << "LEZWalletBackend: failed to open wallet, error" << err
-                   << "config:" << configPath() << "storage:" << storagePath();
-    }
+    const WalletStartupFlow::Result status =
+        WalletStartupFlow::fromStatusEnvelope(m_logos->lez_core.wallet_status());
+    applyStartupResult(status);
+    if (status.action != WalletStartupFlow::Action::OpenDefault)
+        return;
+
+    applyStartupResult(
+        WalletStartupFlow::fromOpenEnvelope(m_logos->lez_core.open_default()));
+}
+
+void LEZWalletBackend::applyStartupResult(const WalletStartupFlow::Result& result)
+{
+    setWalletState(result.state);
+    setWalletErrorCode(result.errorCode);
+    setWalletError(result.errorMessage);
+    setIsWalletOpen(result.state == QStringLiteral("open"));
+    if (result.action == WalletStartupFlow::Action::RefreshAccounts)
+        finishOpeningSharedWallet();
+}
+
+void LEZWalletBackend::retryWalletOpen()
+{
+    setIsWalletOpen(false);
+    setWalletState(QStringLiteral("closed"));
+    setWalletErrorCode(QString());
+    setWalletError(QString());
+    QTimer::singleShot(0, this, [this]() { openSharedWallet(); });
 }
 
 // Tags each private account with the NPK of the key group it belongs to (plus that
@@ -216,7 +191,7 @@ QVariantList LEZWalletBackend::buildEnrichedAccountList()
     return enriched;
 }
 
-void LEZWalletBackend::finishOpeningWallet()
+void LEZWalletBackend::finishOpeningSharedWallet()
 {
     setIsWalletOpen(true);
     m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
@@ -493,72 +468,6 @@ QString LEZWalletBackend::vaultClaim(QString fromHex, bool isPublic, QString amo
         LEZ_MODULE, "vault_claim_private",
         QVariantList{fromHex.trimmed(), amountHex},
         NO_TIMEOUT).toString();
-}
-
-void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr)
-{
-    QJsonObject obj;
-    QFile file(configPath);
-    if (file.open(QIODevice::ReadOnly)) {
-        obj = QJsonDocument::fromJson(file.readAll()).object();
-        file.close();
-    } else {
-        // Defaults matching WalletConfig::default() in the wallet crate.
-        obj[QStringLiteral("seq_poll_timeout")]        = QStringLiteral("30s");
-        obj[QStringLiteral("seq_tx_poll_max_blocks")]  = 15;
-        obj[QStringLiteral("seq_poll_max_retries")]    = 10;
-        obj[QStringLiteral("seq_block_poll_max_amount")] = 100;
-    }
-    QJsonObject sequencerEntry;
-    sequencerEntry[QStringLiteral("sequencer_addr")] = sequencerAddr;
-    sequencerEntry[QStringLiteral("basic_auth")] = QJsonValue::Null;
-    obj[QStringLiteral("sequencers")] = QJsonArray{ sequencerEntry };
-
-    QDir().mkpath(QFileInfo(configPath).absolutePath());
-    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
-}
-
-QString LEZWalletBackend::createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr)
-{
-    const QString localConfigPath = toLocalPath(configPath);
-    const QString localStoragePath = toLocalPath(storagePath);
-
-    // Both files already on disk: this is most likely an existing wallet the
-    // user pointed us at (e.g. from the setup screen), not a request to
-    // overwrite it. Try to load it instead of blindly creating a new one.
-    if (QFile::exists(localConfigPath) && QFile::exists(localStoragePath)) {
-        int err = m_logos->lez_core.open(localConfigPath, localStoragePath, statisticsPathFor(localStoragePath));
-        if (err != WALLET_FFI_SUCCESS) {
-            return QStringLiteral(
-                "Could not load the wallet at the selected paths. Pick "
-                "different existing config/storage files, or choose paths "
-                "that don't exist yet to create a new wallet there.");
-        }
-        persistConfigPath(localConfigPath);
-        persistStoragePath(localStoragePath);
-        finishOpeningWallet();
-        return QString();
-    }
-
-    if (!sequencerAddr.isEmpty())
-        applySequencerAddrToConfig(localConfigPath, sequencerAddr);
-
-    const QString mnemonic = m_logos->lez_core.create_new(
-        localConfigPath, localStoragePath, statisticsPathFor(localStoragePath), password);
-    if (mnemonic.isEmpty())
-        return QStringLiteral("Failed to create wallet. Check paths and try again.");
-
-    persistConfigPath(localConfigPath);
-    persistStoragePath(localStoragePath);
-    finishOpeningWallet();
-    return QString();
-}
-
-void LEZWalletBackend::copyToClipboard(QString text)
-{
-    if (QGuiApplication::clipboard())
-        QGuiApplication::clipboard()->setText(text);
 }
 
 bool LEZWalletBackend::checkLabelAvailable(QString label)

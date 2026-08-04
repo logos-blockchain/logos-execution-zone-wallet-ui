@@ -10,7 +10,7 @@ Built with [`logos-module-builder`](https://github.com/logos-co/logos-module-bui
 - View account balances
 - Sync to block height
 - Public and private transfers (shielded, deshielded, private-owned)
-- First-time onboarding (config path, storage path, password)
+- Open the wallet profile shared by modules in the same Basecamp instance
 - Account key management
 
 ## Supported Platforms
@@ -18,22 +18,9 @@ Built with [`logos-module-builder`](https://github.com/logos-co/logos-module-bui
 - **Linux**: x86_64, aarch64
 - **macOS**: aarch64 (Apple Silicon)
 
-## How to Run
+## How to Run in Basecamp
 
-### Standalone (recommended for development)
-
-```bash
-# Run directly
-nix run
-
-# With local workspace overrides
-nix run --override-input lez_wallet_module path:../logos-execution-zone-module \
-        --override-input logos-module-builder path:../logos-module-builder
-```
-
-The standalone app starts Logos Core, loads `capability_module` and the `lez_wallet_module` core plugin (flake input name must match `metadata.json` `dependencies`), then launches the QML UI via an isolated `ui-host` process.
-
-### In Basecamp
+The supported runtime is the module installed inside Basecamp. Build the LGX and install it into the Basecamp plugin directory:
 
 ```bash
 # Build LGX
@@ -56,7 +43,6 @@ ws bundle logos-execution-zone-wallet-ui --auto-local
 nix build            # default — combined plugin + QML output
 nix build .#lgx      # .lgx package for distribution
 nix build .#install  # lgpm-installed output (modules/ + plugins/)
-nix run              # standalone app with wallet module
 nix develop          # enter development shell
 ```
 
@@ -78,31 +64,15 @@ logos-execution-zone-wallet-ui/
         └── ExecutionZoneWalletView.qml  # QML frontend (+ sub-views)
 ```
 
-## Configuration
+## Shared wallet startup
 
-Config path and storage path are persisted via QSettings (`Logos`, `ExecutionZoneWalletUI`). On first run, if opening the wallet fails, the onboarding screen is shown to create a new wallet.
+`lez_core` owns the default wallet profile for the Basecamp instance. On startup this UI waits for the inter-module handshake, calls `wallet_status`, calls `open_default` when the profile is closed, and refreshes accounts only after the shared profile reports `open`.
 
-### Resetting saved paths and onboarding
+This startup slice does not create or restore wallets. Those actions remain blocked on the secure core lifecycle release tracked by [execution-zone#156](https://github.com/logos-blockchain/logos-execution-zone/issues/156) and [lez_core PR #47](https://github.com/logos-blockchain/logos-execution-zone-module/pull/47).
 
-Saved config path, storage path, and related UI state come from **QSettings** (organization `Logos`, application `ExecutionZoneWalletUI`), in addition to whatever files live on disk under your chosen storage path.
+### Legacy settings and wallet files
 
-To fully reset onboarding and drop old paths:
-
-1. **Quit** the app (and any `ui-host` process if you use standalone).
-2. **Remove wallet data** on disk if you no longer need it (your storage directory).
-3. **Clear persisted settings** for this app so QSettings does not immediately repopulate the old paths. Where that store lives is **platform-specific** (Qt native format per OS).
-
-**macOS** — preferences are under the domain `com.logos.ExecutionZoneWalletUI`. After quitting the app:
-
-```bash
-defaults delete com.logos.ExecutionZoneWalletUI 2>/dev/null
-rm -f ~/Library/Preferences/com.logos.ExecutionZoneWalletUI.plist
-killall cfprefsd
-```
-
-Restarting `cfprefsd` (it comes back automatically) avoids stale in-memory preference cache.
-
-On **Linux** and **Windows**, use your platform’s usual way to clear app settings (e.g. delete the Qt settings file under `~/.config` / registry / `%AppData%` for `Logos` / `ExecutionZoneWalletUI`, or an equivalent tool), following [QSettings](https://doc.qt.io/qt-6/qsettings.html#locations) locations for the native format on that OS.
+Older releases stored user-selected config and storage locations in UI settings. The normal Basecamp flow now ignores those values: it does not read, rewrite, clear, log, or derive locations from them. Existing settings and wallet files are left untouched. A future explicit migration flow must let the user review and confirm any import; do not delete legacy data while evaluating this startup change.
 
 ### QML Hot Reload
 
