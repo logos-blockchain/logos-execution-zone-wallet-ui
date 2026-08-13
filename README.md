@@ -65,18 +65,23 @@ nix develop          # enter development shell
 ```
 logos-execution-zone-wallet-ui/
 ├── flake.nix                          # mkLogosQmlModule
-├── metadata.json                      # Module config (ui_qml type)
+├── metadata.json                      # Module config (ui_qml type, interface: universal)
 ├── CMakeLists.txt                     # logos_module() macro
 └── src/
     ├── LEZWalletBackend.rep           # RemoteObject interface
-    ├── LEZWalletBackend.h/cpp         # Business logic (extends LEZWalletBackendSimpleSource)
-    ├── LEZWalletPlugin.h/cpp          # Thin plugin entry point
-    ├── LEZWalletPluginInterface.h     # Plugin interface marker
+    ├── LEZWalletBackend.h/cpp         # Business logic (extends LEZWalletBackendSimpleSource
+    │                                  #   + LogosUiPluginContext)
     ├── LEZWalletAccountModel.h/cpp    # QAbstractListModel for accounts
     ├── LEZAccountFilterModel.h/cpp    # Proxy model for account filtering
     └── qml/
         └── ExecutionZoneWalletView.qml  # QML frontend (+ sub-views)
 ```
+
+The plugin entry point (`lez_wallet_ui_ui_interface.h` and `lez_wallet_ui_ui_glue.{h,cpp}`
+— `Q_PLUGIN_METADATA`, `name()`/`version()`, and the `initLogos` that builds the typed
+`LogosModules` aggregate and registers the backend as the QtRO source) is GENERATED at
+build time from `metadata.json#codegen` by `logos-qt-generator --backend ui`. It is not
+checked in.
 
 ## Configuration
 

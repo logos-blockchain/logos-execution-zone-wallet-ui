@@ -11,9 +11,6 @@ logos_module(
     NAME lez_wallet_ui
     REP_FILE src/LEZWalletBackend.rep
     SOURCES
-        src/LEZWalletPluginInterface.h
-        src/LEZWalletPlugin.h
-        src/LEZWalletPlugin.cpp
         src/LEZWalletBackend.h
         src/LEZWalletBackend.cpp
         src/LEZWalletAccountModel.h
@@ -22,6 +19,8 @@ logos_module(
         src/LEZAccountFilterModel.cpp
         src/LEZClaimableAccountFilterModel.h
         src/LEZClaimableAccountFilterModel.cpp
+    INCLUDE_DIRS
+        src
     FIND_PACKAGES
         Qt6Gui
     LINK_LIBRARIES
