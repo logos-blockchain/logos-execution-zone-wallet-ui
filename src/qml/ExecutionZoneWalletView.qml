@@ -89,10 +89,34 @@ Rectangle {
     QtObject {
         id: d
         readonly property bool isWalletOpen: backend && backend.isWalletOpen
-        onIsWalletOpenChanged: if (root.ready) updateStack(isWalletOpen)
+        // Until this is true the backend has not finished deciding whether there
+        // is a wallet to open, so "not open" carries no information yet.
+        readonly property bool isStartupResolved: backend !== null && backend.isStartupResolved
+
+        onIsStartupResolvedChanged: if (root.ready) updateStack(isWalletOpen)
+
+        property var currentComponent: null
 
         function updateStack(walletOpen) {
-            stackView.replace(walletOpen ? mainView : onboardingView)
+            const target = !isStartupResolved ? loadingView
+                         : (walletOpen ? mainView : onboardingView)
+            if (currentComponent === target)
+                return
+            currentComponent = target
+            stackView.replace(target)
+        }
+
+        property string noticeMessage: ""
+        property int noticeSeverity: LogosNotice.Error
+        function showNotice(severity, message) {
+            if (!message || message.length === 0) {
+                noticeMessage = ""
+                bottomNotice.shown = false
+                return
+            }
+            noticeSeverity = severity
+            noticeMessage = message
+            bottomNotice.show()
         }
     }
 
@@ -102,6 +126,16 @@ Rectangle {
         root.ready = root.backend !== null
             && logos.isViewModuleReady("lez_wallet_ui")
         if (root.ready) d.updateStack(d.isWalletOpen)
+        if (root.backend)
+            d.showNotice(LogosNotice.Error, root.backend.notice)
+    }
+
+    Connections {
+        target: backend
+        enabled: backend !== null
+        function onNoticeChanged() {
+            d.showNotice(LogosNotice.Error, backend.notice)
+        }
     }
 
     color: Theme.palette.background
@@ -156,30 +190,96 @@ Rectangle {
         }
     }
 
+    LogosToast {
+        id: bottomNotice
+        objectName: "lezNotice"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: Theme.spacing.large
+        z: 10
+        severity: d.noticeSeverity
+        message: d.noticeMessage
+        duration: 8000
+        onDismissed: d.noticeMessage = ""
+    }
+
     StackView {
         id: stackView
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: bottomNotice.shown
+            ? bottomNotice.height + Theme.spacing.large * 2
+            : 0
+
+        Component {
+            id: loadingView
+            LoadingView {}
+        }
 
         Component {
             id: onboardingView
             OnboardingView {
-                storePath: backend ? backend.storagePath : ""
-                configPath: backend ? backend.configPath : ""
-                onCreateWallet: function(configPath, storagePath, password, sequencerUrl) {
+                id: onboarding
+
+                testnetUrl: backend ? backend.testnetUrl : ""
+                localhostUrl: backend ? backend.localhostUrl : ""
+
+                onCreateWallet: function(password, sequencerUrl) {
                     if (!backend) return
-                    // createNew() returns an empty string on success, or a
-                    // human-readable error message (e.g. existing files at
-                    // the chosen paths failed to load) otherwise.
-                    logos.watch(backend.createNew(configPath, storagePath, password, sequencerUrl),
-                        function(errorMessage) {
-                            if (errorMessage)
-                                createError = errorMessage
+                    onboarding.createError = ""
+                    onboarding.busyMessage = qsTr("Creating your wallet…")
+                    onboarding.busy = true
+                    logos.watch(backend.createNew(password, sequencerUrl),
+                        function(raw) {
+                            onboarding.busy = false
+                            var result = {}
+                            try {
+                                result = JSON.parse(raw)
+                            } catch (e) {
+                                onboarding.createError = qsTr("Unexpected response while creating wallet.")
+                                d.updateStack(d.isWalletOpen)
+                                return
+                            }
+                            if (!result.success) {
+                                onboarding.createError = result.error || qsTr("Failed to create wallet.")
+                                d.updateStack(d.isWalletOpen)
+                                return
+                            }
+                            onboarding.showRecoveryPhrase(result.mnemonic || "")
                         },
                         function(error) {
-                            createError = qsTr("Error creating wallet: %1").arg(error)
+                            onboarding.busy = false
+                            onboarding.createError = qsTr("Error creating wallet: %1").arg(error)
+                            d.updateStack(d.isWalletOpen)
                         }
                     )
                 }
+
+                onOpenWallet: function(configPath, storagePath) {
+                    if (!backend) return
+                    onboarding.openError = ""
+                    onboarding.busyMessage = qsTr("Opening your wallet…")
+                    onboarding.busy = true
+                    // Empty string on success, human-readable message otherwise.
+                    logos.watch(backend.openExisting(configPath, storagePath),
+                        function(errorMessage) {
+                            onboarding.busy = false
+                            if (errorMessage)
+                                onboarding.openError = errorMessage
+                            else
+                                d.updateStack(d.isWalletOpen)
+                        },
+                        function(error) {
+                            onboarding.busy = false
+                            onboarding.openError = qsTr("Error opening wallet: %1").arg(error)
+                        }
+                    )
+                }
+
+                onMnemonicAcknowledged: d.updateStack(d.isWalletOpen)
             }
         }
 

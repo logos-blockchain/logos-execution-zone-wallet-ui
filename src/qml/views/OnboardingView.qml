@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 
 import Logos.Theme
 import Logos.Controls
@@ -11,184 +10,74 @@ import "../controls"
 Control {
     id: root
 
-    property string configPath: ""
-    property string storePath: ""
+    property string testnetUrl: ""
+    property string localhostUrl: ""
     property string createError: ""
+    property string openError: ""
+    property bool busy: false
+    property string busyMessage: ""
 
-    signal createWallet(string configPath, string storagePath, string password, string sequencerUrl)
+    signal createWallet(string password, string sequencerUrl)
+    signal openWallet(string configPath, string storagePath)
+    signal mnemonicAcknowledged()
 
-    readonly property string testnetUrl: "https://testnet.lez.logos.co"
-    readonly property string localhostUrl: "http://127.0.0.1:3040"
-
-
-    QtObject {
-        id: d
-        function configParentFolderUrl(path) {
-            if (!path || path.length === 0) return ""
-            var p = path
-            var i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"))
-            if (i <= 0) return ""
-            var dir = p.substring(0, i)
-            return dir.indexOf("file://") === 0 ? dir : "file://" + dir
-        }
+    // Called by ExecutionZoneWalletView once createNew() comes back with a phrase.
+    function showRecoveryPhrase(mnemonic) {
+        stack.push(recoveryPhrasePage, { mnemonic: mnemonic })
     }
 
-    ColumnLayout {
-        id: cardColumn
+    onBusyChanged: {
+        if (busy)
+            stack.push(busyPage)
+        else
+            stack.pop()
+    }
 
+    StackView {
+        id: stack
         anchors.fill: parent
-        anchors.margins: Theme.spacing.xlarge
-        spacing: Theme.spacing.large
+        initialItem: createWalletPage
+    }
 
-        LogosText {
-            text: qsTr("Set up LEZ Wallet")
-            font.pixelSize: Theme.typography.titleText
-            font.weight: Theme.typography.weightBold
-            color: Theme.palette.text
+    Component {
+        id: busyPage
+        LoadingView {
+            message: root.busyMessage
         }
-        LogosText {
-            text: qsTr("Configure storage and secure with a password.")
-            font.pixelSize: Theme.typography.secondaryText
-            color: Theme.palette.textSecondary
-            Layout.topMargin: -Theme.spacing.small
-        }
+    }
 
-        LogosText {
-            text: qsTr("Storage")
-            font.pixelSize: Theme.typography.secondaryText
-            font.weight: Theme.typography.weightMedium
-            color: Theme.palette.text
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacing.small
-            LogosTextField {
-                id: storagePathField
-                Layout.fillWidth: true
-                placeholderText: qsTr("Add store path")
-                text: root.storePath
-            }
-            FeedbackButton {
-                text: qsTr("Browse")
-                onClicked: storageFolderDialog.open()
-            }
-        }
-        LogosText {
-            text: qsTr("Config file")
-            font.pixelSize: Theme.typography.secondaryText
-            font.weight: Theme.typography.weightMedium
-            color: Theme.palette.text
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacing.small
-            LogosTextField {
-                id: configPathField
-                Layout.fillWidth: true
-                placeholderText: qsTr("Add path to config")
-                text: root.configPath
-            }
-            FeedbackButton {
-                Layout.preferredHeight: configPathField.height
-                text: qsTr("Browse")
-                onClicked: configFileDialog.open()
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.topMargin: Theme.spacing.medium
-            spacing: Theme.spacing.small
-            LogosText {
-                text: qsTr("Network")
-                font.pixelSize: Theme.typography.secondaryText
-                font.weight: Theme.typography.weightMedium
-                color: Theme.palette.text
-            }
-            LogosTextField {
-                id: sequencerUrlField
-                Layout.fillWidth: true
-                placeholderText: qsTr("Sequencer URL")
-                text: root.testnetUrl
-            }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacing.small
-            FeedbackButton {
-                text: qsTr("Testnet")
-                opacity: sequencerUrlField.text === root.testnetUrl ? 1.0 : 0.4
-                onClicked: sequencerUrlField.text = root.testnetUrl
-            }
-            FeedbackButton {
-                text: qsTr("Localhost")
-                opacity: sequencerUrlField.text === root.localhostUrl ? 1.0 : 0.4
-                onClicked: sequencerUrlField.text = root.localhostUrl
-            }
-        }
-
-        LogosText {
-            text: qsTr("Security")
-            font.pixelSize: Theme.typography.secondaryText
-            font.weight: Theme.typography.weightMedium
-            color: Theme.palette.text
-            Layout.topMargin: Theme.spacing.medium
-        }
-        LogosTextField {
-            id: passwordField
-            Layout.fillWidth: true
-            placeholderText: qsTr("Password")
-            echoMode: TextInput.Password
-        }
-        LogosTextField {
-            id: confirmField
-            Layout.fillWidth: true
-            placeholderText: qsTr("Confirm")
-            echoMode: TextInput.Password
-        }
-
-        LogosText {
-            id: errorLabel
-            Layout.fillWidth: true
-            font.pixelSize: Theme.typography.secondaryText
-            color: Theme.palette.error
-            wrapMode: Text.WordWrap
-            visible: text.length > 0
-            text: root.createError
-        }
-
-        FeedbackButton {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Create Wallet")
-            font.pixelSize: Theme.typography.secondaryText
-            onClicked: {
-                if (passwordField.text.length === 0) {
-                    root.createError = qsTr("Password cannot be empty.")
-                } else if (passwordField.text !== confirmField.text) {
-                    root.createError = qsTr("Passwords do not match.")
-                } else {
-                    root.createError = ""
-                    root.createWallet(configPathField.text, storagePathField.text, passwordField.text, sequencerUrlField.text)
-                }
+    Component {
+        id: createWalletPage
+        CreateWalletPage {
+            testnetUrl: root.testnetUrl
+            localhostUrl: root.localhostUrl
+            createError: root.createError
+            onCreateWallet: (password, sequencerUrl) => root.createWallet(password, sequencerUrl)
+            onErrorRaised: (message) => root.createError = message
+            onOpenExistingRequested: {
+                root.openError = ""
+                stack.push(openWalletPage)
             }
         }
     }
 
-    FileDialog {
-        id: storageFolderDialog
-        modality: Qt.NonModal
-        nameFilters: ["JSON files (*.json)"]
-        currentFolder: root.storePath ? d.configParentFolderUrl(root.storePath) : ""
-        onAccepted: storagePathField.text = selectedFile.toString().replace(/^file:\/\//, "")
+    Component {
+        id: openWalletPage
+        OpenWalletPage {
+            openError: root.openError
+            onOpenWallet: (configPath, storagePath) => root.openWallet(configPath, storagePath)
+            onErrorRaised: (message) => root.openError = message
+            onBack: {
+                root.openError = ""
+                stack.pop()
+            }
+        }
     }
 
-    FileDialog {
-        id: configFileDialog
-        modality: Qt.NonModal
-        nameFilters: ["JSON files (*.json)"]
-        currentFolder: root.configPath ? d.configParentFolderUrl(root.configPath) : ""
-        onAccepted: {
-            if (selectedFile) configPathField.text = selectedFile.toString().replace(/^file:\/\//, "")
+    Component {
+        id: recoveryPhrasePage
+        RecoveryPhrasePage {
+            onAcknowledged: root.mnemonicAcknowledged()
         }
     }
 }

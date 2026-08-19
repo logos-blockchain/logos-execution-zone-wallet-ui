@@ -1,0 +1,439 @@
+name: "LEZ Wallet onboarding: create, recover the phrase, reopen, and every way it can fail"
+output: wallet-ui-onboarding.md
+release: ""
+
+intro: |
+  This doc-test drives the `logos-execution-zone-wallet-ui` standalone app
+  **headless** through every path a user can take before they reach the wallet
+  dashboard, including the failures. It launches the app with
+  `QT_QPA_PLATFORM=offscreen` and drives the real QML with
+  [`logos-qt-mcp`](https://github.com/logos-co/logos-qt-mcp), so each assertion
+  goes through the actual UI → `LEZWalletBackend` → `lez_core` chain.
+
+  Onboarding has exactly two ways in, and they are deliberately separate calls:
+
+  1. **Create** — `createNew(password, sequencerAddr)` asks for nothing but a
+     password and a network. The wallet's files go to a location the backend
+     picks, so a first-time user is never asked to name a file that does not yet
+     exist. It returns the recovery phrase, which the UI shows once.
+  2. **Open** — `openExisting(configPath, storagePath)` loads files the user
+     already has. It takes no password (`wallet_ffi_open` has no such parameter)
+     and no sequencer (an existing wallet's sequencer lives in the config file
+     being opened).
+
+  Neither call can fall through to the other. That separation is the point of
+  this test: an earlier single `createNew(configPath, storagePath, password,
+  sequencerAddr)` chose between creating and opening by testing whether both
+  files happened to exist, so a mistyped filename silently became a request to
+  create a new wallet, and the Browse buttons — which can only select files that
+  already exist — made the create path unreachable through the UI at all.
+
+  Each section relaunches the app against the same isolated data directory, so
+  the returning-user and missing-files paths are exercised as real restarts
+  rather than simulated ones.
+
+what_you_build: "The LEZ wallet UI standalone app, launched headless against an isolated data directory and driven through create, recovery-phrase, reopen and open-existing flows."
+
+what_you_learn:
+  - How the onboarding view separates wallet creation from opening an existing wallet
+  - Why the create path never asks the user for a file path
+  - How the recovery phrase is surfaced exactly once, and why the dashboard is held back until it is acknowledged
+  - How the app recovers when a previously saved wallet has been moved or deleted
+  - What each onboarding failure looks like to the user
+
+prerequisites:
+  - |
+    **Nix** with flakes enabled. Install from [nixos.org](https://nixos.org/download.html), then enable flakes:
+
+    ```bash
+    mkdir -p ~/.config/nix
+    echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
+    ```
+
+    Verify: `nix flake --help >/dev/null 2>&1 && echo "Flakes enabled"`
+  - |
+    **A Linux machine.** The app runs headless via `QT_QPA_PLATFORM=offscreen`, so
+    no display is needed. Linux specifically, because the isolation below works by
+    pointing `XDG_CONFIG_HOME` and `XDG_DATA_HOME` at a scratch directory —
+    `QStandardPaths` honours those on Linux but not on macOS, where the run would
+    touch your real wallet data instead.
+
+sections:
+  - title: "Build the qt-mcp test driver"
+    step: true
+    text: |
+      [`logos-qt-mcp`](https://github.com/logos-co/logos-qt-mcp) connects to the
+      app's QML inspector and drives it. Build it once and link it as
+      `./result-mcp`.
+    steps:
+      - title: "Build logos-qt-mcp"
+        run: "nix build 'github:logos-co/logos-qt-mcp' -o result-mcp"
+        check_file: "result-mcp"
+
+  - title: "Isolate the run from your real wallet data"
+    step: true
+    text: |
+      The backend keeps two pieces of state outside the repo: the saved
+      config/storage paths in `QSettings`, and the wallet files themselves under
+      the backend's default directory. Both resolve through `QStandardPaths`, so
+      pointing `XDG_CONFIG_HOME` and `XDG_DATA_HOME` at a scratch directory keeps
+      this run entirely self-contained — and lets later sections delete the
+      wallet on purpose without touching anything of yours.
+      Paths that later steps type into the UI live under `/tmp` rather than the
+      run's working directory: `set_text` values are written into the generated
+      test script verbatim, with no shell or variable expansion, so they have to
+      be literal absolute paths.
+    steps:
+      - title: "Create the scratch data directories"
+        run: "rm -rf /tmp/lez-doctest-empty /tmp/lez-doctest-moved && mkdir -p lez-home/config lez-home/data && echo ok"
+        check_file: "lez-home/data"
+
+  - title: "First run: the create screen, and the two ways to get it wrong"
+    step: true
+    text: |
+      With nothing saved, the app opens straight on the create screen. There is
+      no notice banner — a genuine first run is not something the user needs to
+      be told about — and no file paths are requested anywhere on the page.
+
+      The password is validated in the view before any call is made, so both
+      validation failures are visible without touching the backend.
+    steps:
+      - title: "Launch on a clean profile and exercise the create-form validation"
+        ui_test:
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run . --no-write-lock-file -- --height 1400"
+          qt_mcp: "result-mcp"
+          build_timeout: 2400
+          launch_timeout: 2400
+          tests:
+            - name: "The app opens on the create screen"
+              action: wait_for
+              texts: ["Create your LEZ Wallet", "Create Wallet"]
+              timeout: 60000
+              text: "First run: no saved wallet, so onboarding starts here."
+              screenshot: "onboarding-create-first-run.png"
+
+            - name: "No file paths are requested to create a wallet"
+              action: expect_texts
+              texts: ["Choose a password and a network. Your wallet files are stored for you."]
+
+            - name: "An empty password is rejected"
+              action: click
+              target: "Create Wallet"
+            - name: "The empty-password error is shown"
+              action: wait_for
+              texts: ["Password cannot be empty."]
+              timeout: 10000
+              screenshot: "onboarding-error-empty-password.png"
+
+            - name: "Enter a password"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezCreatePasswordField"
+              value: "doctest-passphrase"
+            - name: "Enter a different confirmation"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezCreateConfirmField"
+              value: "not-the-same"
+            - name: "Mismatched passwords are rejected"
+              action: click
+              target: "Create Wallet"
+            - name: "The mismatch error is shown"
+              action: wait_for
+              texts: ["Passwords do not match."]
+              timeout: 10000
+              screenshot: "onboarding-error-password-mismatch.png"
+
+            # ── The open-existing branch, reached from the create screen ──
+            - name: "Follow \"Open wallet instead\""
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOpenInsteadLink"
+            - name: "The open screen asks for files, and for nothing else"
+              action: wait_for
+              texts:
+                - "Open an existing wallet"
+                - "Select the storage and config files of a wallet you already have."
+                - "Storage file"
+                - "Config file"
+              timeout: 15000
+              text: |
+                No password field and no network selector: `wallet_ffi_open` takes
+                no password, and the sequencer is read from the config file being
+                opened. Asking for either would be asking for something the call
+                discards.
+              screenshot: "onboarding-open-existing.png"
+
+            - name: "Opening with nothing filled in is refused"
+              action: click
+              target: "Open Wallet"
+            - name: "The missing-selection error is shown"
+              action: wait_for
+              texts: ["Select both a storage file and a config file."]
+              timeout: 10000
+
+            - name: "Point at a storage file that does not exist"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenStorageField"
+              value: "/tmp/lez-doctest-does-not-exist/storage.json"
+            - name: "Point at a config file that does not exist"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenConfigField"
+              value: "/tmp/lez-doctest-does-not-exist/config.json"
+            - name: "Try to open them"
+              action: click
+              target: "Open Wallet"
+            - name: "The missing-file error names the path"
+              action: wait_for
+              texts: ["No config file at /tmp/lez-doctest-does-not-exist/config.json"]
+              timeout: 20000
+              text: "Nothing is created. A wrong path is an error the user can read and correct."
+              screenshot: "onboarding-error-missing-file.png"
+
+            - name: "Go back to the create screen"
+              action: click
+              target: "Back"
+            - name: "The create screen is showing again"
+              action: wait_for
+              texts: ["Create your LEZ Wallet"]
+              timeout: 15000
+
+            # ── The successful create ──
+            - name: "Enter a password"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezCreatePasswordField"
+              value: "doctest-passphrase"
+            - name: "Enter a matching confirmation"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezCreateConfirmField"
+              value: "doctest-passphrase"
+            - name: "Create the wallet"
+              action: click
+              target: "Create Wallet"
+
+            - name: "The recovery phrase is shown, exactly once"
+              action: wait_for
+              texts:
+                - "Your recovery phrase"
+                - "This is the only"
+                - "I have saved it"
+              timeout: 120000
+              text: |
+                `create_new` returns the phrase and `lez_core` has no call to read
+                it back, so this render is the only copy the user is ever offered.
+                The wallet is already open behind this page — the dashboard is
+                held back until the phrase is acknowledged.
+              screenshot: "onboarding-recovery-phrase.png"
+
+            - name: "Acknowledge the phrase"
+              action: click
+              target: "I have saved it"
+            - name: "The dashboard is reached"
+              action: wait_for
+              texts: ["Accounts"]
+              timeout: 30000
+              screenshot: "onboarding-dashboard.png"
+
+  - title: "Returning user: the wallet opens without asking anything"
+    step: true
+    text: |
+      The successful create saved its paths. On the next launch the backend finds
+      them, confirms both files are still on disk, and opens the wallet — so a
+      returning user reaches the dashboard without being asked anything.
+
+      The view shows a brief loading state first. It has to: whether there is a
+      wallet to open is not known until the `lez_core` handshake settles, so
+      "no wallet open" is an absence of information at that point rather than an
+      answer. Routing it to onboarding would flash the create screen on every
+      launch and then replace it.
+    steps:
+      - title: "Relaunch against the same profile"
+        ui_test:
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run . --no-write-lock-file -- --height 1400"
+          qt_mcp: "result-mcp"
+          build_timeout: 2400
+          launch_timeout: 2400
+          tests:
+            - name: "The dashboard opens directly, with no onboarding"
+              action: wait_for
+              texts: ["Accounts"]
+              timeout: 60000
+              text: "No password prompt: opening a wallet does not take one."
+              screenshot: "onboarding-returning-user.png"
+
+  - title: "The saved wallet disappears"
+    step: true
+    text: |
+      Moving or deleting the wallet folder is the case that used to strand
+      people: the saved paths stayed in `QSettings`, the open failed silently on
+      every launch, and the onboarding screen offered the dead paths back as a
+      prefill.
+
+      Now the backend checks the files exist before it tries to open them, tells
+      the user what happened, and forgets the paths — naming them in the notice,
+      because clearing the settings destroys the only other record of where the
+      wallet used to be.
+    steps:
+      - title: "Move the wallet folder aside"
+        run: "mv \"$(dirname \"$(find lez-home/data -name storage.json -path '*lez_wallet*' | head -1)\")\" /tmp/lez-doctest-moved && echo moved"
+        check_file: "/tmp/lez-doctest-moved/storage.json"
+      - title: "Relaunch and confirm the notice"
+        ui_test:
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run . --no-write-lock-file -- --height 1400"
+          qt_mcp: "result-mcp"
+          build_timeout: 2400
+          launch_timeout: 2400
+          tests:
+            - name: "The user is told why they are back at onboarding"
+              action: wait_for
+              texts:
+                - "Your saved wallet files were not found"
+                - "Create your LEZ Wallet"
+              timeout: 60000
+              text: "The notice carries both paths, then the saved location is forgotten."
+              screenshot: "onboarding-notice-files-missing.png"
+
+            # The notice is a LogosNotice whose dismiss control is an icon button
+            # with no text label, so drive its hide() rather than clicking a caption.
+            - name: "The notice can be dismissed"
+              action: call_method
+              find_by: "objectName"
+              find_value: "lezNotice"
+              method: "hide"
+            - name: "The notice is gone"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezNotice"
+              property: "shown"
+              value: false
+
+            - name: "Open the moved wallet from its new location"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOpenInsteadLink"
+            - name: "The open screen offers no stale prefill"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOpenStorageField"
+              property: "text"
+              value: ""
+              text: "The forgotten paths are gone from the PROPs too, so they cannot be offered back."
+
+  - title: "Opening a wallet that exists but cannot be read"
+    step: true
+    text: |
+      Two files that exist but are not a wallet are the exact shape of the
+      original bug report: a user created empty `config.json` and `storage.json`
+      by hand — the only way the old file picker would let them proceed — and the
+      app answered by refusing to *load* a wallet they were trying to *create*.
+
+      The create path no longer depends on those files existing, and the open path
+      now reports the failure with the code the FFI actually returned.
+    steps:
+      - title: "Write two empty JSON files"
+        run: "mkdir -p /tmp/lez-doctest-empty && echo '{}' > /tmp/lez-doctest-empty/config.json && echo '{}' > /tmp/lez-doctest-empty/storage.json && echo ok"
+        check_file: "/tmp/lez-doctest-empty/storage.json"
+      - title: "Try to open them"
+        ui_test:
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run . --no-write-lock-file -- --height 1400"
+          qt_mcp: "result-mcp"
+          build_timeout: 2400
+          launch_timeout: 2400
+          tests:
+            - name: "Onboarding is showing"
+              action: wait_for
+              texts: ["Create your LEZ Wallet"]
+              timeout: 60000
+            - name: "Go to the open screen"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOpenInsteadLink"
+            - name: "Point at the empty storage file"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenStorageField"
+              value: "/tmp/lez-doctest-empty/storage.json"
+            - name: "Point at the empty config file"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenConfigField"
+              value: "/tmp/lez-doctest-empty/config.json"
+            - name: "Try to open them"
+              action: click
+              target: "Open Wallet"
+            - name: "The failure is reported with the FFI error code"
+              action: wait_for
+              texts: ["Could not open the wallet at those paths"]
+              timeout: 30000
+              text: |
+                The user stays on the open screen with an error they can act on.
+                Nothing was created, and no config file was rewritten.
+              screenshot: "onboarding-error-unreadable-wallet.png"
+
+            # The error describes one specific pair of paths, so editing either one
+            # makes it stale — leaving it up would read as if the new path failed too.
+            - name: "Editing a path clears the stale error"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenStorageField"
+              value: "/tmp/lez-doctest-empty/storage2.json"
+            - name: "The error is gone"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOpenError"
+              property: "shown"
+              value: false
+
+  - title: "Reopening the moved wallet"
+    step: true
+    text: |
+      Finally, the path that proves the open branch really is an open: the wallet
+      moved aside earlier is loaded from its new location, with no password and no
+      network selection, and the dashboard comes back.
+    steps:
+      - title: "Open the wallet from its new location"
+        ui_test:
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run . --no-write-lock-file -- --height 1400"
+          qt_mcp: "result-mcp"
+          build_timeout: 2400
+          launch_timeout: 2400
+          tests:
+            - name: "Onboarding is showing"
+              action: wait_for
+              texts: ["Create your LEZ Wallet"]
+              timeout: 60000
+            - name: "Go to the open screen"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOpenInsteadLink"
+            - name: "Point at the moved storage file"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenStorageField"
+              value: "/tmp/lez-doctest-moved/storage.json"
+            - name: "Point at the moved config file"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenConfigField"
+              value: "/tmp/lez-doctest-moved/config.json"
+            - name: "Open it"
+              action: click
+              target: "Open Wallet"
+            - name: "The dashboard is reached"
+              action: wait_for
+              texts: ["Accounts"]
+              timeout: 60000
+              text: "Same wallet, new location, no recovery phrase shown — this was an open, not a create."
+              screenshot: "onboarding-reopened.png"
+
+outro: |
+  Every onboarding outcome is covered above: both validation failures, a
+  selection with nothing filled in, a path that does not exist, files that exist
+  but are not a wallet, a wallet that has moved, a returning user, and the two
+  successful entries. None of the failure paths creates or rewrites a file, and
+  the successful create shows its recovery phrase exactly once before the
+  dashboard is allowed to replace it.

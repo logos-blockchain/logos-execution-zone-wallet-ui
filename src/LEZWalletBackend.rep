@@ -1,11 +1,15 @@
 class LEZWalletBackend
 {
     PROP(bool isWalletOpen READONLY)
+    PROP(bool isStartupResolved READONLY)
     PROP(QString configPath READONLY)
     PROP(QString storagePath READONLY)
+    PROP(QString notice READONLY)
     PROP(int lastSyncedBlock READONLY)
     PROP(int currentBlockHeight READONLY)
     PROP(QString sequencerAddr READONLY)
+    PROP(QString testnetUrl READONLY)
+    PROP(QString localhostUrl READONLY)
 
     SLOT(QString createAccountPublic())
     SLOT(QString createAccountPrivate())
@@ -29,7 +33,8 @@ class LEZWalletBackend
     SLOT(void refreshVaultBalances())
     SLOT(QString vaultClaim(QString fromHex, bool isPublic, QString amountStr))
 
-    SLOT(QString createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr))
+    SLOT(QString createNew(QString password, QString sequencerAddr))
+    SLOT(QString openExisting(QString configPath, QString storagePath))
 
     SLOT(void copyToClipboard(QString text))
 
