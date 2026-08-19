@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: logos-co
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Build module
+        run: nix build -L
+
+      # This module ships as a shared library, so the linker accepts undefined
+      # symbols and resolves them when the call is reached -- a declared-but-never
+      # -defined method links clean and then crashes ui-host at runtime. `nix build`
+      # cannot catch that, so check the artefact itself.
+      - name: Check the plugin has no unresolved symbols of its own
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$(nix build --no-link --print-out-paths -L)"
+          plugin="$(find -L "$out" \( -name 'lez_wallet_ui_plugin.so' \
+                                   -o -name 'lez_wallet_ui_plugin.dylib' \) | head -1)"
+          if [ -z "$plugin" ]; then
+            echo "::error::no lez_wallet_ui plugin found under $out"; exit 1
+          fi
+          echo "Checking $plugin"
+          undefined="$(nm -uC "$plugin" 2>/dev/null | grep -E 'LEZWallet' || true)"
+          if [ -n "$undefined" ]; then
+            echo "::error::plugin has undefined symbols of its own:"
+            echo "$undefined"
+            exit 1
+          fi
+          echo "No unresolved LEZWallet* symbols."
+
+      # QML is copied into the package rather than compiled, so a syntax error or
+      # an unresolvable type is invisible to the build and only surfaces when the
+      # view loads. qmllint reads it statically.
+      - name: Lint QML
+        shell: bash
+        run: |
+          set -euo pipefail
+          nix shell nixpkgs#qt6.qtdeclarative -c bash -eu -c '
+            qtqml="$(dirname "$(command -v qmllint)")/../lib/qt-6/qml"
+            fail=0
+            while IFS= read -r f; do
+              out="$(qmllint -I "$qtqml" "$f" 2>&1 |
+                     grep -Ei "\[syntax\]|is not a type" || true)"
+              if [ -n "$out" ]; then echo "::error file=$f::$out"; fail=1; fi
+            done < <(find src/qml -name "*.qml")
+            exit $fail
+          '

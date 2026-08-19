@@ -100,7 +100,7 @@ sections:
     steps:
       - title: "Launch on a clean profile and exercise the create-form validation"
         ui_test:
-          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run . --no-write-lock-file -- --height 1400"
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
@@ -111,6 +111,15 @@ sections:
               timeout: 60000
               text: "First run: no saved wallet, so onboarding starts here."
               screenshot: "onboarding-create-first-run.png"
+
+            # Onboarding shows the loading page until the lez_core handshake
+            # settles, then animates to the create page. A text assertion passes
+            # as soon as the item exists, which is mid-transition -- the driver
+            # would read a button's position and click where it no longer is.
+            # Every page change below gets the same pause, for the same reason.
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
 
             - name: "No file paths are requested to create a wallet"
               action: expect_texts
@@ -164,6 +173,10 @@ sections:
                 discards.
               screenshot: "onboarding-open-existing.png"
 
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+
             - name: "Opening with nothing filled in is refused"
               action: click
               target: "Open Wallet"
@@ -187,7 +200,7 @@ sections:
               target: "Open Wallet"
             - name: "The missing-file error names the path"
               action: wait_for
-              texts: ["No config file at /tmp/lez-doctest-does-not-exist/config.json"]
+              texts: ["No config file at /tmp/lez-doctest-does-not-exist/config.json."]
               timeout: 20000
               text: "Nothing is created. A wrong path is an error the user can read and correct."
               screenshot: "onboarding-error-missing-file.png"
@@ -199,6 +212,10 @@ sections:
               action: wait_for
               texts: ["Create your LEZ Wallet"]
               timeout: 15000
+
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
 
             # ── The successful create ──
             - name: "Enter a password"
@@ -219,7 +236,7 @@ sections:
               action: wait_for
               texts:
                 - "Your recovery phrase"
-                - "This is the only"
+                - "Write these words down and keep them somewhere safe. This is the only time they will be shown, and anyone who has them can spend your funds."
                 - "I have saved it"
               timeout: 120000
               text: |
@@ -228,6 +245,10 @@ sections:
                 The wallet is already open behind this page — the dashboard is
                 held back until the phrase is acknowledged.
               screenshot: "onboarding-recovery-phrase.png"
+
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
 
             - name: "Acknowledge the phrase"
               action: click
@@ -253,7 +274,7 @@ sections:
     steps:
       - title: "Relaunch against the same profile"
         ui_test:
-          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run . --no-write-lock-file -- --height 1400"
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
@@ -279,11 +300,16 @@ sections:
       wallet used to be.
     steps:
       - title: "Move the wallet folder aside"
-        run: "mv \"$(dirname \"$(find lez-home/data -name storage.json -path '*lez_wallet*' | head -1)\")\" /tmp/lez-doctest-moved && echo moved"
+        run: |
+          set -e
+          d="$(dirname "$(find lez-home/data -name storage.json | head -1)")"
+          test -f "$d/storage.json" || { echo "no wallet was created under lez-home/data"; exit 1; }
+          mv "$d" /tmp/lez-doctest-moved
+          echo moved
         check_file: "/tmp/lez-doctest-moved/storage.json"
       - title: "Relaunch and confirm the notice"
         ui_test:
-          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run . --no-write-lock-file -- --height 1400"
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
@@ -291,11 +317,25 @@ sections:
             - name: "The user is told why they are back at onboarding"
               action: wait_for
               texts:
-                - "Your saved wallet files were not found"
                 - "Create your LEZ Wallet"
               timeout: 60000
               text: "The notice carries both paths, then the saved location is forgotten."
               screenshot: "onboarding-notice-files-missing.png"
+
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+
+            # The notice names both paths, so its text is different on every run
+            # and cannot be matched literally -- text assertions compare for
+            # equality, not containment. Assert that it is raised instead; the
+            # screenshot above is what carries the wording.
+            - name: "The notice is raised"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezNotice"
+              property: "shown"
+              value: true
 
             # The notice is a LogosNotice whose dismiss control is an icon button
             # with no text label, so drive its hide() rather than clicking a caption.
@@ -315,6 +355,9 @@ sections:
               action: click_object
               find_by: "objectName"
               find_value: "lezOpenInsteadLink"
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
             - name: "The open screen offers no stale prefill"
               action: expect_property
               find_by: "objectName"
@@ -339,7 +382,7 @@ sections:
         check_file: "/tmp/lez-doctest-empty/storage.json"
       - title: "Try to open them"
         ui_test:
-          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run . --no-write-lock-file -- --height 1400"
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
@@ -348,10 +391,16 @@ sections:
               action: wait_for
               texts: ["Create your LEZ Wallet"]
               timeout: 60000
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
             - name: "Go to the open screen"
               action: click_object
               find_by: "objectName"
               find_value: "lezOpenInsteadLink"
+            - name: "Let the open screen settle"
+              action: sleep
+              ms: 1500
             - name: "Point at the empty storage file"
               action: set_text
               find_by: "objectName"
@@ -367,7 +416,7 @@ sections:
               target: "Open Wallet"
             - name: "The failure is reported with the FFI error code"
               action: wait_for
-              texts: ["Could not open the wallet at those paths"]
+              texts: ["Could not open the wallet at those paths (error 99)."]
               timeout: 30000
               text: |
                 The user stays on the open screen with an error they can act on.
@@ -397,7 +446,7 @@ sections:
     steps:
       - title: "Open the wallet from its new location"
         ui_test:
-          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run . --no-write-lock-file -- --height 1400"
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
@@ -406,10 +455,16 @@ sections:
               action: wait_for
               texts: ["Create your LEZ Wallet"]
               timeout: 60000
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
             - name: "Go to the open screen"
               action: click_object
               find_by: "objectName"
               find_value: "lezOpenInsteadLink"
+            - name: "Let the open screen settle"
+              action: sleep
+              ms: 1500
             - name: "Point at the moved storage file"
               action: set_text
               find_by: "objectName"
