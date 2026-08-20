@@ -14,6 +14,9 @@ Item {
     property var claimableAccountModel: null
     property bool claimPending: false
 
+    // --- Public API: data out ---
+    readonly property alias claimableCount: listView.count
+
     // --- Public API: signals out ---
     signal vaultClaimRequested(string fromAccountId, bool isPublic, string amount)
     signal refreshRequested()

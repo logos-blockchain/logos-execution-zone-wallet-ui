@@ -128,7 +128,7 @@ Rectangle {
                 // is equivalent to showing it once above the first public row.
                 RowLayout {
                     Layout.fillWidth: true
-                    visible: model.isPublic && (model.isFirstInGroup ?? false)
+                    visible: (model.isPublic ?? false) && (model.isFirstInGroup ?? false)
                     spacing: Theme.spacing.small
 
                     LogosText {

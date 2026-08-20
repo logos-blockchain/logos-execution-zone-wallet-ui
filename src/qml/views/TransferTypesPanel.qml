@@ -69,27 +69,28 @@ Item {
         anchors.fill: parent
         spacing: Theme.spacing.large
 
-        // Transfer type toggle
-        LogosTabBar {
+        // Transfer type toggle — pill-shaped, so this secondary row reads as a
+        // level below the underlined section bar above it.
+        PillTabBar {
             id: transferTypeBar
             Layout.fillWidth: true
             spacing: Theme.spacing.small
             currentIndex: 0
 
 
-            LogosTabButton {
+            PillTabButton {
                 text: qsTr("Public")
             }
 
-            LogosTabButton {
+            PillTabButton {
                 text: qsTr("Private")
             }
 
-            LogosTabButton {
+            PillTabButton {
                 text: qsTr("Shielded")
             }
 
-            LogosTabButton {
+            PillTabButton {
                 text: qsTr("Deshielded")
             }
         }
