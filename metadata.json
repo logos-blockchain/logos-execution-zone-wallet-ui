@@ -3,6 +3,7 @@
   "display_name": "LEZ Wallet",
   "version": "1.1.0",
   "type": "ui_qml",
+  "interface": "universal",
   "category": "wallet",
   "description": "Execution Zone Wallet UI module for the Logos application",
   "author": "Logos Blockchain Team",
@@ -10,6 +11,11 @@
   "icon": "src/qml/icons/copy.svg",
   "view": "qml/ExecutionZoneWalletView.qml",
   "dependencies": ["lez_core"],
+  "codegen": {
+    "rep": "src/LEZWalletBackend.rep",
+    "backend_class": "LEZWalletBackend",
+    "backend_header": "LEZWalletBackend.h"
+  },
 
   "nix": {
     "packages": {

@@ -5,18 +5,19 @@
 #include <QString>
 
 #include "rep_LEZWalletBackend_source.h"
+#include "logos_ui_plugin_context.h"
 
 #include "LEZAccountFilterModel.h"
 #include "LEZClaimableAccountFilterModel.h"
 #include "LEZWalletAccountModel.h"
 
-class LogosAPI;
-struct LogosModules;
-
 // Source-side implementation of the LEZWalletBackend .rep interface.
 // Inheriting from LEZWalletBackendSimpleSource gives us the generated PROPs
 // and SLOTs from LEZWalletBackend.rep — all the simple ones flow over QtRO.
-class LEZWalletBackend : public LEZWalletBackendSimpleSource {
+// LogosUiPluginContext supplies modules() (the Qt-typed lez_core wrapper) and
+// the onContextReady() hook; the plugin around this class is generated.
+class LEZWalletBackend : public LEZWalletBackendSimpleSource,
+                         public LogosUiPluginContext {
     Q_OBJECT
     Q_PROPERTY(LEZWalletAccountModel* accountModel READ accountModel CONSTANT)
     Q_PROPERTY(LEZAccountFilterModel* filteredAccountModel READ filteredAccountModel CONSTANT)
@@ -24,13 +25,17 @@ class LEZWalletBackend : public LEZWalletBackendSimpleSource {
     Q_PROPERTY(LEZClaimableAccountFilterModel* claimableAccountModel READ claimableAccountModel CONSTANT)
 
 public:
-    explicit LEZWalletBackend(LogosAPI* logosAPI = nullptr, QObject* parent = nullptr);
+    explicit LEZWalletBackend(QObject* parent = nullptr);
     ~LEZWalletBackend() override;
 
     LEZWalletAccountModel* accountModel() const { return m_accountModel; }
     LEZAccountFilterModel* filteredAccountModel() const { return m_filteredAccountModel; }
     LEZAccountFilterModel* privateAccountModel() const { return m_privateAccountModel; }
     LEZClaimableAccountFilterModel* claimableAccountModel() const { return m_claimableAccountModel; }
+
+    // Fires once the generated plugin glue has wired modules(); the typed
+    // lez_core surface is live, so the wallet open + refresh chain starts here.
+    void onContextReady() override;
 
 public slots:
     // Overrides of the pure-virtual slots generated from the .rep.
@@ -83,9 +88,6 @@ private:
     LEZAccountFilterModel* m_filteredAccountModel;
     LEZAccountFilterModel* m_privateAccountModel;
     LEZClaimableAccountFilterModel* m_claimableAccountModel;
-
-    LogosAPI* m_logosAPI;
-    LogosModules* m_logos;
 };
 
 #endif // LEZ_WALLET_BACKEND_H
