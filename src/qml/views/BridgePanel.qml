@@ -23,16 +23,12 @@ Item {
         spacing: Theme.spacing.large
 
         // Bridge section toggle
-        TabBar {
+        LogosTabBar {
             id: bridgeSectionBar
             Layout.fillWidth: true
             spacing: Theme.spacing.small
             currentIndex: 0
 
-            background: Rectangle {
-                color: Theme.palette.backgroundSecondary
-                radius: Theme.spacing.radiusSmall
-            }
 
             LogosTabButton {
                 text: qsTr("Withdraw")

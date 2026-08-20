@@ -5,7 +5,6 @@ import QtQuick.Layouts
 import Logos.Theme
 import Logos.Controls
 
-import "../controls"
 import "../Base58.js" as Base58
 
 Item {
@@ -80,7 +79,7 @@ Item {
                         }
                     }
 
-                    FeedbackButton {
+                    LogosButton {
                         text: qsTr("Claim")
                         enabled: !root.claimPending
                         onClicked: root.vaultClaimRequested(model.accountId, model.isPublic, model.vaultBalance)
@@ -89,7 +88,7 @@ Item {
             }
         }
 
-        FeedbackButton {
+        LogosButton {
             Layout.fillWidth: true
             text: qsTr("Refresh")
             enabled: !root.claimPending

@@ -70,16 +70,12 @@ Item {
         spacing: Theme.spacing.large
 
         // Transfer type toggle
-        TabBar {
+        LogosTabBar {
             id: transferTypeBar
             Layout.fillWidth: true
             spacing: Theme.spacing.small
             currentIndex: 0
 
-            background: Rectangle {
-                color: Theme.palette.backgroundSecondary
-                radius: Theme.spacing.radiusSmall
-            }
 
             LogosTabButton {
                 text: qsTr("Public")
@@ -185,7 +181,7 @@ Item {
         }
 
         // Send button
-        FeedbackButton {
+        LogosButton {
             Layout.fillWidth: true
             text: qsTr("Send")
             font.pixelSize: Theme.typography.secondaryText

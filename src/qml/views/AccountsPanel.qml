@@ -7,6 +7,7 @@ import Logos.Controls
 // TODO: remove relative paths and use qmldir instead
 import "../controls"
 import "../popups"
+import "../Format.js" as Format
 
 Rectangle {
     id: root
@@ -54,7 +55,7 @@ Rectangle {
 
             Item { Layout.fillWidth: true }
 
-            FeedbackButton {
+            LogosButton {
                 Layout.preferredHeight: 40
                 Layout.preferredWidth: 80
                 text: qsTr("+ Create")
@@ -82,27 +83,12 @@ Rectangle {
                     color: Theme.palette.textSecondary
                 }
             }
-            ProgressBar {
+            LogosProgressBar {
                 Layout.fillWidth: true
                 from: 0
                 to: root.currentBlockHeight
                 value: root.lastSyncedBlock
-
-                contentItem: Item {
-                    Rectangle {
-                        width: parent.width * (root.currentBlockHeight > 0
-                               ? root.lastSyncedBlock / root.currentBlockHeight : 0)
-                        height: parent.height
-                        radius: height / 2
-                        color: Theme.palette.overlayOrange
-                    }
-                }
-
-                background: Rectangle {
-                    implicitHeight: 6
-                    radius: height / 2
-                    color: Theme.palette.backgroundElevated
-                }
+                trackColor: Theme.palette.backgroundElevated
             }
         }
 
@@ -183,10 +169,6 @@ Rectangle {
                         try { return JSON.parse(model.keysJson ?? "{}") } catch (e) { return {} }
                     }
 
-                    function shortKey(key) {
-                        return key && key.length > 12 ? key.slice(0, 6) + "…" + key.slice(-4) : (key || "")
-                    }
-
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
@@ -218,12 +200,10 @@ Rectangle {
                                 font.pixelSize: Theme.typography.secondaryText
                                 color: Theme.palette.textSecondary
                             }
-                            LogosText {
+                            LogosSelectableText {
                                 Layout.fillWidth: true
-                                text: keyGroupHeader.shortKey(keyGroupHeader.groupKeys.nullifier_public_key)
-                                font.pixelSize: Theme.typography.secondaryText
+                                text: Format.shortenMiddle(keyGroupHeader.groupKeys.nullifier_public_key)
                                 color: Theme.palette.textSecondary
-                                elide: Text.ElideRight
                             }
                         }
 
@@ -243,12 +223,10 @@ Rectangle {
                                 font.pixelSize: Theme.typography.secondaryText
                                 color: Theme.palette.textSecondary
                             }
-                            LogosText {
+                            LogosSelectableText {
                                 Layout.fillWidth: true
-                                text: keyGroupHeader.shortKey(keyGroupHeader.groupKeys.viewing_public_key)
-                                font.pixelSize: Theme.typography.secondaryText
+                                text: Format.shortenMiddle(keyGroupHeader.groupKeys.viewing_public_key)
                                 color: Theme.palette.textSecondary
-                                elide: Text.ElideRight
                             }
                         }
                     }
@@ -269,7 +247,7 @@ Rectangle {
         }
 
         // Footer: Fetch / Refresh Balances
-        FeedbackButton {
+        LogosButton {
             Layout.fillWidth: true
             text: qsTr("Refresh Balances")
             onClicked: root.fetchBalancesRequested()
