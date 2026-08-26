@@ -7,14 +7,20 @@
   "description": "Execution Zone Wallet UI module for the Logos application",
   "author": "Logos Blockchain Team",
   "main": "lez_wallet_ui_plugin",
-  "icon": "src/qml/icons/copy.svg",
+  "icon": "src/icons/lez_wallet.png",
   "view": "qml/ExecutionZoneWalletView.qml",
-  "dependencies": ["lez_core"],
-
+  "dependencies": [
+    "lez_core"
+  ],
   "nix": {
     "packages": {
       "build": [],
-      "runtime": ["qt6.qtdeclarative", "zstd", "krb5", "abseil-cpp"]
+      "runtime": [
+        "qt6.qtdeclarative",
+        "zstd",
+        "krb5",
+        "abseil-cpp"
+      ]
     },
     "external_libraries": [],
     "cmake": {
