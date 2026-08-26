@@ -106,11 +106,17 @@ On **Linux** and **Windows**, use your platform’s usual way to clear app setti
 
 ### QML Hot Reload
 
-During development, set `DEV_QML_PATH` to load QML from disk without recompiling:
+Build the dev launcher once, then edit QML and save — the view re-renders
+without a rebuild or relaunch:
 
 ```bash
-export DEV_QML_PATH=/path/to/logos-execution-zone-wallet-ui/src/qml
+nix build .#ui-dev
+./result/bin/run-logos-standalone-ui
 ```
+
+Run from the repo root and it finds `src/qml` automatically; set `DEV_QML_PATH`
+to override. See
+[logos-module-builder's README](https://github.com/logos-co/logos-module-builder#ui-modules-the-dev-loop).
 
 ## Dependencies
 
