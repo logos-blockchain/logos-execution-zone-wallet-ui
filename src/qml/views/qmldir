@@ -1,5 +1,9 @@
 module views
+LoadingView 1.0 LoadingView.qml
 OnboardingView 1.0 OnboardingView.qml
+CreateWalletPage 1.0 CreateWalletPage.qml
+OpenWalletPage 1.0 OpenWalletPage.qml
+RecoveryPhrasePage 1.0 RecoveryPhrasePage.qml
 DashboardView 1.0 DashboardView.qml
 AccountsPanel 1.0 AccountsPanel.qml
 TransferPanel 1.0 TransferPanel.qml

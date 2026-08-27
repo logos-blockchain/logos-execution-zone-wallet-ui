@@ -52,7 +52,8 @@ public slots:
     QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount) override;
     void refreshVaultBalances() override;
     QString vaultClaim(QString fromHex, bool isPublic, QString amountStr) override;
-    QString createNew(QString configPath, QString storagePath, QString password, QString sequencerAddr) override;
+    QString createNew(QString password, QString sequencerAddr) override;
+    QString openExisting(QString configPath, QString storagePath) override;
     void copyToClipboard(QString text) override;
     bool checkLabelAvailable(QString label) override;
     QString addLabel(QString label, QString accountIdHex, bool isPublic) override;
@@ -63,7 +64,11 @@ private slots:
 private:
     void persistConfigPath(const QString& path);
     void persistStoragePath(const QString& path);
+    void clearSavedPaths();
+    void reportNotice(const QString& message);
+    QString defaultWalletDir();
     void applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr);
+    qint64 openWalletAt(const QString& localConfigPath, const QString& localStoragePath);
     void fetchAndUpdateBlockHeights();
     void startChunkedSync();
     QVariantList buildEnrichedAccountList();
@@ -74,6 +79,7 @@ private:
     void saveWallet();
     void openIfPathsConfigured(int attempt = 0);
     void finishOpeningWallet();
+    void finishStartup();
 
     bool m_syncing = false;
     quint64 m_syncTarget = 0;

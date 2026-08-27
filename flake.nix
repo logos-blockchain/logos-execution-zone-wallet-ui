@@ -8,9 +8,9 @@
   };
 
   inputs = {
-    logos-module-builder.url = "github:logos-co/logos-module-builder/0.2.6";
+    logos-module-builder.url = "github:logos-co/logos-module-builder";
     nix-bundle-lgx.url = "github:logos-co/nix-bundle-lgx";
-    lez_core.url = "github:logos-blockchain/logos-execution-zone-module?rev=7dd1d29ced0971e24b05d978fb2b560b240d212f";
+    lez_core.url = "github:logos-blockchain/logos-execution-zone-module";
   };
 
   outputs = inputs@{ logos-module-builder, ... }:
