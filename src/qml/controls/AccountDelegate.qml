@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Logos.Theme
 import Logos.Controls
 import "../Base58.js" as Base58
+import "../Format.js" as Format
 
 ItemDelegate {
     id: root
@@ -31,10 +32,11 @@ ItemDelegate {
     rightPadding: Theme.spacing.medium
     topPadding: Theme.spacing.medium
     bottomPadding: Theme.spacing.medium
+    hoverEnabled: false
 
     background: Rectangle {
         color: root.highlighted || root.hovered ?
-                   Theme.palette.backgroundMuted :
+                   Theme.palette.backgroundSecondary :
                    Theme.palette.backgroundTertiary
         radius: Theme.spacing.radiusLarge
     }
@@ -46,7 +48,7 @@ ItemDelegate {
             spacing: Theme.spacing.small
 
             LogosText {
-                text: model.name || ("Account " + Base58.encode(model.accountId ?? "").slice(0, 4))
+                text: model.name || ("Account " + Format.shortenHead(Base58.encode(model.accountId ?? "")))
                 font.pixelSize: Theme.typography.secondaryText
                 font.bold: true
             }
@@ -83,35 +85,14 @@ ItemDelegate {
             Layout.fillWidth: true
             spacing: Theme.spacing.small
 
-            Rectangle {
-                Layout.preferredWidth: tagLabel.implicitWidth + Theme.spacing.small * 2
-                Layout.preferredHeight: tagLabel.implicitHeight + 4
-                radius: 4
-                color: Theme.palette.backgroundSecondary
-
-                LogosText {
-                    id: tagLabel
-                    anchors.centerIn: parent
-                    text: model.isPublic ? qsTr("Public") : qsTr("Private")
-                    font.pixelSize: Theme.typography.secondaryText
-                    color: Theme.palette.textSecondary
-                }
+            LogosBadge {
+                text: model.isPublic ? qsTr("Public") : qsTr("Private")
+                color: Theme.palette.textSecondary
             }
 
-            Rectangle {
-                Layout.preferredWidth: initLabel.implicitWidth + Theme.spacing.small * 2
-                Layout.preferredHeight: initLabel.implicitHeight + 4
-                radius: 4
-                color: Theme.colors.getColor(
-                    model.isInitialized ? Theme.palette.success : Theme.palette.warning, 0.18)
-
-                LogosText {
-                    id: initLabel
-                    anchors.centerIn: parent
-                    text: model.isInitialized ? qsTr("Initialized") : qsTr("Uninitialized")
-                    font.pixelSize: Theme.typography.secondaryText
-                    color: model.isInitialized ? Theme.palette.success : Theme.palette.warning
-                }
+            LogosBadge {
+                text: model.isInitialized ? qsTr("Initialized") : qsTr("Uninitialized")
+                color: model.isInitialized ? Theme.palette.success : Theme.palette.warning
             }
 
             Item { Layout.fillWidth: true }
@@ -120,25 +101,18 @@ ItemDelegate {
         RowLayout {
             Layout.fillWidth: true
             spacing:0
-            LogosText {
+            LogosCopyableText {
                 id: addressLabel
                 Layout.fillWidth: true
-                verticalAlignment: Text.AlignVCenter
-                text: Base58.encode(model.accountId ?? "")
-                font.pixelSize: Theme.typography.secondaryText
-                color: Theme.palette.textMuted
-                elide: Text.ElideMiddle
-            }
-            LogosCopyButton {
-                Layout.alignment: Qt.AlignVCenter
-                value: Base58.encode(model.accountId ?? "")
-                visible: addressLabel.text
+                text: Format.shortenMiddle(Base58.encode(model.accountId ?? ""))
+                copyText: Base58.encode(model.accountId ?? "")
+                textColor: Theme.palette.textMuted
+                visible: copyText.length > 0
             }
         }
 
-        FeedbackButton {
+        LogosButton {
             Layout.fillWidth: true
-            Layout.preferredHeight: 32
             visible: (model.isPublic ?? true) && !model.isInitialized
             enabled: !root.initializing
             text: root.initializing ? qsTr("Initializing…") : qsTr("Initialize")

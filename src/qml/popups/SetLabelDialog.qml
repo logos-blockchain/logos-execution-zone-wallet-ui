@@ -5,9 +5,8 @@ import QtQuick.Layouts
 import Logos.Theme
 import Logos.Controls
 
-import "../controls"
 
-Popup {
+LogosDialog {
     id: root
 
     // Context set by the parent right before open(). Only ever opened for an
@@ -54,11 +53,6 @@ Popup {
 
     anchors.centerIn: parent
 
-    background: Rectangle {
-        color: Theme.palette.backgroundSecondary
-        radius: Theme.spacing.radiusXlarge
-        border.color: Theme.palette.backgroundElevated
-    }
 
     onOpened: {
         labelField.text = ""
@@ -117,9 +111,9 @@ Popup {
             text: qsTr("That label is already in use.")
         }
 
-        LogosText {
+        LogosSelectableText {
             Layout.fillWidth: true
-            wrapMode: Text.WordWrap
+            wrapMode: TextEdit.WordWrap
             font.pixelSize: Theme.typography.secondaryText
             color: Theme.palette.error
             visible: root.saveError.length > 0
@@ -131,12 +125,12 @@ Popup {
             spacing: Theme.spacing.medium
             Layout.fillWidth: true
             Item { Layout.fillWidth: true }
-            FeedbackButton {
+            LogosButton {
                 text: qsTr("Cancel")
                 enabled: !root.saving
                 onClicked: root.close()
             }
-            FeedbackButton {
+            LogosButton {
                 text: root.saving ? qsTr("Saving…") : qsTr("Save")
                 enabled: root.saveEnabled && !root.saving
                 onClicked: {

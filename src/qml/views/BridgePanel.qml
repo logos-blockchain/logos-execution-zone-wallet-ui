@@ -3,7 +3,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 import Logos.Theme
-import Logos.Controls
+
+import "../controls"
 
 Item {
     id: root
@@ -22,24 +23,22 @@ Item {
         anchors.fill: parent
         spacing: Theme.spacing.large
 
-        // Bridge section toggle
-        TabBar {
+        // Bridge section toggle — pill-shaped, so this secondary row reads as a
+        // level below the underlined section bar above it.
+        PillTabBar {
             id: bridgeSectionBar
             Layout.fillWidth: true
             spacing: Theme.spacing.small
             currentIndex: 0
 
-            background: Rectangle {
-                color: Theme.palette.backgroundSecondary
-                radius: Theme.spacing.radiusSmall
-            }
 
-            LogosTabButton {
+            PillTabButton {
                 text: qsTr("Withdraw")
             }
 
-            LogosTabButton {
+            PillTabButton {
                 text: qsTr("Claim Deposit")
+                badgeCount: claimDepositPanel.claimableCount
             }
         }
 
@@ -56,6 +55,7 @@ Item {
             }
 
             ClaimDepositPanel {
+                id: claimDepositPanel
                 claimableAccountModel: root.claimableAccountModel
                 claimPending: root.transferPending
 
