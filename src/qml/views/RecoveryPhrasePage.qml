@@ -5,7 +5,6 @@ import QtQuick.Layouts
 import Logos.Theme
 import Logos.Controls
 
-import "../controls"
 
 Control {
     id: root
@@ -84,7 +83,7 @@ Control {
 
         Item { Layout.fillHeight: true }
 
-        FeedbackButton {
+        LogosButton {
             Layout.alignment: Qt.AlignRight
             text: qsTr("I have saved it")
             font.pixelSize: Theme.typography.secondaryText

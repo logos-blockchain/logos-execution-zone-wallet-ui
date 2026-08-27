@@ -5,9 +5,8 @@ import QtQuick.Layouts
 import Logos.Theme
 import Logos.Controls
 
-import "../controls"
 
-Popup {
+LogosDialog {
     id: root
 
     signal createPublicRequested(bool initializeOnCreate)
@@ -20,11 +19,6 @@ Popup {
 
     anchors.centerIn: parent
 
-    background: Rectangle {
-        color: Theme.palette.backgroundSecondary
-        radius: Theme.spacing.radiusXlarge
-        border.color: Theme.palette.backgroundElevated
-    }
 
     contentItem: ColumnLayout {
         id: contentLayout
@@ -45,15 +39,11 @@ Popup {
             Layout.topMargin: -Theme.spacing.small
         }
 
-        TabBar {
+        LogosTabBar {
             id: tabBar
             Layout.preferredWidth: 200
             currentIndex: 0
 
-            background: Rectangle {
-                color: Theme.palette.backgroundSecondary
-                radius: Theme.spacing.radiusSmall
-            }
 
             LogosTabButton {
                 text: qsTr("Public")
@@ -86,11 +76,11 @@ Popup {
             spacing: Theme.spacing.medium
             Layout.fillWidth: true
             Item { Layout.fillWidth: true }
-            FeedbackButton {
+            LogosButton {
                 text: qsTr("Cancel")
                 onClicked: root.close()
             }
-            FeedbackButton {
+            LogosButton {
                 text: qsTr("Create")
                 onClicked: {
                     if (tabBar.currentIndex === 0)

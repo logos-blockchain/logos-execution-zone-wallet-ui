@@ -39,16 +39,12 @@ Rectangle {
         spacing: Theme.spacing.large
 
         // Main section toggle
-        TabBar {
+        LogosTabBar {
             id: mainSectionBar
             Layout.fillWidth: true
             spacing: Theme.spacing.small
             currentIndex: 0
 
-            background: Rectangle {
-                color: Theme.palette.backgroundSecondary
-                radius: Theme.spacing.radiusSmall
-            }
 
             LogosTabButton {
                 text: qsTr("Transfer")
@@ -112,20 +108,16 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             visible: !root.transferPending
-            LogosText {
+            LogosCopyableText {
                 id: resultText
                 Layout.fillWidth: true
                 text: root.transferResult
-                font.pixelSize: Theme.typography.secondaryText
-                color: root.transferResult.length > 0
-                       ? (root.transferResultIsError ? Theme.palette.error : Theme.palette.textSecondary)
-                       : "transparent"
-                elide: Text.ElideMiddle
-            }
-            LogosCopyButton {
-                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                value: root.transferTxHash || root.transferResult
-                visible: resultText.text
+                copyText: root.transferTxHash || root.transferResult
+                textColor: root.transferResult.length === 0
+                           ? "transparent"
+                           : (root.transferResultIsError ? Theme.palette.error
+                                                         : Theme.palette.textSecondary)
+                showCopyButton: root.transferResult.length > 0
             }
         }
     }
