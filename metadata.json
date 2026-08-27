@@ -1,7 +1,7 @@
 {
   "name": "lez_wallet_ui",
   "display_name": "LEZ Wallet",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "ui_qml",
   "category": "wallet",
   "description": "Execution Zone Wallet UI module for the Logos application",

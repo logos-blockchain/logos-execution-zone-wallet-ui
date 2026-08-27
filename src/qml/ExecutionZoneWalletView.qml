@@ -89,6 +89,7 @@ Rectangle {
     QtObject {
         id: d
         readonly property bool isWalletOpen: backend && backend.isWalletOpen
+        readonly property string walletState: backend ? backend.walletState : "closed"
         onIsWalletOpenChanged: if (root.ready) updateStack(isWalletOpen)
 
         function updateStack(walletOpen) {
@@ -163,23 +164,10 @@ Rectangle {
         Component {
             id: onboardingView
             OnboardingView {
-                storePath: backend ? backend.storagePath : ""
-                configPath: backend ? backend.configPath : ""
-                onCreateWallet: function(configPath, storagePath, password, sequencerUrl) {
-                    if (!backend) return
-                    // createNew() returns an empty string on success, or a
-                    // human-readable error message (e.g. existing files at
-                    // the chosen paths failed to load) otherwise.
-                    logos.watch(backend.createNew(configPath, storagePath, password, sequencerUrl),
-                        function(errorMessage) {
-                            if (errorMessage)
-                                createError = errorMessage
-                        },
-                        function(error) {
-                            createError = qsTr("Error creating wallet: %1").arg(error)
-                        }
-                    )
-                }
+                walletState: backend ? backend.walletState : "closed"
+                walletErrorCode: backend ? backend.walletErrorCode : ""
+                walletError: backend ? backend.walletError : ""
+                onRetryRequested: if (backend) backend.retryWalletOpen()
             }
         }
 
