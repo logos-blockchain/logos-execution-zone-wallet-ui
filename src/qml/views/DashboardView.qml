@@ -19,10 +19,9 @@ Rectangle {
     property bool transferPending: false
     property int lastSyncedBlock: 0
     property int currentBlockHeight: 0
-    property var pendingInitializations: ({})
 
     // --- Public API: output signals (parent connects and calls backend) ---
-    signal createPublicAccountRequested(bool initializeOnCreate)
+    signal createPublicAccountRequested()
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
     signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
@@ -34,7 +33,6 @@ Rectangle {
     signal bridgeWithdrawRequested(string fromAccountId, string bedrockAccountPkHex, string amount)
     signal vaultClaimRequested(string fromAccountId, bool isPublic, string amount)
     signal refreshClaimableDepositsRequested()
-    signal initializeAccountRequested(string accountId)
     signal labelRequested(string accountId, bool isPublic)
 
     color: Theme.palette.background
@@ -52,12 +50,10 @@ Rectangle {
             accountModel: root.accountModel
             lastSyncedBlock: root.lastSyncedBlock
             currentBlockHeight: root.currentBlockHeight
-            pendingInitializations: root.pendingInitializations
 
-            onCreatePublicAccountRequested: (initializeOnCreate) => root.createPublicAccountRequested(initializeOnCreate)
+            onCreatePublicAccountRequested: root.createPublicAccountRequested()
             onCreatePrivateAccountRequested: root.createPrivateAccountRequested()
             onFetchBalancesRequested: root.fetchBalancesRequested()
-            onInitializeAccountRequested: (accountId) => root.initializeAccountRequested(accountId)
             onLabelRequested: (accountId, isPublic) => root.labelRequested(accountId, isPublic)
         }
 
