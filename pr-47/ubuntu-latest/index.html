@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial Execution Report</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #c9d1d9; --muted: #8b949e; --accent: #58a6ff;
+    --pass: #2ea043; --fail: #f85149; --info: #d29922;
+    --code-bg: #0b0f14;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--panel);
+    border-bottom: 1px solid var(--border); padding: 12px 20px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.pass { background: rgba(46,160,67,.15); color: var(--pass); }
+  .pill.fail { background: rgba(248,81,73,.15); color: var(--fail); }
+  .pill.skip { background: rgba(210,153,34,.15); color: var(--info); }
+  select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; }
+  main { max-width: 1600px; margin: 0 auto; padding: 16px; }
+  .tutorial-title { font-size: 20px; font-weight: 700; margin: 24px 0 8px; color: #fff; }
+  .row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; margin: 10px 0; overflow: hidden;
+  }
+  .row.preamble, .row.section { grid-template-columns: 1fr; }
+  .col { padding: 14px 18px; min-width: 0; }
+  .col.left { border-right: 1px solid var(--border); }
+  .row.preamble .col.left, .row.section .col.left { border-right: none; }
+  .col.right { background: var(--panel); }
+  /* A row containing any failed step is tinted red end-to-end so it's
+     impossible to miss when scanning the report. */
+  .row.has-fail { border-color: var(--fail); box-shadow: 0 0 0 1px var(--fail); }
+  .row.has-fail .col.left { background: rgba(248,81,73,.07); border-right-color: var(--fail); }
+  .row.has-fail .col.right { background: rgba(248,81,73,.12); }
+  .col-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+  .md :first-child { margin-top: 0; }
+  .md h1 { font-size: 22px; } .md h2 { font-size: 18px; } .md h3 { font-size: 15px; }
+  .md pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; }
+  .md code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .md :not(pre) > code { background: rgba(110,118,129,.2); padding: .15em .4em; border-radius: 4px; }
+  .md table { border-collapse: collapse; margin: 8px 0; }
+  .md th, .md td { border: 1px solid var(--border); padding: 5px 10px; }
+  .md blockquote { border-left: 3px solid var(--border); margin: 8px 0; padding: 2px 12px; color: var(--muted); }
+  .md img { width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .exec { margin-bottom: 14px; }
+  .exec:last-child { margin-bottom: 0; }
+  .exec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .badge { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 4px; }
+  .badge.pass { background: rgba(46,160,67,.15); color: var(--pass); }
+  .badge.fail { background: rgba(248,81,73,.15); color: var(--fail); }
+  .badge.info { background: rgba(210,153,34,.15); color: var(--info); }
+  .kind { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .note { color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
+  pre.cmd { background: var(--code-bg); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 10px 12px; margin: 0 0 6px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  pre.output { background: #010409; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin: 0; overflow-x: auto; max-height: 360px; overflow-y: auto; color: #b9c1ca; }
+  pre.cmd, pre.output { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; }
+  .empty { color: var(--muted); font-style: italic; font-size: 12.5px; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 12px; margin-bottom: 4px; }
+  /* GitHub-style permalinks: every heading carries a link icon in the left
+     gutter (revealed on hover/focus) that copies a deep link to that section.
+     scroll-margin-top keeps the target clear of the sticky header. */
+  .heading-anchored { position: relative; scroll-margin-top: 76px; }
+  a.anchor {
+    position: absolute; left: -18px; top: 0; width: 16px; height: 1.55em;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--muted); opacity: 0; text-decoration: none;
+    transition: opacity .1s ease-in;
+  }
+  a.anchor svg { width: 14px; height: 14px; display: block; }
+  .heading-anchored:hover > a.anchor, a.anchor:focus { opacity: 1; }
+  a.anchor:hover { color: var(--accent); }
+  .heading-anchored.flash { animation: flash 1.4s ease-out; border-radius: 4px; }
+  @keyframes flash {
+    from { background: rgba(88,166,255,.28); box-shadow: 0 0 0 4px rgba(88,166,255,.28); }
+    to { background: transparent; box-shadow: 0 0 0 4px transparent; }
+  }
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 7px 14px; font-size: 12.5px; z-index: 20;
+    opacity: 0; pointer-events: none; transition: opacity .15s ease-in-out;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Tutorial Execution Report</h1>
+  <span id="summary"></span>
+  <label style="margin-left:auto; font-size:12px; color:var(--muted)">Tutorial
+    <select id="picker"></select>
+  </label>
+</header>
+<main id="main"></main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script id="report-data" type="application/json">{"generated_platform": "Linux", "summary": {"failed": 6, "passed": 3, "skipped": 0}, "tutorials": [{"meta": {"name": "LEZ Wallet onboarding: create, recover the phrase, reopen, and every way it can fail", "platform": "Linux (ext=so)", "release": "(none)"}, "rows": [{"execs": [], "md": "# LEZ Wallet onboarding: create, recover the phrase, reopen, and every way it can fail\n\nThis doc-test drives the `logos-execution-zone-wallet-ui` standalone app\n**headless** through every path a user can take before they reach the wallet\ndashboard, including the failures. It launches the app with\n`QT_QPA_PLATFORM=offscreen` and drives the real QML with\n[`logos-qt-mcp`](https://github.com/logos-co/logos-qt-mcp), so each assertion\ngoes through the actual UI \u2192 `LEZWalletBackend` \u2192 `lez_core` chain.\n\nOnboarding has exactly two ways in, and they are deliberately separate calls:\n\n1. **Create** \u2014 `createNew(password, sequencerAddr)` asks for nothing but a\n   password and a network. The wallet's files go to a location the backend\n   picks, so a first-time user is never asked to name a file that does not yet\n   exist. It returns the recovery phrase, which the UI shows once.\n2. **Open** \u2014 `openExisting(configPath, storagePath)` loads files the user\n   already has. It takes no password (`wallet_ffi_open` has no such parameter)\n   and no sequencer (an existing wallet's sequencer lives in the config file\n   being opened).\n\nNeither call can fall through to the other. That separation is the point of\nthis test: an earlier single `createNew(configPath, storagePath, password,\nsequencerAddr)` chose between creating and opening by testing whether both\nfiles happened to exist, so a mistyped filename silently became a request to\ncreate a new wallet, and the Browse buttons \u2014 which can only select files that\nalready exist \u2014 made the create path unreachable through the UI at all.\n\nEach section relaunches the app against the same isolated data directory, so\nthe returning-user and missing-files paths are exercised as real restarts\nrather than simulated ones.\n\n**What you'll build:** The LEZ wallet UI standalone app, launched headless against an isolated data directory and driven through create, recovery-phrase, reopen and open-existing flows.\n\n**What you'll learn:**\n\n- How the onboarding view separates wallet creation from opening an existing wallet\n- Why the create path never asks the user for a file path\n- How the recovery phrase is surfaced exactly once, and why the dashboard is held back until it is acknowledged\n- How the app recovers when a previously saved wallet has been moved or deleted\n- What each onboarding failure looks like to the user\n\n## Prerequisites\n\n- **Nix** with flakes enabled. Install from [nixos.org](https://nixos.org/download.html), then enable flakes:\n\n```bash\nmkdir -p ~/.config/nix\necho 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf\n```\n\nVerify: `nix flake --help >/dev/null 2>&1 && echo \"Flakes enabled\"`\n\n- **A Linux machine.** The app runs headless via `QT_QPA_PLATFORM=offscreen`, so\nno display is needed. Linux specifically, because the isolation below works by\npointing `XDG_CONFIG_HOME` and `XDG_DATA_HOME` at a scratch directory \u2014\n`QStandardPaths` honours those on Linux but not on macOS, where the run would\ntouch your real wallet data instead."}, {"execs": [], "md": "## Step 1: Build the qt-mcp test driver\n\n[`logos-qt-mcp`](https://github.com/logos-co/logos-qt-mcp) connects to the\napp's QML inspector and drives it. Build it once and link it as\n`./result-mcp`."}, {"execs": [{"cmd": "nix build 'github:logos-co/logos-qt-mcp' -o result-mcp", "exit_code": 0, "kind": "run", "note": "", "output": "unpacking 'github:logos-co/logos-qt-mcp/1fea509485a48ab185fafae8dc21bdbcc808a07e' into the Git cache...\ncopying path '/nix/store/jc3mfa7ybzh32bkvdj5xiib1vkx8jy6x-source' from 'https://cache.nixos.org'...\nthese 28 paths will be fetched (47.6 MiB download, 223.2 MiB unpacked):\n  /nix/store/3apspx5fhyb83153axf1b80ifiklgjbh-acl-2.3.2\n  /nix/store/877drgyy4926ps2qfraaxsd49w90bwiz-attr-2.5.2\n  /nix/store/q7sqwn7i6w2b67adw0bmix29pxg85x3w-bash-5.3p3\n  /nix/store/ddx7976jyll30xjbasghv9jailswprcp-bash-interactive-5.3p3\n  /nix/store/8ksax0a2mxglr5hlkj2dzl556jx7xqn5-coreutils-9.7\n  /nix/store/41ym1jm1b7j3rhglk82gwg9jml26z1km-gcc-14.3.0-lib\n  /nix/store/8zm936ys1dkqv2710j0w09r2mk0kj5n9-gcc-14.3.0-libgcc\n  /nix/store/776irwlgfb65a782cxmyk61pck460fs9-glibc-2.40-66\n  /nix/store/b7pkrm3rv0sydsppr9abs4qsmcm7a4rv-gmp-with-cxx-6.3.0\n  /nix/store/w24hkb1b9v50r3sgpvmk8kwyi04x7imq-icu4c-76.1\n  /nix/store/083x1zrd8rnrkq1plphxvc2vdzgk8dvj-icu4c-76.1-dev\n  /nix/store/wwqyxsvmg41q5ckfvvv6wa50nwvz9dv4-libidn2-2.3.8\n  /nix/store/7ndy5820h69n1pgd13viph1qjq6zhhkj-libunistring-1.3\n  /nix/store/c829k68fsf2pz2hd4acar8plin4dn78z-libuv-1.51.0\n  /nix/store/r5sn5xvbjwr9c3xd56wl5ad06f6x1ggb-libuv-1.51.0-dev\n  /nix/store/f16mglsjvixwawdx65dlc1chgwghv3fm-logos-qt-mcp\n  /nix/store/6zdgga8jx741p46wmx8xyibwz3x3fps6-ncurses-6.5\n  /nix/store/r4557ald6zn4dzmvgh8na9vwnwzgrjgc-nodejs-22.19.0\n  /nix/store/gi615r79j260ihhzdkhrg6qva9wfrbyy-openssl-3.5.1\n  /nix/store/nn4b544v4sanvsf22mjiw3qh8mwh6pzh-openssl-3.5.1-bin\n  /nix/store/qqfiw89h8j4pilcyqapldzq5vf0vqgxy-openssl-3.5.1-dev\n  /nix/store/qiir04g2blvd7nzw501v8h44w4qjyzj2-readline-8.3p1\n  /nix/store/8bsyjdxv61ha88hjrpgl6nyfjxfqnphx-sqlite-3.50.2\n  /nix/store/gmwaym3dwkrb9987z8xg4njl2kmm2dvc-sqlite-3.50.2-bin\n  /nix/store/w3ibvzff0yrpg8abrl8n2fxn0d9fpfpc-sqlite-3.50.2-dev\n  /nix/store/0ja5daq2yay3svg6f48spyfby7pgy5bm-xgcc-14.3.0-libgcc\n  /nix/store/09sifcahf0j1xnw80k9l33jzcs1p2qbw-zlib-1.3.1\n  /nix/store/29mcvdnd9s6sp46cjmqm0pfg4xs56rik-zlib-1.3.1-dev\ncopying path '/nix/store/8zm936ys1dkqv2710j0w09r2mk0kj5n9-gcc-14.3.0-libgcc' from 'https://cache.nixos.org'...\ncopying path '/nix/store/0ja5daq2yay3svg6f48spyfby7pgy5bm-xgcc-14.3.0-libgcc' from 'https://cache.nixos.org'...\ncopying path '/nix/store/7ndy5820h69n1pgd13viph1qjq6zhhkj-libunistring-1.3' from 'https://cache.nixos.org'...\ncopying path '/nix/store/wwqyxsvmg41q5ckfvvv6wa50nwvz9dv4-libidn2-2.3.8' from 'https://cache.nixos.org'...\ncopying path '/nix/store/776irwlgfb65a782cxmyk61pck460fs9-glibc-2.40-66' from 'https://cache.nixos.org'...\ncopying path '/nix/store/877drgyy4926ps2qfraaxsd49w90bwiz-attr-2.5.2' from 'https://cache.nixos.org'...\ncopying path '/nix/store/41ym1jm1b7j3rhglk82gwg9jml26z1km-gcc-14.3.0-lib' from 'https://cache.nixos.org'...\ncopying path '/nix/store/q7sqwn7i6w2b67adw0bmix29pxg85x3w-bash-5.3p3' from 'https://cache.nixos.org'...\ncopying path '/nix/store/c829k68fsf2pz2hd4acar8plin4dn78z-libuv-1.51.0' from 'https://cache.nixos.org'...\ncopying path '/nix/store/6zdgga8jx741p46wmx8xyibwz3x3fps6-ncurses-6.5' from 'https://cache.nixos.org'...\ncopying path '/nix/store/gi615r79j260ihhzdkhrg6qva9wfrbyy-openssl-3.5.1' from 'https://cache.nixos.org'...\ncopying path '/nix/store/09sifcahf0j1xnw80k9l33jzcs1p2qbw-zlib-1.3.1' from 'https://cache.nixos.org'...\ncopying path '/nix/store/3apspx5fhyb83153axf1b80ifiklgjbh-acl-2.3.2' from 'https://cache.nixos.org'...\ncopying path '/nix/store/r5sn5xvbjwr9c3xd56wl5ad06f6x1ggb-libuv-1.51.0-dev' from 'https://cache.nixos.org'...\ncopying path '/nix/store/8bsyjdxv61ha88hjrpgl6nyfjxfqnphx-sqlite-3.50.2' from 'https://cache.nixos.org'...\ncopying path '/nix/store/gmwaym3dwkrb9987z8xg4njl2kmm2dvc-sqlite-3.50.2-bin' from 'https://cache.nixos.org'...\ncopying path '/nix/store/29mcvdnd9s6sp46cjmqm0pfg4xs56rik-zlib-1.3.1-dev' from 'https://cache.nixos.org'...\ncopying path '/nix/store/w3ibvzff0yrpg8abrl8n2fxn0d9fpfpc-sqlite-3.50.2-dev' from 'https://cache.nixos.org'...\ncopying path '/nix/store/nn4b544v4sanvsf22mjiw3qh8mwh6pzh-openssl-3.5.1-bin' from 'https://cache.nixos.org'...\ncopying path '/nix/store/b7pkrm3rv0sydsppr9abs4qsmcm7a4rv-gmp-with-cxx-6.3.0' from 'https://cache.nixos.org'...\ncopying path '/nix/store/w24hkb1b9v50r3sgpvmk8kwyi04x7imq-icu4c-76.1' from 'https://cache.nixos.org'...\ncopying path '/nix/store/8ksax0a2mxglr5hlkj2dzl556jx7xqn5-coreutils-9.7' from 'https://cache.nixos.org'...\ncopying path '/nix/store/qqfiw89h8j4pilcyqapldzq5vf0vqgxy-openssl-3.5.1-dev' from 'https://cache.nixos.org'...\ncopying path '/nix/store/qiir04g2blvd7nzw501v8h44w4qjyzj2-readline-8.3p1' from 'https://cache.nixos.org'...\ncopying path '/nix/store/ddx7976jyll30xjbasghv9jailswprcp-bash-interactive-5.3p3' from 'https://cache.nixos.org'...\ncopying path '/nix/store/083x1zrd8rnrkq1plphxvc2vdzgk8dvj-icu4c-76.1-dev' from 'https://cache.nixos.org'...\ncopying path '/nix/store/r4557ald6zn4dzmvgh8na9vwnwzgrjgc-nodejs-22.19.0' from 'https://cache.nixos.org'...\ncopying path '/nix/store/f16mglsjvixwawdx65dlc1chgwghv3fm-logos-qt-mcp' from 'https://logos-co.cachix.org'...\n", "status": "pass"}], "md": "### 1.1 Build logos-qt-mcp\n\n```bash\nnix build 'github:logos-co/logos-qt-mcp' -o result-mcp\n```"}, {"execs": [], "md": "## Step 2: Isolate the run from your real wallet data\n\nThe backend keeps two pieces of state outside the repo: the saved\nconfig/storage paths in `QSettings`, and the wallet files themselves under\nthe backend's default directory. Both resolve through `QStandardPaths`, so\npointing `XDG_CONFIG_HOME` and `XDG_DATA_HOME` at a scratch directory keeps\nthis run entirely self-contained \u2014 and lets later sections delete the\nwallet on purpose without touching anything of yours.\nPaths that later steps type into the UI live under `/tmp` rather than the\nrun's working directory: `set_text` values are written into the generated\ntest script verbatim, with no shell or variable expansion, so they have to\nbe literal absolute paths."}, {"execs": [{"cmd": "rm -rf /tmp/lez-doctest-empty /tmp/lez-doctest-moved && mkdir -p lez-home/config lez-home/data && echo ok", "exit_code": 0, "kind": "run", "note": "", "output": "ok\n", "status": "pass"}], "md": "### 2.1 Create the scratch data directories\n\n```bash\nrm -rf /tmp/lez-doctest-empty /tmp/lez-doctest-moved && mkdir -p lez-home/config lez-home/data && echo ok\n```"}, {"execs": [], "md": "## Step 3: First run: the create screen, and the two ways to get it wrong\n\nWith nothing saved, the app opens straight on the create screen. There is\nno notice banner \u2014 a genuine first run is not something the user needs to\nbe told about \u2014 and no file paths are requested anywhere on the page.\n\nThe password is validated in the view before any call is made, so both\nvalidation failures are visible without touching the backend."}, {"execs": [{"cmd": "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063 --no-write-lock-file -- --height 1400\n\n# test actions:\n- The app opens on the create screen: wait for ['Create your LEZ Wallet', 'Create Wallet']\n- Let the page transition settle: sleep 1500ms\n- No file paths are requested to create a wallet: expect ['Choose a password and a network. Your wallet files are stored for you.']\n- An empty password is rejected: click 'Create Wallet'\n- The empty-password error is shown: wait for ['Password cannot be empty.']\n- Enter a password: set objectName='lezCreatePasswordField' to 'doctest-passphrase'\n- Enter a different confirmation: set objectName='lezCreateConfirmField' to 'not-the-same'\n- Mismatched passwords are rejected: click 'Create Wallet'\n- The mismatch error is shown: wait for ['Passwords do not match.']\n- Follow \"Open wallet instead\": click objectName='lezOpenInsteadLink'\n- The open screen asks for files, and for nothing else: wait for ['Open an existing wallet', 'Select the storage and config files of a wallet you already have.', 'Storage file', 'Config file']\n- Let the page transition settle: sleep 1500ms\n- Opening with nothing filled in is refused: click 'Open Wallet'\n- The missing-selection error is shown: wait for ['Select both a storage file and a config file.']\n- Point at a storage file that does not exist: set objectName='lezOpenStorageField' to '/tmp/lez-doctest-does-not-exist/storage.json'\n- Point at a config file that does not exist: set objectName='lezOpenConfigField' to '/tmp/lez-doctest-does-not-exist/config.json'\n- Try to open them: click 'Open Wallet'\n- The missing-file error names the path: wait for ['No config file at /tmp/lez-doctest-does-not-exist/config.json.']\n- Go back to the create screen: click 'Back'\n- The create screen is showing again: wait for ['Create your LEZ Wallet']\n- Let the page transition settle: sleep 1500ms\n- Enter a password: set objectName='lezCreatePasswordField' to 'doctest-passphrase'\n- Enter a matching confirmation: set objectName='lezCreateConfirmField' to 'doctest-passphrase'\n- Create the wallet: click 'Create Wallet'\n- The recovery phrase is shown, exactly once: wait for ['Your recovery phrase', 'Write these words down and keep them somewhere safe. This is the only time they will be shown, and anyone who has them can spend your funds.', 'I have saved it']\n- Let the page transition settle: sleep 1500ms\n- Acknowledge the phrase: click 'I have saved it'\n- The dashboard is reached: wait for ['Accounts']", "kind": "ui_test", "note": "app exited (code 1) before inspector opened on port 3768", "output": "unpacking 'github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063' into the Git cache...\nwarning: ignoring untrusted flake configuration setting 'extra-substituters'.\nPass '--accept-flake-config' to trust it\nwarning: ignoring untrusted flake configuration setting 'extra-trusted-public-keys'.\nPass '--accept-flake-config' to trust it\nfatal: couldn't find remote ref refs/heads/erhant/fees-ffi-wiring\nerror:\n       \u2026 while updating the lock file of flake 'github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063'\n\n       \u2026 while updating the flake input 'lez_core'\n\n       \u2026 while fetching the input 'git+https://github.com/logos-blockchain/logos-execution-zone-module?ref=erhant/fees-ffi-wiring'\n\n       error: Failed to fetch git repository 'https://github.com/logos-blockchain/logos-execution-zone-module'", "status": "fail"}], "md": "### 3.1 Launch on a clean profile and exercise the create-form validation\n\n```bash\nXDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063 --no-write-lock-file -- --height 1400\n```\n\nFirst run: no saved wallet, so onboarding starts here.\n\n![The app opens on the create screen](images/onboarding-create-first-run.png)\n\n![The empty-password error is shown](images/onboarding-error-empty-password.png)\n\n![The mismatch error is shown](images/onboarding-error-password-mismatch.png)\n\nNo password field and no network selector: `wallet_ffi_open` takes\nno password, and the sequencer is read from the config file being\nopened. Asking for either would be asking for something the call\ndiscards.\n\n![The open screen asks for files, and for nothing else](images/onboarding-open-existing.png)\n\nNothing is created. A wrong path is an error the user can read and correct.\n\n![The missing-file error names the path](images/onboarding-error-missing-file.png)\n\n`create_new` returns the phrase and `lez_core` has no call to read\nit back, so this render is the only copy the user is ever offered.\nThe wallet is already open behind this page \u2014 the dashboard is\nheld back until the phrase is acknowledged.\n\n![The recovery phrase is shown, exactly once](images/onboarding-recovery-phrase.png)\n\n![The dashboard is reached](images/onboarding-dashboard.png)"}, {"execs": [], "md": "## Step 4: Returning user: the wallet opens without asking anything\n\nThe successful create saved its paths. On the next launch the backend finds\nthem, confirms both files are still on disk, and opens the wallet \u2014 so a\nreturning user reaches the dashboard without being asked anything.\n\nThe view shows a brief loading state first. It has to: whether there is a\nwallet to open is not known until the `lez_core` handshake settles, so\n\"no wallet open\" is an absence of information at that point rather than an\nanswer. Routing it to onboarding would flash the create screen on every\nlaunch and then replace it."}, {"execs": [{"cmd": "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063 --no-write-lock-file -- --height 1400\n\n# test actions:\n- The dashboard opens directly, with no onboarding: wait for ['Accounts']", "kind": "ui_test", "note": "app exited (code 1) before inspector opened on port 3768", "output": "warning: ignoring untrusted flake configuration setting 'extra-substituters'.\nPass '--accept-flake-config' to trust it\nwarning: ignoring untrusted flake configuration setting 'extra-trusted-public-keys'.\nPass '--accept-flake-config' to trust it\nfatal: couldn't find remote ref refs/heads/erhant/fees-ffi-wiring\nerror:\n       \u2026 while updating the lock file of flake 'github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063'\n\n       \u2026 while updating the flake input 'lez_core'\n\n       \u2026 while fetching the input 'git+https://github.com/logos-blockchain/logos-execution-zone-module?ref=erhant/fees-ffi-wiring'\n\n       error: Failed to fetch git repository 'https://github.com/logos-blockchain/logos-execution-zone-module'", "status": "fail"}], "md": "### 4.1 Relaunch against the same profile\n\n```bash\nXDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063 --no-write-lock-file -- --height 1400\n```\n\nNo password prompt: opening a wallet does not take one.\n\n![The dashboard opens directly, with no onboarding](images/onboarding-returning-user.png)"}, {"execs": [], "md": "## Step 5: The saved wallet disappears\n\nMoving or deleting the wallet folder is the case that used to strand\npeople: the saved paths stayed in `QSettings`, the open failed silently on\nevery launch, and the onboarding screen offered the dead paths back as a\nprefill.\n\nNow the backend checks the files exist before it tries to open them, tells\nthe user what happened, and forgets the paths \u2014 naming them in the notice,\nbecause clearing the settings destroys the only other record of where the\nwallet used to be."}, {"execs": [{"cmd": "set -e\nd=\"$(dirname \"$(find lez-home/data -name storage.json | head -1)\")\"\ntest -f \"$d/storage.json\" || { echo \"no wallet was created under lez-home/data\"; exit 1; }\nmv \"$d\" /tmp/lez-doctest-moved\necho moved\n", "exit_code": 1, "kind": "run", "note": "exit code 1", "output": "no wallet was created under lez-home/data\n", "status": "fail"}], "md": "### 5.1 Move the wallet folder aside\n\n```bash\nset -e\nd=\"$(dirname \"$(find lez-home/data -name storage.json | head -1)\")\"\ntest -f \"$d/storage.json\" || { echo \"no wallet was created under lez-home/data\"; exit 1; }\nmv \"$d\" /tmp/lez-doctest-moved\necho moved\n\n```"}, {"execs": [{"cmd": "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063 --no-write-lock-file -- --height 1400\n\n# test actions:\n- The user is told why they are back at onboarding: wait for ['Create your LEZ Wallet']\n- Let the page transition settle: sleep 1500ms\n- The notice is raised: expect objectName='lezNotice' .shown == True\n- The notice can be dismissed: call 'lezNotice'.hide()\n- The notice is gone: expect objectName='lezNotice' .shown == False\n- Open the moved wallet from its new location: click objectName='lezOpenInsteadLink'\n- Let the page transition settle: sleep 1500ms\n- The open screen offers no stale prefill: expect objectName='lezOpenStorageField' .text == ''", "kind": "ui_test", "note": "app exited (code 1) before inspector opened on port 3768", "output": "warning: ignoring untrusted flake configuration setting 'extra-substituters'.\nPass '--accept-flake-config' to trust it\nwarning: ignoring untrusted flake configuration setting 'extra-trusted-public-keys'.\nPass '--accept-flake-config' to trust it\nfatal: couldn't find remote ref refs/heads/erhant/fees-ffi-wiring\nerror:\n       \u2026 while updating the lock file of flake 'github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063'\n\n       \u2026 while updating the flake input 'lez_core'\n\n       \u2026 while fetching the input 'git+https://github.com/logos-blockchain/logos-execution-zone-module?ref=erhant/fees-ffi-wiring'\n\n       error: Failed to fetch git repository 'https://github.com/logos-blockchain/logos-execution-zone-module'", "status": "fail"}], "md": "### 5.2 Relaunch and confirm the notice\n\n```bash\nXDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063 --no-write-lock-file -- --height 1400\n```\n\nThe notice carries both paths, then the saved location is forgotten.\n\n![The user is told why they are back at onboarding](images/onboarding-notice-files-missing.png)\n\nThe forgotten paths are gone from the PROPs too, so they cannot be offered back."}, {"execs": [], "md": "## Step 6: Opening a wallet that exists but cannot be read\n\nTwo files that exist but are not a wallet are the exact shape of the\noriginal bug report: a user created empty `config.json` and `storage.json`\nby hand \u2014 the only way the old file picker would let them proceed \u2014 and the\napp answered by refusing to *load* a wallet they were trying to *create*.\n\nThe create path no longer depends on those files existing, and the open path\nnow reports the failure with the code the FFI actually returned."}, {"execs": [{"cmd": "mkdir -p /tmp/lez-doctest-empty && echo '{}' > /tmp/lez-doctest-empty/config.json && echo '{}' > /tmp/lez-doctest-empty/storage.json && echo ok", "exit_code": 0, "kind": "run", "note": "", "output": "ok\n", "status": "pass"}], "md": "### 6.1 Write two empty JSON files\n\n```bash\nmkdir -p /tmp/lez-doctest-empty && echo '{}' > /tmp/lez-doctest-empty/config.json && echo '{}' > /tmp/lez-doctest-empty/storage.json && echo ok\n```"}, {"execs": [{"cmd": "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063 --no-write-lock-file -- --height 1400\n\n# test actions:\n- Onboarding is showing: wait for ['Create your LEZ Wallet']\n- Let the page transition settle: sleep 1500ms\n- Go to the open screen: click objectName='lezOpenInsteadLink'\n- Let the open screen settle: sleep 1500ms\n- Point at the empty storage file: set objectName='lezOpenStorageField' to '/tmp/lez-doctest-empty/storage.json'\n- Point at the empty config file: set objectName='lezOpenConfigField' to '/tmp/lez-doctest-empty/config.json'\n- Try to open them: click 'Open Wallet'\n- The failure is reported with the FFI error code: wait for ['Could not open the wallet at those paths (error 99).']\n- Editing a path clears the stale error: set objectName='lezOpenStorageField' to '/tmp/lez-doctest-empty/storage2.json'\n- The error is gone: expect objectName='lezOpenError' .shown == False", "kind": "ui_test", "note": "app exited (code 1) before inspector opened on port 3768", "output": "warning: ignoring untrusted flake configuration setting 'extra-substituters'.\nPass '--accept-flake-config' to trust it\nwarning: ignoring untrusted flake configuration setting 'extra-trusted-public-keys'.\nPass '--accept-flake-config' to trust it\nfatal: couldn't find remote ref refs/heads/erhant/fees-ffi-wiring\nerror:\n       \u2026 while updating the lock file of flake 'github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063'\n\n       \u2026 while updating the flake input 'lez_core'\n\n       \u2026 while fetching the input 'git+https://github.com/logos-blockchain/logos-execution-zone-module?ref=erhant/fees-ffi-wiring'\n\n       error: Failed to fetch git repository 'https://github.com/logos-blockchain/logos-execution-zone-module'", "status": "fail"}], "md": "### 6.2 Try to open them\n\n```bash\nXDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063 --no-write-lock-file -- --height 1400\n```\n\nThe user stays on the open screen with an error they can act on.\nNothing was created, and no config file was rewritten.\n\n![The failure is reported with the FFI error code](images/onboarding-error-unreadable-wallet.png)"}, {"execs": [], "md": "## Step 7: Reopening the moved wallet\n\nFinally, the path that proves the open branch really is an open: the wallet\nmoved aside earlier is loaded from its new location, with no password and no\nnetwork selection, and the dashboard comes back."}, {"execs": [{"cmd": "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063 --no-write-lock-file -- --height 1400\n\n# test actions:\n- Onboarding is showing: wait for ['Create your LEZ Wallet']\n- Let the page transition settle: sleep 1500ms\n- Go to the open screen: click objectName='lezOpenInsteadLink'\n- Let the open screen settle: sleep 1500ms\n- Point at the moved storage file: set objectName='lezOpenStorageField' to '/tmp/lez-doctest-moved/storage.json'\n- Point at the moved config file: set objectName='lezOpenConfigField' to '/tmp/lez-doctest-moved/config.json'\n- Open it: click 'Open Wallet'\n- The dashboard is reached: wait for ['Accounts']", "kind": "ui_test", "note": "app exited (code 1) before inspector opened on port 3768", "output": "warning: ignoring untrusted flake configuration setting 'extra-substituters'.\nPass '--accept-flake-config' to trust it\nwarning: ignoring untrusted flake configuration setting 'extra-trusted-public-keys'.\nPass '--accept-flake-config' to trust it\nfatal: couldn't find remote ref refs/heads/erhant/fees-ffi-wiring\nerror:\n       \u2026 while updating the lock file of flake 'github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063'\n\n       \u2026 while updating the flake input 'lez_core'\n\n       \u2026 while fetching the input 'git+https://github.com/logos-blockchain/logos-execution-zone-module?ref=erhant/fees-ffi-wiring'\n\n       error: Failed to fetch git repository 'https://github.com/logos-blockchain/logos-execution-zone-module'", "status": "fail"}], "md": "### 7.1 Open the wallet from its new location\n\n```bash\nXDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui/f4cc69410b5c24fa19482e4e85ba26d8a3693063 --no-write-lock-file -- --height 1400\n```\n\nSame wallet, new location, no recovery phrase shown \u2014 this was an open, not a create.\n\n![The dashboard is reached](images/onboarding-reopened.png)"}]}], "version": 1}</script>
+<script>
+  const DATA = JSON.parse(document.getElementById("report-data").textContent);
+  if (window.marked) { marked.setOptions({ gfm: true, breaks: false }); }
+  const mdToHtml = (s) => window.marked ? marked.parse(s || "") : ("<pre>" + (s || "") + "</pre>");
+
+  const sum = DATA.summary;
+  document.getElementById("summary").innerHTML =
+    `<span class="pill pass">${sum.passed} passed</span> ` +
+    (sum.failed ? `<span class="pill fail">${sum.failed} failed</span> ` : "") +
+    (sum.skipped ? `<span class="pill skip">${sum.skipped} skipped</span>` : "");
+
+  const picker = document.getElementById("picker");
+  DATA.tutorials.forEach((t, i) => {
+    const o = document.createElement("option");
+    o.value = i; o.textContent = t.meta.name; picker.appendChild(o);
+  });
+
+  function execHtml(e) {
+    const badge = `<span class="badge ${e.status}">${e.status.toUpperCase()}</span>`;
+    const kind = `<span class="kind">${e.kind}${e.platform ? " · " + e.platform : ""}${e.exit_code !== undefined ? " · exit " + e.exit_code : ""}</span>`;
+    let h = `<div class="exec"><div class="exec-head">${badge}${kind}</div>`;
+    if (e.note) h += `<div class="note">${escapeHtml(e.note)}</div>`;
+    if (e.cmd) h += `<pre class="cmd">${escapeHtml(e.cmd)}</pre>`;
+    const out = (e.output || "").trim();
+    if (out) {
+      const long = out.split("\n").length > 12;
+      if (long) {
+        h += `<details><summary>output (${out.split("\n").length} lines)</summary><pre class="output">${escapeHtml(out)}</pre></details>`;
+      } else {
+        h += `<pre class="output">${escapeHtml(out)}</pre>`;
+      }
+    }
+    h += `</div>`;
+    return h;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+
+  function render(idx) {
+    const t = DATA.tutorials[idx];
+    const main = document.getElementById("main");
+    main.innerHTML = "";
+    const h = document.createElement("div");
+    h.className = "tutorial-title";
+    h.textContent = t.meta.name + "  —  " + t.meta.platform;
+    main.appendChild(h);
+
+    t.rows.forEach(row => {
+      const isStructural = row.execs.length === 0 &&
+        (/^#\s|^##\s/.test(row.md.trim()));
+      const div = document.createElement("div");
+      const hasExec = row.execs.length > 0;
+      const hasFail = row.execs.some(e => e.status === "fail");
+      div.className = "row" + (hasExec ? "" : (isStructural ? " section" : " preamble")) +
+        (hasFail ? " has-fail" : "");
+
+      const left = document.createElement("div");
+      left.className = "col left";
+      left.innerHTML = `<div class="md">${mdToHtml(row.md)}</div>`;
+      div.appendChild(left);
+
+      if (hasExec || !isStructural) {
+        const right = document.createElement("div");
+        right.className = "col right";
+        if (hasExec) {
+          right.innerHTML = `<div class="col-label">Executed</div>` +
+            row.execs.map(execHtml).join("");
+        } else {
+          right.innerHTML = `<div class="col-label">Executed</div>` +
+            `<div class="empty">No commands run for this step.</div>`;
+        }
+        div.appendChild(right);
+      }
+      main.appendChild(div);
+    });
+
+    addAnchors(main, slug(t.meta.name));
+  }
+
+  function slug(s) {
+    return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+
+  // Octicon "link" — the same glyph GitHub puts next to markdown headings.
+  const LINK_ICON =
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d=' +
+    '"M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 ' +
+    '.75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 ' +
+    '9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 ' +
+    '2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg>';
+
+  // Give every heading a stable slug id (deduplicated the way GitHub does, with
+  // -1/-2 suffixes) and a permalink whose href is "#<tutorial>/<heading>".
+  function addAnchors(container, tutSlug) {
+    const used = new Map();
+    const nodes = container.querySelectorAll(
+      ".tutorial-title, .md h1, .md h2, .md h3, .md h4, .md h5, .md h6"
+    );
+    nodes.forEach(node => {
+      const text = node.textContent.trim();
+      const isTitle = node.classList.contains("tutorial-title");
+      let href = "#" + tutSlug;
+      if (!isTitle) {
+        const base = slug(text) || "section";
+        const n = (used.get(base) || 0) + 1;
+        used.set(base, n);
+        node.id = n > 1 ? base + "-" + n : base;
+        href += "/" + node.id;
+      }
+      node.classList.add("heading-anchored");
+      const a = document.createElement("a");
+      a.className = "anchor";
+      a.href = href;
+      a.title = "Copy link to this section";
+      a.setAttribute("aria-label", "Permalink: " + text);
+      a.innerHTML = LINK_ICON;
+      node.insertBefore(a, node.firstChild);
+    });
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 1600);
+  }
+
+  // navigator.clipboard needs a secure context; reports are often opened over
+  // file://, so fall back to the old execCommand path there.
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(
+        () => toast("Link copied"),
+        () => toast(text)
+      );
+      return;
+    }
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    toast(ok ? "Link copied" : text);
+  }
+
+  function scrollToId(id) {
+    if (!id) { window.scrollTo(0, 0); return; }
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ block: "start" });
+    el.classList.remove("flash");
+    void el.offsetWidth;  // restart the animation on a repeat click
+    el.classList.add("flash");
+  }
+
+  document.addEventListener("click", ev => {
+    const a = ev.target.closest && ev.target.closest("a.anchor");
+    if (!a) return;
+    ev.preventDefault();
+    const href = a.getAttribute("href");
+    copyText(location.href.split("#")[0] + href);
+    if (location.hash === href) scrollToId(a.parentNode.id);
+    else location.hash = href;  // hashchange scrolls
+  });
+
+  // "#<tutorial>" (name, slug, or index) optionally followed by "/<heading>".
+  function parseHash() {
+    const raw = decodeURIComponent(location.hash.replace(/^#/, ""));
+    if (!raw) return { idx: 0, frag: "" };
+    const cut = raw.indexOf("/");
+    const tut = cut >= 0 ? raw.slice(0, cut) : raw;
+    const frag = cut >= 0 ? raw.slice(cut + 1) : "";
+    if (/^\d+$/.test(tut) && +tut < DATA.tutorials.length) return { idx: +tut, frag };
+    const i = DATA.tutorials.findIndex(
+      t => slug(t.meta.name) === tut || t.meta.name === tut
+    );
+    if (i >= 0) return { idx: i, frag };
+    // No tutorial matched: treat a bare hash as a heading in the current one.
+    return { idx: currentIdx >= 0 ? currentIdx : 0, frag: cut >= 0 ? frag : raw };
+  }
+
+  let currentIdx = -1;
+  function show(idx, frag) {
+    if (idx !== currentIdx) {
+      picker.value = idx;
+      render(idx);
+      currentIdx = idx;
+    }
+    if (frag) requestAnimationFrame(() => scrollToId(frag));
+  }
+  picker.addEventListener("change", () => {
+    location.hash = slug(DATA.tutorials[+picker.value].meta.name);
+    show(+picker.value);
+  });
+  window.addEventListener("hashchange", () => {
+    const h = parseHash();
+    show(h.idx, h.frag);
+  });
+  const initial = parseHash();
+  show(initial.idx, initial.frag);
+  // Inlined screenshots have no intrinsic size until decoded, so the first
+  // scroll can land short; re-anchor once everything has loaded.
+  if (initial.frag) {
+    window.addEventListener("load", () => scrollToId(initial.frag), { once: true });
+  }
+</script>
+</body>
+</html>
