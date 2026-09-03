@@ -14,6 +14,7 @@ Rectangle {
     readonly property var accountModel: logos.model("lez_wallet_ui", "accountModel")
     readonly property var publicAccountModel: logos.model("lez_wallet_ui", "filteredAccountModel")
     readonly property var privateAccountModel: logos.model("lez_wallet_ui", "privateAccountModel")
+    readonly property var recipientAccountModel: logos.model("lez_wallet_ui", "recipientAccountModel")
     readonly property var claimableAccountModel: logos.model("lez_wallet_ui", "claimableAccountModel")
     property bool ready: false
 
@@ -290,6 +291,7 @@ Rectangle {
                 accountModel: root.accountModel
                 publicAccountModel: root.publicAccountModel
                 privateAccountModel: root.privateAccountModel
+                recipientAccountModel: root.recipientAccountModel
                 claimableAccountModel: root.claimableAccountModel
                 lastSyncedBlock: backend ? backend.lastSyncedBlock : 0
                 currentBlockHeight: backend ? backend.currentBlockHeight : 0
@@ -300,13 +302,13 @@ Rectangle {
                     // runs after creation. The account is claimed by its first funded
                     // transfer, so there is nothing else to chase here.
                     logos.watch(backend.createAccountPublic(),
-                        function(_id) { /* ignored */ },
+                        null,
                         function(error) { console.warn("createAccountPublic failed:", error) })
                 }
                 onCreatePrivateAccountRequested: {
                     if (!backend) { console.warn("backend is null"); return }
                     logos.watch(backend.createAccountPrivate(),
-                        function(_id) { /* ignored */ },
+                        null,
                         function(error) { console.warn("createAccountPrivate failed:", error) })
                 }
                 onFetchBalancesRequested: {

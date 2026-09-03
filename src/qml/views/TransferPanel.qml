@@ -13,6 +13,7 @@ Rectangle {
     // --- Public API: data in ---
     property var publicAccountModel: null
     property var privateAccountModel: null
+    property var recipientAccountModel: null
     property var claimableAccountModel: null
     property string transferResult: ""
     property string transferTxHash: ""
@@ -63,6 +64,7 @@ Rectangle {
             TransferTypesPanel {
                 publicAccountModel: root.publicAccountModel
                 privateAccountModel: root.privateAccountModel
+                recipientAccountModel: root.recipientAccountModel
                 transferPending: root.transferPending
 
                 onTransferPublicRequested: (fromId, toAddress, amount) => root.transferPublicRequested(fromId, toAddress, amount)

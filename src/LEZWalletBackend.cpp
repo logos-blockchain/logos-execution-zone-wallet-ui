@@ -112,6 +112,7 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
       m_accountModel(new LEZWalletAccountModel(this)),
       m_filteredAccountModel(new LEZAccountFilterModel(this)),
       m_privateAccountModel(new LEZAccountFilterModel(this)),
+      m_recipientAccountModel(new LEZAccountFilterModel(this)),
       m_claimableAccountModel(new LEZClaimableAccountFilterModel(this)),
       m_logosAPI(logosAPI ? logosAPI : new LogosAPI("lez_wallet_ui", this)),
       m_logos(new LogosModules(m_logosAPI))
@@ -125,6 +126,9 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     m_privateAccountModel->setFilterByPublic(false);
     m_privateAccountModel->setOnlyInitialized(true);
     m_privateAccountModel->setSourceModel(m_accountModel);
+    // Public "to" picker: unclaimed accounts stay in, because sending to one is
+    // exactly what claims it. Only the "from" side needs onlyInitialized.
+    m_recipientAccountModel->setSourceModel(m_accountModel);
     m_claimableAccountModel->setSourceModel(m_accountModel);
 
     // Initialise PROP defaults via the generated setters.

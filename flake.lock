@@ -804,11 +804,11 @@
         "nix-bundle-lgx": "nix-bundle-lgx_31"
       },
       "locked": {
-        "lastModified": 1788436161,
-        "narHash": "sha256-Eey31VcVP5CRQAJlakYF7UgSq6LJ8F/7TLUrwIKuZEQ=",
+        "lastModified": 1788464647,
+        "narHash": "sha256-4YuY74SVygHmVri7fa1eAWrVHJDelDH6Ht4rclchvQk=",
         "ref": "erhant/wallet-fees-wiring",
-        "rev": "f9089f0aec0e309db812d94cb09ecbb1147c1191",
-        "revCount": 119,
+        "rev": "0012c4d4e5370a1f3e3259039bd95e08ac8ce10e",
+        "revCount": 120,
         "type": "git",
         "url": "https://github.com/logos-blockchain/logos-execution-zone-module"
       },
