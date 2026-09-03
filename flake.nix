@@ -10,7 +10,8 @@
   inputs = {
     logos-module-builder.url = "github:logos-co/logos-module-builder";
     nix-bundle-lgx.url = "github:logos-co/nix-bundle-lgx";
-    lez_core.url = "github:logos-blockchain/logos-execution-zone-module";
+    # FIXME: pinned to the fees FFI wiring branch; re-pin to main once merged upstream.
+    lez_core.url = "git+https://github.com/logos-blockchain/logos-execution-zone-module?ref=erhant/wallet-fees-wiring";
   };
 
   outputs = inputs@{ logos-module-builder, ... }:

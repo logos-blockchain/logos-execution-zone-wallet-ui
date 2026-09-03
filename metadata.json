@@ -1,7 +1,7 @@
 {
   "name": "lez_wallet_ui",
   "display_name": "LEZ Wallet",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "ui_qml",
   "category": "wallet",
   "description": "Execution Zone Wallet UI module for the Logos application",
@@ -9,18 +9,11 @@
   "main": "lez_wallet_ui_plugin",
   "icon": "src/icons/lez_wallet.png",
   "view": "qml/ExecutionZoneWalletView.qml",
-  "dependencies": [
-    "lez_core"
-  ],
+  "dependencies": ["lez_core"],
   "nix": {
     "packages": {
       "build": [],
-      "runtime": [
-        "qt6.qtdeclarative",
-        "zstd",
-        "krb5",
-        "abseil-cpp"
-      ]
+      "runtime": ["qt6.qtdeclarative", "zstd", "krb5", "abseil-cpp"]
     },
     "external_libraries": [],
     "cmake": {

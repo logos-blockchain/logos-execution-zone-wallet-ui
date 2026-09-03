@@ -21,6 +21,7 @@ class LEZWalletBackend : public LEZWalletBackendSimpleSource {
     Q_PROPERTY(LEZWalletAccountModel* accountModel READ accountModel CONSTANT)
     Q_PROPERTY(LEZAccountFilterModel* filteredAccountModel READ filteredAccountModel CONSTANT)
     Q_PROPERTY(LEZAccountFilterModel* privateAccountModel READ privateAccountModel CONSTANT)
+    Q_PROPERTY(LEZAccountFilterModel* recipientAccountModel READ recipientAccountModel CONSTANT)
     Q_PROPERTY(LEZClaimableAccountFilterModel* claimableAccountModel READ claimableAccountModel CONSTANT)
 
 public:
@@ -30,6 +31,7 @@ public:
     LEZWalletAccountModel* accountModel() const { return m_accountModel; }
     LEZAccountFilterModel* filteredAccountModel() const { return m_filteredAccountModel; }
     LEZAccountFilterModel* privateAccountModel() const { return m_privateAccountModel; }
+    LEZAccountFilterModel* recipientAccountModel() const { return m_recipientAccountModel; }
     LEZClaimableAccountFilterModel* claimableAccountModel() const { return m_claimableAccountModel; }
 
 public slots:
@@ -41,7 +43,6 @@ public slots:
     void refreshBalances() override;
     QString getPublicAccountKey(QString accountIdHex) override;
     QString getPrivateAccountKeys(QString accountIdHex) override;
-    QString initializeAccount(QString accountIdHex) override;
     bool syncToBlock(quint64 blockId) override;
     QString transferPublic(QString fromHex, QString toHex, QString amountStr) override;
     QString transferPrivate(QString fromHex, QString toHex, QString amountStr) override;
@@ -88,6 +89,7 @@ private:
     LEZWalletAccountModel* m_accountModel;
     LEZAccountFilterModel* m_filteredAccountModel;
     LEZAccountFilterModel* m_privateAccountModel;
+    LEZAccountFilterModel* m_recipientAccountModel;
     LEZClaimableAccountFilterModel* m_claimableAccountModel;
 
     LogosAPI* m_logosAPI;

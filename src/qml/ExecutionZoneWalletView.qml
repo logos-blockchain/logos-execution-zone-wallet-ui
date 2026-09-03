@@ -14,11 +14,9 @@ Rectangle {
     readonly property var accountModel: logos.model("lez_wallet_ui", "accountModel")
     readonly property var publicAccountModel: logos.model("lez_wallet_ui", "filteredAccountModel")
     readonly property var privateAccountModel: logos.model("lez_wallet_ui", "privateAccountModel")
+    readonly property var recipientAccountModel: logos.model("lez_wallet_ui", "recipientAccountModel")
     readonly property var claimableAccountModel: logos.model("lez_wallet_ui", "claimableAccountModel")
     property bool ready: false
-    // Maps accountId -> true while that account's initializeAccount() call is in flight,
-    // so AccountDelegate can show the click was registered instead of appearing inert.
-    property var pendingInitializations: ({})
 
     Connections {
         target: logos
@@ -49,6 +47,9 @@ Rectangle {
             14: qsTr("Serialization error"),
             15: qsTr("Invalid type conversion"),
             16: qsTr("Invalid key value"),
+            17: qsTr("Invalid program bytecode"),
+            // Fee-admission refusal: distinct from 9, which is the transfer amount check.
+            18: qsTr("Insufficient balance to cover the transaction fee"),
             99: qsTr("Internal error")
         })
         function format(errorMessage) {
@@ -290,27 +291,24 @@ Rectangle {
                 accountModel: root.accountModel
                 publicAccountModel: root.publicAccountModel
                 privateAccountModel: root.privateAccountModel
+                recipientAccountModel: root.recipientAccountModel
                 claimableAccountModel: root.claimableAccountModel
                 lastSyncedBlock: backend ? backend.lastSyncedBlock : 0
                 currentBlockHeight: backend ? backend.currentBlockHeight : 0
-                pendingInitializations: root.pendingInitializations
 
-                onCreatePublicAccountRequested: (initializeOnCreate) => {
+                onCreatePublicAccountRequested: {
                     if (!backend) { console.warn("backend is null"); return }
                     // accountModel updates via NOTIFY when the backend's refreshAccounts()
-                    // runs after creation; the id is only needed to chase it with an
-                    // initializeAccount() call when the user asked for that.
+                    // runs after creation. The account is claimed by its first funded
+                    // transfer, so there is nothing else to chase here.
                     logos.watch(backend.createAccountPublic(),
-                        function(id) {
-                            if (initializeOnCreate && id)
-                                dashboardView.initializeAccount(id)
-                        },
+                        null,
                         function(error) { console.warn("createAccountPublic failed:", error) })
                 }
                 onCreatePrivateAccountRequested: {
                     if (!backend) { console.warn("backend is null"); return }
                     logos.watch(backend.createAccountPrivate(),
-                        function(_id) { /* ignored */ },
+                        null,
                         function(error) { console.warn("createAccountPrivate failed:", error) })
                 }
                 onFetchBalancesRequested: {
@@ -425,44 +423,10 @@ Rectangle {
                     if (!backend) return
                     backend.refreshVaultBalances()  // void slot, fire-and-forget
                 }
-                onInitializeAccountRequested: (accountId) => dashboardView.initializeAccount(accountId)
                 onLabelRequested: (accountId, isPublic) => {
                     setLabelDialog.accountId = accountId
                     setLabelDialog.isPublic = isPublic
                     setLabelDialog.open()
-                }
-
-                // Shared by the manual Initialize button (onInitializeAccountRequested)
-                // and initialize-on-create (onCreatePublicAccountRequested above). Public
-                // accounts only: initialization requires authorization, so it's always a
-                // manual init signed by the owner. Private accounts don't need this.
-                function initializeAccount(accountId) {
-                    if (!backend) return
-                    // Reassign (not mutate) so the pendingInitializations binding
-                    // propagated down to each AccountDelegate re-evaluates.
-                    var pending = Object.assign({}, root.pendingInitializations)
-                    pending[accountId] = true
-                    root.pendingInitializations = pending
-                    function clearPending() {
-                        var updated = Object.assign({}, root.pendingInitializations)
-                        delete updated[accountId]
-                        root.pendingInitializations = updated
-                    }
-                    // Same {success, tx_hash, error} shape as the transfer/vaultClaim
-                    // slots below, so it gets the same result-panel feedback. The
-                    // accountModel's tag updates via NOTIFY once the backend
-                    // refreshes accounts after a successful initialization.
-                    logos.watch(backend.initializeAccount(accountId),
-                        function(raw) {
-                            clearPending()
-                            ffiErrors.applyTransferResult(dashboardView, raw)
-                        },
-                        function(error) {
-                            clearPending()
-                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
-                            dashboardView.transferResultIsError = true
-                            dashboardView.transferTxHash = ""
-                        })
                 }
             }
         }

@@ -25,7 +25,9 @@ public:
     ~LEZWalletPlugin() override;
 
     QString name()    const override { return "lez_wallet_ui"; }
-    QString version() const override { return "1.0.1"; }
+    // metadata.json is authoritative — the host reads the version from there,
+    // not from here. Keep in sync.
+    QString version() const override { return "1.1.1"; }
 
     // Called by ui-host after plugin load. Creates the backend and wires
     // it up with the provided LogosAPI.

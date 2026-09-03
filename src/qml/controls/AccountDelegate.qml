@@ -10,23 +10,10 @@ import "../Format.js" as Format
 ItemDelegate {
     id: root
 
-    // Emitted when the user clicks "Initialize" on an uninitialized account. The
-    // parent wires this to backend.initializeAccount(...) — AccountDelegate doesn't
-    // reach into the global QML scope for `backend` since it now lives behind the
-    // logos.module() bridge in the parent view. Public-only: public account
-    // initialization requires
-    // authorization, so it requires a manual init signed by the owner. Private
-    // accounts don't need authorization to initialize, so they never need this button.
-    signal initializeRequested(string accountId)
-
     // Emitted when the user clicks "Add label", so the parent can open
     // SetLabelDialog for this account. Only reachable for unlabeled accounts —
     // the wallet core has no way to rename or remove a label once added.
     signal labelRequested(string accountId, bool isPublic)
-
-    // Set by the parent while this account's initializeAccount() call is in flight,
-    // so the button can show it took the click instead of appearing to do nothing.
-    property bool initializing: false
 
     leftPadding: Theme.spacing.medium
     rightPadding: Theme.spacing.medium
@@ -91,7 +78,10 @@ ItemDelegate {
             }
 
             LogosBadge {
-                text: model.isInitialized ? qsTr("Initialized") : qsTr("Uninitialized")
+                // A public account is claimed by its first funded transfer (fees
+                // rule out a bare init); private ones initialize on first use.
+                text: model.isInitialized ? qsTr("Initialized")
+                    : (model.isPublic ?? true) ? qsTr("Unclaimed · fund to claim") : qsTr("Uninitialized")
                 color: model.isInitialized ? Theme.palette.success : Theme.palette.warning
             }
 
@@ -109,14 +99,6 @@ ItemDelegate {
                 textColor: Theme.palette.textMuted
                 visible: copyText.length > 0
             }
-        }
-
-        LogosButton {
-            Layout.fillWidth: true
-            visible: (model.isPublic ?? true) && !model.isInitialized
-            enabled: !root.initializing
-            text: root.initializing ? qsTr("Initializing…") : qsTr("Initialize")
-            onClicked: root.initializeRequested(model.accountId ?? "")
         }
     }
 }
