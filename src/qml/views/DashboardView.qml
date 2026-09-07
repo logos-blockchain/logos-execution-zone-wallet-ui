@@ -13,7 +13,6 @@ Rectangle {
     property var publicAccountModel: null
     property var privateAccountModel: null
     property var recipientAccountModel: null
-    property var claimableAccountModel: null
     property string transferResult: ""
     property string transferTxHash: ""
     property bool transferResultIsError: false
@@ -32,8 +31,6 @@ Rectangle {
     signal transferShieldedOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal transferDeshieldedRequested(string fromAccountId, string toAccountId, string amount)
     signal bridgeWithdrawRequested(string fromAccountId, string bedrockAccountPkHex, string amount)
-    signal vaultClaimRequested(string fromAccountId, bool isPublic, string amount)
-    signal refreshClaimableDepositsRequested()
     signal labelRequested(string accountId, bool isPublic)
 
     color: Theme.palette.background
@@ -65,7 +62,6 @@ Rectangle {
             publicAccountModel: root.publicAccountModel
             privateAccountModel: root.privateAccountModel
             recipientAccountModel: root.recipientAccountModel
-            claimableAccountModel: root.claimableAccountModel
             transferResult: root.transferResult
             transferTxHash: root.transferTxHash
             transferResultIsError: root.transferResultIsError
@@ -78,8 +74,6 @@ Rectangle {
             onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) => root.transferShieldedOwnedRequested(fromId, toAccountId, amount)
             onTransferDeshieldedRequested: (fromId, toAccountId, amount) => root.transferDeshieldedRequested(fromId, toAccountId, amount)
             onBridgeWithdrawRequested: (fromId, bedrockAccountPkHex, amount) => root.bridgeWithdrawRequested(fromId, bedrockAccountPkHex, amount)
-            onVaultClaimRequested: (fromId, isPublic, amount) => root.vaultClaimRequested(fromId, isPublic, amount)
-            onRefreshClaimableDepositsRequested: root.refreshClaimableDepositsRequested()
         }
     }
 }

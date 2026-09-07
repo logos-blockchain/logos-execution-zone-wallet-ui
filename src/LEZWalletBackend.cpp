@@ -113,7 +113,6 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
       m_filteredAccountModel(new LEZAccountFilterModel(this)),
       m_privateAccountModel(new LEZAccountFilterModel(this)),
       m_recipientAccountModel(new LEZAccountFilterModel(this)),
-      m_claimableAccountModel(new LEZClaimableAccountFilterModel(this)),
       m_logosAPI(logosAPI ? logosAPI : new LogosAPI("lez_wallet_ui", this)),
       m_logos(new LogosModules(m_logosAPI))
 {
@@ -129,7 +128,6 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     // Public "to" picker: unclaimed accounts stay in, because sending to one is
     // exactly what claims it. Only the "from" side needs onlyInitialized.
     m_recipientAccountModel->setSourceModel(m_accountModel);
-    m_claimableAccountModel->setSourceModel(m_accountModel);
 
     // Initialise PROP defaults via the generated setters.
     setIsWalletOpen(false);
@@ -562,45 +560,6 @@ QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QSt
 QString LEZWalletBackend::bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount)
 {
     return m_logos->lez_core.bridge_withdraw(fromHex, bedrockAccountPkHex, amount);
-}
-
-QString LEZWalletBackend::getVaultBalance(const QString& accountIdHex)
-{
-    return m_logos->lez_core.get_vault_balance(accountIdHex);
-}
-
-void LEZWalletBackend::refreshVaultBalances()
-{
-    if (!m_accountModel) return;
-    for (int i = 0; i < m_accountModel->count(); ++i) {
-        const QModelIndex idx = m_accountModel->index(i, 0);
-        const QString addr = m_accountModel->data(idx, LEZWalletAccountModel::AccountIdRole).toString();
-        const QString vaultBal = getVaultBalance(addr);
-        if (!vaultBal.isEmpty())
-            m_accountModel->setVaultBalanceByAccountId(addr, vaultBal);
-    }
-}
-
-QString LEZWalletBackend::vaultClaim(QString fromHex, bool isPublic, QString amountStr)
-{
-    const QString amountHex = amountToLe16Hex(amountStr);
-    if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    // Don't trust the caller-supplied isPublic — the account model is the source of
-    // truth for which accounts the wallet owns and whether each is public or private.
-    const bool actuallyPublic = m_accountModel
-        ? m_accountModel->isPublicAccount(fromHex, isPublic)
-        : isPublic;
-    if (actuallyPublic)
-        return m_logos->lez_core.vault_claim(fromHex, amountHex);
-
-    // vault_claim_private generates a proof, like transfer_private/transfer_shielded
-    // above — go through invokeRemoteMethod with NO_TIMEOUT instead of the generated
-    // accessor, which applies the SDK's default 20s Timeout and returns before the
-    // proof is actually done and the tx submitted.
-    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
-        LEZ_MODULE, "vault_claim_private",
-        QVariantList{fromHex.trimmed(), amountHex},
-        NO_TIMEOUT).toString();
 }
 
 void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr)

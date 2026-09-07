@@ -14,7 +14,6 @@ struct LEZWalletAccountEntry {
     QString name;
     QString accountId;
     QString balance;
-    QString vaultBalance; // claimable balance held in this account's bridge vault PDA
     bool isPublic = true;
     QString sectionKey;
     QString keysJson; // {nullifier_public_key, viewing_public_key} shared by the whole section; private only
@@ -38,7 +37,6 @@ public:
         NameRole = Qt::UserRole + 1,
         AccountIdRole,
         BalanceRole,
-        VaultBalanceRole,
         IsPublicRole,
         SectionKeyRole,
         KeysJsonRole,
@@ -56,7 +54,6 @@ public:
 
     void replaceFromVariantList(const QVariantList& list);
     void setBalanceByAccountId(const QString& accountId, const QString& balance);
-    void setVaultBalanceByAccountId(const QString& accountId, const QString& vaultBalance);
     void setInitializedByAccountId(const QString& accountId, bool isInitialized);
     int count() const { return m_entries.size(); }
 

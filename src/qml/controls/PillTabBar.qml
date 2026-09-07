@@ -26,13 +26,13 @@ import Logos.Controls
 //         id: bar
 //         Layout.fillWidth: true
 //         PillTabButton { text: qsTr("Withdraw") }
-//         PillTabButton { text: qsTr("Claim Deposit") }
+//         PillTabButton { text: qsTr("Deposit") }
 //     }
 //
 //     StackLayout {
 //         currentIndex: bar.currentIndex
 //         WithdrawPanel {}
-//         ClaimDepositPanel {}
+//         DepositPanel {}
 //     }
 LogosTabBar {
     id: root

@@ -26,7 +26,6 @@ QVariant LEZWalletAccountModel::data(const QModelIndex& index, int role) const
     case NameRole:    return e.name;
     case AccountIdRole:  return e.accountId;
     case BalanceRole: return e.balance;
-    case VaultBalanceRole: return e.vaultBalance;
     case IsPublicRole: return e.isPublic;
     case SectionKeyRole: return e.sectionKey;
     case KeysJsonRole: return e.keysJson;
@@ -43,7 +42,6 @@ QHash<int, QByteArray> LEZWalletAccountModel::roleNames() const
         { NameRole,    "name"    },
         { AccountIdRole, "accountId" },
         { BalanceRole, "balance" },
-        { VaultBalanceRole, "vaultBalance" },
         { IsPublicRole, "isPublic" },
         { SectionKeyRole, "sectionKey" },
         { KeysJsonRole, "keysJson" },
@@ -55,14 +53,14 @@ QHash<int, QByteArray> LEZWalletAccountModel::roleNames() const
 
 void LEZWalletAccountModel::replaceFromVariantList(const QVariantList& list)
 {
-    // Rebuilding from scratch loses any balance/vaultBalance already fetched for an
-    // account that's still present — carry those over so periodic re-listing (e.g. to
-    // pick up newly discovered private accounts) doesn't make the claimable list and
-    // balances flicker empty until the next refresh repopulates them.
-    QHash<QString, QPair<QString, QString>> previousBalances;
+    // Rebuilding from scratch loses any balance already fetched for an account that's
+    // still present — carry it over so periodic re-listing (e.g. to pick up newly
+    // discovered private accounts) doesn't make balances flicker empty until the next
+    // refresh repopulates them.
+    QHash<QString, QString> previousBalances;
     previousBalances.reserve(m_entries.size());
     for (const LEZWalletAccountEntry& e : m_entries)
-        previousBalances.insert(e.accountId, qMakePair(e.balance, e.vaultBalance));
+        previousBalances.insert(e.accountId, e.balance);
 
     beginResetModel();
     int oldCount = m_entries.size();
@@ -89,10 +87,8 @@ void LEZWalletAccountModel::replaceFromVariantList(const QVariantList& list)
             e.sectionKey = PublicSectionKey;
         }
         const auto previous = previousBalances.find(e.accountId);
-        if (previous != previousBalances.end()) {
-            e.balance = previous->first;
-            e.vaultBalance = previous->second;
-        }
+        if (previous != previousBalances.end())
+            e.balance = previous.value();
         m_entries.append(e);
     }
     // Keep entries grouped by section (public first) so consecutive rows of the same
@@ -122,20 +118,6 @@ void LEZWalletAccountModel::setBalanceByAccountId(const QString& accountId, cons
                 m_entries[i].balance = balance;
                 QModelIndex idx = index(i, 0);
                 emit dataChanged(idx, idx, { BalanceRole });
-            }
-            return;
-        }
-    }
-}
-
-void LEZWalletAccountModel::setVaultBalanceByAccountId(const QString& accountId, const QString& vaultBalance)
-{
-    for (int i = 0; i < m_entries.size(); ++i) {
-        if (m_entries.at(i).accountId == accountId) {
-            if (m_entries.at(i).vaultBalance != vaultBalance) {
-                m_entries[i].vaultBalance = vaultBalance;
-                QModelIndex idx = index(i, 0);
-                emit dataChanged(idx, idx, { VaultBalanceRole });
             }
             return;
         }

@@ -15,7 +15,6 @@ Rectangle {
     readonly property var publicAccountModel: logos.model("lez_wallet_ui", "filteredAccountModel")
     readonly property var privateAccountModel: logos.model("lez_wallet_ui", "privateAccountModel")
     readonly property var recipientAccountModel: logos.model("lez_wallet_ui", "recipientAccountModel")
-    readonly property var claimableAccountModel: logos.model("lez_wallet_ui", "claimableAccountModel")
     property bool ready: false
 
     Connections {
@@ -292,7 +291,6 @@ Rectangle {
                 publicAccountModel: root.publicAccountModel
                 privateAccountModel: root.privateAccountModel
                 recipientAccountModel: root.recipientAccountModel
-                claimableAccountModel: root.claimableAccountModel
                 lastSyncedBlock: backend ? backend.lastSyncedBlock : 0
                 currentBlockHeight: backend ? backend.currentBlockHeight : 0
 
@@ -401,27 +399,6 @@ Rectangle {
                             dashboardView.transferResultIsError = true
                             dashboardView.transferTxHash = ""
                         })
-                }
-                onVaultClaimRequested: (fromId, isPublic, amount) => {
-                    if (!backend) return
-                    dashboardView.transferPending = !isPublic
-                    logos.watch(backend.vaultClaim(fromId, isPublic, amount),
-                        function(raw) {
-                            dashboardView.transferPending = false
-                            ffiErrors.applyTransferResult(dashboardView, raw)
-                            backend.refreshVaultBalances()
-                            backend.refreshBalances()
-                        },
-                        function(error) {
-                            dashboardView.transferPending = false
-                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
-                            dashboardView.transferResultIsError = true
-                            dashboardView.transferTxHash = ""
-                        })
-                }
-                onRefreshClaimableDepositsRequested: {
-                    if (!backend) return
-                    backend.refreshVaultBalances()  // void slot, fire-and-forget
                 }
                 onLabelRequested: (accountId, isPublic) => {
                     setLabelDialog.accountId = accountId

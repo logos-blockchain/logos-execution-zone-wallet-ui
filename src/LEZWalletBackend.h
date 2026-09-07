@@ -7,7 +7,6 @@
 #include "rep_LEZWalletBackend_source.h"
 
 #include "LEZAccountFilterModel.h"
-#include "LEZClaimableAccountFilterModel.h"
 #include "LEZWalletAccountModel.h"
 
 class LogosAPI;
@@ -22,7 +21,6 @@ class LEZWalletBackend : public LEZWalletBackendSimpleSource {
     Q_PROPERTY(LEZAccountFilterModel* filteredAccountModel READ filteredAccountModel CONSTANT)
     Q_PROPERTY(LEZAccountFilterModel* privateAccountModel READ privateAccountModel CONSTANT)
     Q_PROPERTY(LEZAccountFilterModel* recipientAccountModel READ recipientAccountModel CONSTANT)
-    Q_PROPERTY(LEZClaimableAccountFilterModel* claimableAccountModel READ claimableAccountModel CONSTANT)
 
 public:
     explicit LEZWalletBackend(LogosAPI* logosAPI = nullptr, QObject* parent = nullptr);
@@ -32,7 +30,6 @@ public:
     LEZAccountFilterModel* filteredAccountModel() const { return m_filteredAccountModel; }
     LEZAccountFilterModel* privateAccountModel() const { return m_privateAccountModel; }
     LEZAccountFilterModel* recipientAccountModel() const { return m_recipientAccountModel; }
-    LEZClaimableAccountFilterModel* claimableAccountModel() const { return m_claimableAccountModel; }
 
 public slots:
     // Overrides of the pure-virtual slots generated from the .rep.
@@ -51,8 +48,6 @@ public slots:
     QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr) override;
     QString transferDeshielded(QString fromHex, QString toHex, QString amountStr) override;
     QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount) override;
-    void refreshVaultBalances() override;
-    QString vaultClaim(QString fromHex, bool isPublic, QString amountStr) override;
     QString createNew(QString password, QString sequencerAddr) override;
     QString openExisting(QString configPath, QString storagePath) override;
     void copyToClipboard(QString text) override;
@@ -75,7 +70,6 @@ private:
     QVariantList buildEnrichedAccountList();
 
     void updateBalances();
-    QString getVaultBalance(const QString& accountIdHex);
     void refreshSequencerAddr();
     void saveWallet();
     void openIfPathsConfigured(int attempt = 0);
@@ -90,7 +84,6 @@ private:
     LEZAccountFilterModel* m_filteredAccountModel;
     LEZAccountFilterModel* m_privateAccountModel;
     LEZAccountFilterModel* m_recipientAccountModel;
-    LEZClaimableAccountFilterModel* m_claimableAccountModel;
 
     LogosAPI* m_logosAPI;
     LogosModules* m_logos;

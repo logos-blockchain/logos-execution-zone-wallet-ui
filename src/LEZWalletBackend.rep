@@ -29,9 +29,6 @@ class LEZWalletBackend
 
     SLOT(QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount))
 
-    SLOT(void refreshVaultBalances())
-    SLOT(QString vaultClaim(QString fromHex, bool isPublic, QString amountStr))
-
     SLOT(QString createNew(QString password, QString sequencerAddr))
     SLOT(QString openExisting(QString configPath, QString storagePath))
 

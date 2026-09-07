@@ -804,11 +804,11 @@
         "nix-bundle-lgx": "nix-bundle-lgx_31"
       },
       "locked": {
-        "lastModified": 1788464647,
-        "narHash": "sha256-4YuY74SVygHmVri7fa1eAWrVHJDelDH6Ht4rclchvQk=",
+        "lastModified": 1788805196,
+        "narHash": "sha256-z12Y+7Zogqt694GXOtV+OLSn3FhJjB4tYLz++DiZYWw=",
         "ref": "erhant/wallet-fees-wiring",
-        "rev": "0012c4d4e5370a1f3e3259039bd95e08ac8ce10e",
-        "revCount": 120,
+        "rev": "8fc01d9a4f04951ce84af916b825833987debc74",
+        "revCount": 121,
         "type": "git",
         "url": "https://github.com/logos-blockchain/logos-execution-zone-module"
       },
@@ -11262,17 +11262,17 @@
         "rust-rapidsnark": "rust-rapidsnark"
       },
       "locked": {
-        "lastModified": 1788420414,
-        "narHash": "sha256-2Hp+qCNXaPi6ewWot7Q76rsZJ4Mk1qt7zQSFyYckiNo=",
+        "lastModified": 1788769902,
+        "narHash": "sha256-e8WCmxsmKAfc2ivw9QqOL1DsNQ0dzAs2Knsvr3el6dk=",
         "owner": "logos-blockchain",
         "repo": "logos-execution-zone",
-        "rev": "b3283d38c367b40e7fe6ac6ce72ed485604a9e31",
+        "rev": "74cc3e4824952b08bbe6e7f029e32e4b692810b9",
         "type": "github"
       },
       "original": {
         "owner": "logos-blockchain",
+        "ref": "v0.2.5-rc1",
         "repo": "logos-execution-zone",
-        "rev": "b3283d38c367b40e7fe6ac6ce72ed485604a9e31",
         "type": "github"
       }
     },
