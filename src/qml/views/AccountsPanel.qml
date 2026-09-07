@@ -16,14 +16,11 @@ Rectangle {
     property var accountModel: null
     property int lastSyncedBlock: 0
     property int currentBlockHeight: 0
-    // Maps accountId -> true while that account's initializeAccount() call is in flight.
-    property var pendingInitializations: ({})
 
     // --- Public API: signals out ---
-    signal createPublicAccountRequested(bool initializeOnCreate)
+    signal createPublicAccountRequested()
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
-    signal initializeAccountRequested(string accountId)
     signal labelRequested(string accountId, bool isPublic)
 
     radius: Theme.spacing.radiusXlarge
@@ -31,7 +28,7 @@ Rectangle {
 
     CreateAccountDialog {
         id: createAccountDialog
-        onCreatePublicRequested: (initializeOnCreate) => root.createPublicAccountRequested(initializeOnCreate)
+        onCreatePublicRequested: root.createPublicAccountRequested()
         onCreatePrivateRequested: root.createPrivateAccountRequested()
     }
 
@@ -239,8 +236,6 @@ Rectangle {
 
                 AccountDelegate {
                     Layout.fillWidth: true
-                    initializing: root.pendingInitializations[model.accountId] === true
-                    onInitializeRequested: (accountId) => root.initializeAccountRequested(accountId)
                     onLabelRequested: (accountId, isPublic) => root.labelRequested(accountId, isPublic)
                 }
             }

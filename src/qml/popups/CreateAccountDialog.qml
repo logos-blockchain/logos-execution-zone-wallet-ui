@@ -9,7 +9,7 @@ import Logos.Controls
 LogosDialog {
     id: root
 
-    signal createPublicRequested(bool initializeOnCreate)
+    signal createPublicRequested()
     signal createPrivateRequested()
 
     modal: true
@@ -64,11 +64,13 @@ LogosDialog {
             Layout.fillWidth: true
         }
 
-        LogosCheckbox {
-            id: initializeOnCreateCheck
-            checked: true
-            text: qsTr("Initialize on creation")
+        LogosText {
             visible: tabBar.currentIndex === 0
+            text: qsTr("A new public account is claimed by its first funded transfer: send tokens to it from a funded account.")
+            font.pixelSize: Theme.typography.secondaryText
+            color: Theme.palette.textMuted
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
         }
 
         RowLayout {
@@ -84,7 +86,7 @@ LogosDialog {
                 text: qsTr("Create")
                 onClicked: {
                     if (tabBar.currentIndex === 0)
-                        root.createPublicRequested(initializeOnCreateCheck.checked)
+                        root.createPublicRequested()
                     else
                         root.createPrivateRequested()
                     root.close()

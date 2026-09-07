@@ -18,7 +18,6 @@ class LEZWalletBackend
     SLOT(void refreshBalances())
     SLOT(QString getPublicAccountKey(QString accountIdHex))
     SLOT(QString getPrivateAccountKeys(QString accountIdHex))
-    SLOT(QString initializeAccount(QString accountIdHex))
     SLOT(bool syncToBlock(quint64 blockId))
 
     SLOT(QString transferPublic(QString fromHex, QString toHex, QString amountStr))
@@ -29,9 +28,6 @@ class LEZWalletBackend
     SLOT(QString transferDeshielded(QString fromHex, QString toHex, QString amountStr))
 
     SLOT(QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount))
-
-    SLOT(void refreshVaultBalances())
-    SLOT(QString vaultClaim(QString fromHex, bool isPublic, QString amountStr))
 
     SLOT(QString createNew(QString password, QString sequencerAddr))
     SLOT(QString openExisting(QString configPath, QString storagePath))

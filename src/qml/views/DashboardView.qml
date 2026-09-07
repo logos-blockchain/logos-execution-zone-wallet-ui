@@ -12,17 +12,16 @@ Rectangle {
     property var accountModel: null
     property var publicAccountModel: null
     property var privateAccountModel: null
-    property var claimableAccountModel: null
+    property var recipientAccountModel: null
     property string transferResult: ""
     property string transferTxHash: ""
     property bool transferResultIsError: false
     property bool transferPending: false
     property int lastSyncedBlock: 0
     property int currentBlockHeight: 0
-    property var pendingInitializations: ({})
 
     // --- Public API: output signals (parent connects and calls backend) ---
-    signal createPublicAccountRequested(bool initializeOnCreate)
+    signal createPublicAccountRequested()
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
     signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
@@ -32,9 +31,6 @@ Rectangle {
     signal transferShieldedOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal transferDeshieldedRequested(string fromAccountId, string toAccountId, string amount)
     signal bridgeWithdrawRequested(string fromAccountId, string bedrockAccountPkHex, string amount)
-    signal vaultClaimRequested(string fromAccountId, bool isPublic, string amount)
-    signal refreshClaimableDepositsRequested()
-    signal initializeAccountRequested(string accountId)
     signal labelRequested(string accountId, bool isPublic)
 
     color: Theme.palette.background
@@ -52,12 +48,10 @@ Rectangle {
             accountModel: root.accountModel
             lastSyncedBlock: root.lastSyncedBlock
             currentBlockHeight: root.currentBlockHeight
-            pendingInitializations: root.pendingInitializations
 
-            onCreatePublicAccountRequested: (initializeOnCreate) => root.createPublicAccountRequested(initializeOnCreate)
+            onCreatePublicAccountRequested: root.createPublicAccountRequested()
             onCreatePrivateAccountRequested: root.createPrivateAccountRequested()
             onFetchBalancesRequested: root.fetchBalancesRequested()
-            onInitializeAccountRequested: (accountId) => root.initializeAccountRequested(accountId)
             onLabelRequested: (accountId, isPublic) => root.labelRequested(accountId, isPublic)
         }
 
@@ -67,7 +61,7 @@ Rectangle {
             Layout.fillHeight: true
             publicAccountModel: root.publicAccountModel
             privateAccountModel: root.privateAccountModel
-            claimableAccountModel: root.claimableAccountModel
+            recipientAccountModel: root.recipientAccountModel
             transferResult: root.transferResult
             transferTxHash: root.transferTxHash
             transferResultIsError: root.transferResultIsError
@@ -80,8 +74,6 @@ Rectangle {
             onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) => root.transferShieldedOwnedRequested(fromId, toAccountId, amount)
             onTransferDeshieldedRequested: (fromId, toAccountId, amount) => root.transferDeshieldedRequested(fromId, toAccountId, amount)
             onBridgeWithdrawRequested: (fromId, bedrockAccountPkHex, amount) => root.bridgeWithdrawRequested(fromId, bedrockAccountPkHex, amount)
-            onVaultClaimRequested: (fromId, isPublic, amount) => root.vaultClaimRequested(fromId, isPublic, amount)
-            onRefreshClaimableDepositsRequested: root.refreshClaimableDepositsRequested()
         }
     }
 }

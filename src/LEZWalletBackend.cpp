@@ -82,9 +82,9 @@ namespace {
     // An account is uninitialized until some program claims it (program_owner goes
     // from all-zero to that program's ID) — see DEFAULT_PROGRAM_ID in the execution
     // zone's state machine. Accounts this wallet creates are only ever claimed by the
-    // authenticated-transfer program (via an explicit init or as a side effect of
-    // receiving a transfer to a still-unclaimed account), so "non-zero owner" is
-    // enough to show as initialized without needing that program's ID here.
+    // authenticated-transfer program, as a side effect of receiving their first
+    // funded transfer (under fees a bare init can't pay for itself, so there is no
+    // explicit init), so "non-zero owner" is enough to show as initialized here.
     bool accountJsonIsInitialized(const QString& accountJson) {
         const QJsonDocument doc = QJsonDocument::fromJson(accountJson.toUtf8());
         if (!doc.isObject())
@@ -112,19 +112,22 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
       m_accountModel(new LEZWalletAccountModel(this)),
       m_filteredAccountModel(new LEZAccountFilterModel(this)),
       m_privateAccountModel(new LEZAccountFilterModel(this)),
-      m_claimableAccountModel(new LEZClaimableAccountFilterModel(this)),
+      m_recipientAccountModel(new LEZAccountFilterModel(this)),
       m_logosAPI(logosAPI ? logosAPI : new LogosAPI("lez_wallet_ui", this)),
       m_logos(new LogosModules(m_logosAPI))
 {
     // Both feed the transfer/withdraw "from"/"to" account-picker combo boxes, where an
-    // uninitialized account isn't a usable sender or recipient — unlike m_accountModel
-    // (unfiltered), which AccountsPanel needs to keep showing them on for initialization.
+    // uninitialized account isn't a usable sender — unlike m_accountModel (unfiltered),
+    // which AccountsPanel shows so an unclaimed account's id can be copied and funded
+    // (pasted into the manual "To" field), which is what claims it.
     m_filteredAccountModel->setOnlyInitialized(true);
     m_filteredAccountModel->setSourceModel(m_accountModel);
     m_privateAccountModel->setFilterByPublic(false);
     m_privateAccountModel->setOnlyInitialized(true);
     m_privateAccountModel->setSourceModel(m_accountModel);
-    m_claimableAccountModel->setSourceModel(m_accountModel);
+    // Public "to" picker: unclaimed accounts stay in, because sending to one is
+    // exactly what claims it. Only the "from" side needs onlyInitialized.
+    m_recipientAccountModel->setSourceModel(m_accountModel);
 
     // Initialise PROP defaults via the generated setters.
     setIsWalletOpen(false);
@@ -407,9 +410,8 @@ void LEZWalletBackend::updateBalances()
 
         // Initialization is one-way (program_owner never reverts to zero), so once an
         // account is known initialized there's no need to keep re-checking it here.
-        // Pending accounts get re-checked on every balance refresh so the "Initialize"
-        // tag catches up once the registration tx lands in a block, without requiring
-        // another manual Initialize click.
+        // Pending accounts get re-checked on every balance refresh so the "Unclaimed"
+        // tag catches up once the claiming (first funded) transfer lands in a block.
         const bool alreadyInitialized = m_accountModel->data(idx, LEZWalletAccountModel::IsInitializedRole).toBool();
         if (!alreadyInitialized) {
             const QString accountJson = isPub
@@ -472,20 +474,6 @@ QString LEZWalletBackend::getPublicAccountKey(QString accountIdHex)
 QString LEZWalletBackend::getPrivateAccountKeys(QString accountIdHex)
 {
     return m_logos->lez_core.get_private_account_keys(accountIdHex);
-}
-
-QString LEZWalletBackend::initializeAccount(QString accountIdHex)
-{
-    // Public accounts only: public account initialization requires authorization,
-    // so it needs a manual init signed by the owner. Private accounts don't require
-    // authorization to initialize, so they never go through here. Registration is a
-    // plain public tx (like transferPublic, no proof needed), so the generated
-    // accessor's default timeout is fine.
-    // sendTransaction only waits for mempool acceptance, not block inclusion, so the
-    // account is never actually initialized yet by the time this returns — no point
-    // triggering a full (blinking) account-list rebuild here. updateBalances() picks
-    // up the is_initialized flip later, without a full reset, once the tx confirms.
-    return m_logos->lez_core.register_public_account(accountIdHex);
 }
 
 bool LEZWalletBackend::syncToBlock(quint64 blockId)
@@ -572,45 +560,6 @@ QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QSt
 QString LEZWalletBackend::bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount)
 {
     return m_logos->lez_core.bridge_withdraw(fromHex, bedrockAccountPkHex, amount);
-}
-
-QString LEZWalletBackend::getVaultBalance(const QString& accountIdHex)
-{
-    return m_logos->lez_core.get_vault_balance(accountIdHex);
-}
-
-void LEZWalletBackend::refreshVaultBalances()
-{
-    if (!m_accountModel) return;
-    for (int i = 0; i < m_accountModel->count(); ++i) {
-        const QModelIndex idx = m_accountModel->index(i, 0);
-        const QString addr = m_accountModel->data(idx, LEZWalletAccountModel::AccountIdRole).toString();
-        const QString vaultBal = getVaultBalance(addr);
-        if (!vaultBal.isEmpty())
-            m_accountModel->setVaultBalanceByAccountId(addr, vaultBal);
-    }
-}
-
-QString LEZWalletBackend::vaultClaim(QString fromHex, bool isPublic, QString amountStr)
-{
-    const QString amountHex = amountToLe16Hex(amountStr);
-    if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    // Don't trust the caller-supplied isPublic — the account model is the source of
-    // truth for which accounts the wallet owns and whether each is public or private.
-    const bool actuallyPublic = m_accountModel
-        ? m_accountModel->isPublicAccount(fromHex, isPublic)
-        : isPublic;
-    if (actuallyPublic)
-        return m_logos->lez_core.vault_claim(fromHex, amountHex);
-
-    // vault_claim_private generates a proof, like transfer_private/transfer_shielded
-    // above — go through invokeRemoteMethod with NO_TIMEOUT instead of the generated
-    // accessor, which applies the SDK's default 20s Timeout and returns before the
-    // proof is actually done and the tx submitted.
-    return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
-        LEZ_MODULE, "vault_claim_private",
-        QVariantList{fromHex.trimmed(), amountHex},
-        NO_TIMEOUT).toString();
 }
 
 void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr)

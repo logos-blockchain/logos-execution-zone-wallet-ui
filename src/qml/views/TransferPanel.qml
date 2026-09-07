@@ -13,13 +13,13 @@ Rectangle {
     // --- Public API: data in ---
     property var publicAccountModel: null
     property var privateAccountModel: null
-    property var claimableAccountModel: null
+    property var recipientAccountModel: null
     property string transferResult: ""
     property string transferTxHash: ""
     property bool transferResultIsError: false
     property bool transferPending: false
 
-    // --- Public API: signals out (match backend: transfer_public, transfer_private, transfer_private_owned, transfer_shielded, transfer_shielded_owned, transfer_deshielded, bridge_withdraw, vault_claim) ---
+    // --- Public API: signals out (match backend: transfer_public, transfer_private, transfer_private_owned, transfer_shielded, transfer_shielded_owned, transfer_deshielded, bridge_withdraw) ---
     signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
     signal transferPrivateRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
     signal transferPrivateOwnedRequested(string fromAccountId, string toAccountId, string amount)
@@ -27,8 +27,6 @@ Rectangle {
     signal transferShieldedOwnedRequested(string fromAccountId, string toAccountId, string amount)
     signal transferDeshieldedRequested(string fromAccountId, string toAccountId, string amount)
     signal bridgeWithdrawRequested(string fromAccountId, string bedrockAccountPkHex, string amount)
-    signal vaultClaimRequested(string fromAccountId, bool isPublic, string amount)
-    signal refreshClaimableDepositsRequested()
 
     radius: Theme.spacing.radiusXlarge
     color: Theme.palette.backgroundSecondary
@@ -63,6 +61,7 @@ Rectangle {
             TransferTypesPanel {
                 publicAccountModel: root.publicAccountModel
                 privateAccountModel: root.privateAccountModel
+                recipientAccountModel: root.recipientAccountModel
                 transferPending: root.transferPending
 
                 onTransferPublicRequested: (fromId, toAddress, amount) => root.transferPublicRequested(fromId, toAddress, amount)
@@ -75,12 +74,9 @@ Rectangle {
 
             BridgePanel {
                 publicAccountModel: root.publicAccountModel
-                claimableAccountModel: root.claimableAccountModel
                 transferPending: root.transferPending
 
                 onBridgeWithdrawRequested: (fromId, bedrockAccountPkHex, amount) => root.bridgeWithdrawRequested(fromId, bedrockAccountPkHex, amount)
-                onVaultClaimRequested: (fromId, isPublic, amount) => root.vaultClaimRequested(fromId, isPublic, amount)
-                onRefreshClaimableDepositsRequested: root.refreshClaimableDepositsRequested()
             }
         }
 

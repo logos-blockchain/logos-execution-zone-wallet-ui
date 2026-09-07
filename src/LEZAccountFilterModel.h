@@ -15,10 +15,11 @@ public:
     bool filterByPublic() const { return m_filterByPublic; }
     void setFilterByPublic(bool value);
 
-    // When true, uninitialized accounts are excluded. Used for the account-picker
-    // combo boxes (transfer/withdraw "from"/"to" fields) where an uninitialized
-    // account can't yet be a valid sender or recipient — as opposed to AccountsPanel's
-    // unfiltered accountModel, which must keep showing them so the user can initialize.
+    // When true, unclaimed accounts are excluded. Used for the account-picker combo
+    // boxes (transfer/withdraw "from"/"to" fields): an unclaimed account can't sign
+    // or pay fees, so it is never a valid sender. AccountsPanel's unfiltered
+    // accountModel keeps showing them so an unclaimed account's id can be copied and
+    // funded — the first funded transfer is what claims it.
     bool onlyInitialized() const { return m_onlyInitialized; }
     void setOnlyInitialized(bool value);
 
