@@ -10,7 +10,9 @@
   inputs = {
     logos-module-builder.url = "github:logos-co/logos-module-builder";
     nix-bundle-lgx.url = "github:logos-co/nix-bundle-lgx";
-    lez_core.url = "github:logos-blockchain/logos-execution-zone-module";
+    # TODO: repoint to github:logos-blockchain/logos-execution-zone-module once
+    # logos-execution-zone-module#56 is merged.
+    lez_core.url = "git+https://github.com/logos-blockchain/logos-execution-zone-module?ref=erhant/wire-payer-ffi-changes";
   };
 
   outputs = inputs@{ logos-module-builder, ... }:
