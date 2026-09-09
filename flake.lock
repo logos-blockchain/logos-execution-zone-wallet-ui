@@ -804,18 +804,17 @@
         "nix-bundle-lgx": "nix-bundle-lgx_31"
       },
       "locked": {
-        "lastModified": 1788877417,
-        "narHash": "sha256-0nMoO5KabWDKQAlrkeXwj10sossCPH7andTBrNEKDgU=",
-        "ref": "erhant/wire-payer-ffi-changes",
-        "rev": "a3198c6d41dd04df2fdc0590673eed8f5613d8d0",
-        "revCount": 120,
-        "type": "git",
-        "url": "https://github.com/logos-blockchain/logos-execution-zone-module"
+        "lastModified": 1788970422,
+        "narHash": "sha256-/mDw8fJlR3+gp7LOGbhdGrBUuJ1Pg9Uv7H4gpO2F89A=",
+        "owner": "logos-blockchain",
+        "repo": "logos-execution-zone-module",
+        "rev": "0ea57f8a1c57539d6ee0961a9cd27b064685b9e8",
+        "type": "github"
       },
       "original": {
-        "ref": "erhant/wire-payer-ffi-changes",
-        "type": "git",
-        "url": "https://github.com/logos-blockchain/logos-execution-zone-module"
+        "owner": "logos-blockchain",
+        "repo": "logos-execution-zone-module",
+        "type": "github"
       }
     },
     "logos-blockchain-circuits": {
@@ -11262,17 +11261,17 @@
         "rust-rapidsnark": "rust-rapidsnark"
       },
       "locked": {
-        "lastModified": 1788865394,
-        "narHash": "sha256-tskG+mFg/tUwhqt1yPscGYlbIttIvdBusPIuH5Owykc=",
+        "lastModified": 1788941221,
+        "narHash": "sha256-dGk5HYsGmmhrfAkY4jhAES4g2QAtwYWNNekkoMUtEBk=",
         "owner": "logos-blockchain",
         "repo": "logos-execution-zone",
-        "rev": "e1b594c520d3b97d819fd7d070d67aebf26cbd50",
+        "rev": "d8596eb734bf9c9ce801afb92df06098a2eb098a",
         "type": "github"
       },
       "original": {
         "owner": "logos-blockchain",
+        "ref": "v0.2.5-rc2",
         "repo": "logos-execution-zone",
-        "rev": "e1b594c520d3b97d819fd7d070d67aebf26cbd50",
         "type": "github"
       }
     },
