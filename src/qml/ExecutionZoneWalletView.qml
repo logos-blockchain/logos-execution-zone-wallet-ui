@@ -210,9 +210,6 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: bottomNotice.shown
-            ? bottomNotice.height + Theme.spacing.large * 2
-            : 0
 
         Component {
             id: loadingView

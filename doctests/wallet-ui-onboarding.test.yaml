@@ -10,16 +10,19 @@ intro: |
   [`logos-qt-mcp`](https://github.com/logos-co/logos-qt-mcp), so each assertion
   goes through the actual UI → `LEZWalletBackend` → `lez_core` chain.
 
-  Onboarding has exactly two ways in, and they are deliberately separate calls:
+  Onboarding is a welcome screen and then a stepped wizard. The first step asks
+  the only question that changes what follows — create, or open something you
+  already have — and the two answers are deliberately separate backend calls:
 
   1. **Create** — `createNew(password, sequencerAddr)` asks for nothing but a
-     password and a network. The wallet's files go to a location the backend
-     picks, so a first-time user is never asked to name a file that does not yet
-     exist. It returns the recovery phrase, which the UI shows once.
+     network and a password, one per step. The wallet's files go to a location
+     the backend picks, so a first-time user is never asked to name a file that
+     does not yet exist. It returns the recovery phrase, which the UI shows once.
   2. **Open** — `openExisting(configPath, storagePath)` loads files the user
      already has. It takes no password (`wallet_ffi_open` has no such parameter)
      and no sequencer (an existing wallet's sequencer lives in the config file
-     being opened).
+     being opened), so the open route's two file pickers appear inline under its
+     card and the wizard ends there.
 
   Neither call can fall through to the other. That separation is the point of
   this test: an earlier single `createNew(configPath, storagePath, password,
@@ -32,10 +35,10 @@ intro: |
   the returning-user and missing-files paths are exercised as real restarts
   rather than simulated ones.
 
-what_you_build: "The LEZ wallet UI standalone app, launched headless against an isolated data directory and driven through create, recovery-phrase, reopen and open-existing flows."
+what_you_build: "The LEZ wallet UI standalone app, launched headless against an isolated data directory and driven through the welcome screen, the setup wizard, and the create, recovery-phrase, reopen and open-existing flows."
 
 what_you_learn:
-  - How the onboarding view separates wallet creation from opening an existing wallet
+  - How the setup wizard separates wallet creation from opening an existing wallet, on its first step
   - Why the create path never asks the user for a file path
   - How the recovery phrase is surfaced exactly once, and why the dashboard is held back until it is acknowledged
   - How the app recovers when a previously saved wallet has been moved or deleted
@@ -88,32 +91,37 @@ sections:
         run: "rm -rf /tmp/lez-doctest-empty /tmp/lez-doctest-moved && mkdir -p lez-home/config lez-home/data && echo ok"
         check_file: "lez-home/data"
 
-  - title: "First run: the create screen, and the two ways to get it wrong"
+  - title: "First run: the wizard, and the two ways to get the password wrong"
     step: true
     text: |
-      With nothing saved, the app opens straight on the create screen. There is
-      no notice banner — a genuine first run is not something the user needs to
-      be told about — and no file paths are requested anywhere on the page.
+      With nothing saved, the app opens on the welcome screen: the wallet's name
+      over a photograph and one way in. There is no notice banner — a genuine
+      first run is not something the user needs to be told about — and no file
+      paths are requested anywhere on the create route.
+
+      Behind it, the wizard's four steps are **Setup · Network · Password ·
+      Keys**. Only the footer can advance, so each step is gated in exactly one
+      place: the button goes dead and states the reason beside it.
 
       The password is validated in the view before any call is made, so both
       validation failures are visible without touching the backend.
     steps:
-      - title: "Launch on a clean profile and exercise the create-form validation"
+      - title: "Launch on a clean profile and exercise the wizard's validation"
         ui_test:
           launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
           tests:
-            - name: "The app opens on the create screen"
+            - name: "The app opens on the welcome screen"
               action: wait_for
-              texts: ["Create your LEZ Wallet", "Create Wallet"]
+              texts: ["LEZ Wallet", "Set up your wallet"]
               timeout: 60000
               text: "First run: no saved wallet, so onboarding starts here."
-              screenshot: "onboarding-create-first-run.png"
+              screenshot: "onboarding-welcome-first-run.png"
 
             # Onboarding shows the loading page until the lez_core handshake
-            # settles, then animates to the create page. A text assertion passes
+            # settles, then animates to the welcome page. A text assertion passes
             # as soon as the item exists, which is mid-transition -- the driver
             # would read a button's position and click where it no longer is.
             # Every page change below gets the same pause, for the same reason.
@@ -121,9 +129,186 @@ sections:
               action: sleep
               ms: 1500
 
-            - name: "No file paths are requested to create a wallet"
+            - name: "Enter setup"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezSetUpWalletButton"
+
+            # The wizard is a StackLayout, so every step stays instantiated: a
+            # text assertion passes even while another step is showing, which
+            # makes it useless as a synchronisation point. Every navigation below
+            # is therefore settle-then-assert, and the real proof is the step's
+            # own visibility, which StackLayout drives from currentIndex.
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+
+            - name: "The first step asks the only question that changes the route"
+              action: wait_for
+              texts:
+                - "How do you want to start?"
+                - "Create a new wallet"
+                - "I already have a wallet"
+              timeout: 15000
+              text: |
+                Create and open differ in what they commit you to, not just in a
+                value, so each gets a card with room to say what picking it means
+                rather than a radio label.
+              screenshot: "onboarding-setup-step.png"
+
+            - name: "…and it is the step actually showing"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOnboardingSetupStep"
+              property: "visible"
+              value: true
+
+            - name: "Create is picked for you"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezSetupCreateCard"
+              property: "selected"
+              value: true
+              text: |
+                The common arrival here is someone with no wallet, so the create
+                route is preselected and the step is already satisfied — one
+                click on the footer, rather than a choice that has to be made
+                before the wizard will move at all.
+            - name: "so the wizard can advance straight away"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
+              property: "enabled"
+              value: true
+
+            # ── The open-existing branch, which lives on this same step ──
+            - name: "Pick \"I already have a wallet\""
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezSetupExistingCard"
+            - name: "The file pickers appear inline, and nothing else is asked for"
+              action: wait_for
+              texts:
+                - "Point to your files"
+                - "Storage file"
+                - "Config file"
+              timeout: 15000
+              text: |
+                No password field and no network selector: `wallet_ffi_open` takes
+                no password, and the sequencer is read from the config file being
+                opened. Asking for either would be asking for something the call
+                discards — which is also why this route ends the wizard here
+                instead of walking on through Network and Password.
+              screenshot: "onboarding-open-existing.png"
+
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+
+            - name: "With nothing filled in, the open is not offered"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
+              property: "enabled"
+              value: false
+              text: |
+                The old open screen accepted the click and answered with "Select
+                both a storage file and a config file." The gate is the same
+                contract, moved: the button states its condition instead of
+                waiting to reject you.
+            - name: "and the footer names the missing thing"
               action: expect_texts
-              texts: ["Choose a password and a network. Your wallet files are stored for you."]
+              texts: ["Choose your wallet files to continue"]
+
+            - name: "Point at a storage file that does not exist"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenStorageField"
+              value: "/tmp/lez-doctest-does-not-exist/storage.json"
+            - name: "Point at a config file that does not exist"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenConfigField"
+              value: "/tmp/lez-doctest-does-not-exist/config.json"
+            - name: "Try to open them"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
+            - name: "The missing-file error names the path"
+              action: wait_for
+              texts: ["No config file at /tmp/lez-doctest-does-not-exist/config.json."]
+              timeout: 20000
+              text: "Nothing is created. A wrong path is an error the user can read and correct."
+              screenshot: "onboarding-error-missing-file.png"
+
+            # No "Back" needed: both routes are on this one step, so switching is
+            # a click on the other card.
+            - name: "Switch to the create route"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezSetupCreateCard"
+            - name: "Let the selection settle"
+              action: sleep
+              ms: 800
+            - name: "The wizard will advance now"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
+              property: "enabled"
+              value: true
+
+            - name: "Continue to the network step"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+            - name: "The network step asks for a sequencer"
+              action: wait_for
+              texts:
+                - "Select your network"
+                - "Your wallet submits transactions through a sequencer. Pick one of the presets, or enter your own."
+              timeout: 15000
+              text: |
+                Its own step because the answer is written into the wallet's
+                config at creation — after this it is not a preference any more.
+                The field is pre-filled with the testnet preset, so the step is
+                already satisfied.
+              screenshot: "onboarding-network-step.png"
+
+            - name: "…and it is the step actually showing"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOnboardingNetworkStep"
+              property: "visible"
+              value: true
+
+            - name: "Continue to the password step"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+            - name: "No file paths are requested to create a wallet"
+              action: wait_for
+              texts:
+                - "Choose a password"
+                - "This password encrypts your wallet on this machine. It is not your recovery phrase, and nothing can reset it for you."
+              timeout: 15000
+              screenshot: "onboarding-password-step.png"
+
+            - name: "…and it is the step actually showing"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOnboardingPasswordStep"
+              property: "visible"
+              value: true
+
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
 
             - name: "An empty password is rejected"
               action: click
@@ -132,6 +317,9 @@ sections:
               action: wait_for
               texts: ["Password cannot be empty."]
               timeout: 10000
+              text: |
+                This step is validated on submit rather than gated, so the button
+                stays live and answers with which of the two things is wrong.
               screenshot: "onboarding-error-empty-password.png"
 
             - name: "Enter a password"
@@ -153,70 +341,6 @@ sections:
               timeout: 10000
               screenshot: "onboarding-error-password-mismatch.png"
 
-            # ── The open-existing branch, reached from the create screen ──
-            - name: "Follow \"Open wallet instead\""
-              action: click_object
-              find_by: "objectName"
-              find_value: "lezOpenInsteadLink"
-            - name: "The open screen asks for files, and for nothing else"
-              action: wait_for
-              texts:
-                - "Open an existing wallet"
-                - "Select the storage and config files of a wallet you already have."
-                - "Storage file"
-                - "Config file"
-              timeout: 15000
-              text: |
-                No password field and no network selector: `wallet_ffi_open` takes
-                no password, and the sequencer is read from the config file being
-                opened. Asking for either would be asking for something the call
-                discards.
-              screenshot: "onboarding-open-existing.png"
-
-            - name: "Let the page transition settle"
-              action: sleep
-              ms: 1500
-
-            - name: "Opening with nothing filled in is refused"
-              action: click
-              target: "Open Wallet"
-            - name: "The missing-selection error is shown"
-              action: wait_for
-              texts: ["Select both a storage file and a config file."]
-              timeout: 10000
-
-            - name: "Point at a storage file that does not exist"
-              action: set_text
-              find_by: "objectName"
-              find_value: "lezOpenStorageField"
-              value: "/tmp/lez-doctest-does-not-exist/storage.json"
-            - name: "Point at a config file that does not exist"
-              action: set_text
-              find_by: "objectName"
-              find_value: "lezOpenConfigField"
-              value: "/tmp/lez-doctest-does-not-exist/config.json"
-            - name: "Try to open them"
-              action: click
-              target: "Open Wallet"
-            - name: "The missing-file error names the path"
-              action: wait_for
-              texts: ["No config file at /tmp/lez-doctest-does-not-exist/config.json."]
-              timeout: 20000
-              text: "Nothing is created. A wrong path is an error the user can read and correct."
-              screenshot: "onboarding-error-missing-file.png"
-
-            - name: "Go back to the create screen"
-              action: click
-              target: "Back"
-            - name: "The create screen is showing again"
-              action: wait_for
-              texts: ["Create your LEZ Wallet"]
-              timeout: 15000
-
-            - name: "Let the page transition settle"
-              action: sleep
-              ms: 1500
-
             # ── The successful create ──
             - name: "Enter a password"
               action: set_text
@@ -232,27 +356,64 @@ sections:
               action: click
               target: "Create Wallet"
 
+            # The only honest wait in the run. Creation takes as long as it takes,
+            # so a sleep cannot cover it -- and this step's own text is already in
+            # the tree, so waiting on that would return instantly and assert
+            # against a step that has not arrived. The footer is a single button
+            # whose label is derived from the current step, and "Open wallet" is
+            # the keys step's alone, so it is the one thing that cannot be true
+            # early.
+            - name: "Wait for the wallet to be created"
+              action: wait_for
+              texts: ["Open wallet"]
+              timeout: 120000
+
             - name: "The recovery phrase is shown, exactly once"
               action: wait_for
               texts:
-                - "Your recovery phrase"
-                - "Write these words down and keep them somewhere safe. This is the only time they will be shown, and anyone who has them can spend your funds."
-                - "I have saved it"
+                - "View and save your keys"
+                - "Shown once, and only here"
+                - "These words are the only way to recover this wallet. They will not be shown again, nothing can reissue them, and anyone who has them can spend your funds. Write them down and keep them somewhere safe."
+                - "I've written down my recovery phrase and stored it safely"
               timeout: 120000
               text: |
                 `create_new` returns the phrase and `lez_core` has no call to read
                 it back, so this render is the only copy the user is ever offered.
                 The wallet is already open behind this page — the dashboard is
-                held back until the phrase is acknowledged.
+                held back until the phrase is acknowledged, and this is the one
+                step with no Back button, because there is nothing behind it to
+                go back to.
               screenshot: "onboarding-recovery-phrase.png"
+
+            - name: "…and it is the step actually showing"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOnboardingKeysStep"
+              property: "visible"
+              value: true
 
             - name: "Let the page transition settle"
               action: sleep
               ms: 1500
 
+            - name: "Until it is acknowledged, the wizard will not finish"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
+              property: "enabled"
+              value: false
+            - name: "and the footer says what is missing"
+              action: expect_texts
+              texts: ["Confirm you saved your recovery phrase to continue"]
+
             - name: "Acknowledge the phrase"
-              action: click
-              target: "I have saved it"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezPhraseAcknowledgeCheckbox"
+            - name: "Finish setup"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
             - name: "The dashboard is reached"
               action: wait_for
               texts: ["Accounts"]
@@ -264,12 +425,13 @@ sections:
     text: |
       The successful create saved its paths. On the next launch the backend finds
       them, confirms both files are still on disk, and opens the wallet — so a
-      returning user reaches the dashboard without being asked anything.
+      returning user reaches the dashboard without being asked anything, and
+      never sees the welcome screen.
 
       The view shows a brief loading state first. It has to: whether there is a
       wallet to open is not known until the `lez_core` handshake settles, so
       "no wallet open" is an absence of information at that point rather than an
-      answer. Routing it to onboarding would flash the create screen on every
+      answer. Routing it to onboarding would flash the welcome screen on every
       launch and then replace it.
     steps:
       - title: "Relaunch against the same profile"
@@ -297,7 +459,8 @@ sections:
       Now the backend checks the files exist before it tries to open them, tells
       the user what happened, and forgets the paths — naming them in the notice,
       because clearing the settings destroys the only other record of where the
-      wallet used to be.
+      wallet used to be. The notice floats over the welcome screen rather than
+      reflowing it.
     steps:
       - title: "Move the wallet folder aside"
         run: |
@@ -316,8 +479,7 @@ sections:
           tests:
             - name: "The user is told why they are back at onboarding"
               action: wait_for
-              texts:
-                - "Create your LEZ Wallet"
+              texts: ["LEZ Wallet", "Set up your wallet"]
               timeout: 60000
               text: "The notice carries both paths, then the saved location is forgotten."
               screenshot: "onboarding-notice-files-missing.png"
@@ -351,14 +513,21 @@ sections:
               property: "shown"
               value: false
 
-            - name: "Open the moved wallet from its new location"
+            - name: "Enter setup"
               action: click_object
               find_by: "objectName"
-              find_value: "lezOpenInsteadLink"
+              find_value: "lezSetUpWalletButton"
             - name: "Let the page transition settle"
               action: sleep
               ms: 1500
-            - name: "The open screen offers no stale prefill"
+            - name: "Choose to open the moved wallet"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezSetupExistingCard"
+            - name: "Let the pickers appear"
+              action: sleep
+              ms: 1500
+            - name: "The pickers offer no stale prefill"
               action: expect_property
               find_by: "objectName"
               find_value: "lezOpenStorageField"
@@ -389,16 +558,23 @@ sections:
           tests:
             - name: "Onboarding is showing"
               action: wait_for
-              texts: ["Create your LEZ Wallet"]
+              texts: ["LEZ Wallet", "Set up your wallet"]
               timeout: 60000
             - name: "Let the page transition settle"
               action: sleep
               ms: 1500
-            - name: "Go to the open screen"
+            - name: "Enter setup"
               action: click_object
               find_by: "objectName"
-              find_value: "lezOpenInsteadLink"
-            - name: "Let the open screen settle"
+              find_value: "lezSetUpWalletButton"
+            - name: "Let the setup step settle"
+              action: sleep
+              ms: 1500
+            - name: "Choose the open route"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezSetupExistingCard"
+            - name: "Let the pickers appear"
               action: sleep
               ms: 1500
             - name: "Point at the empty storage file"
@@ -412,14 +588,15 @@ sections:
               find_value: "lezOpenConfigField"
               value: "/tmp/lez-doctest-empty/config.json"
             - name: "Try to open them"
-              action: click
-              target: "Open Wallet"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
             - name: "The failure is reported with the FFI error code"
               action: wait_for
               texts: ["Could not open the wallet at those paths (error 99)."]
               timeout: 30000
               text: |
-                The user stays on the open screen with an error they can act on.
+                The user stays on the setup step with an error they can act on.
                 Nothing was created, and no config file was rewritten.
               screenshot: "onboarding-error-unreadable-wallet.png"
 
@@ -453,16 +630,23 @@ sections:
           tests:
             - name: "Onboarding is showing"
               action: wait_for
-              texts: ["Create your LEZ Wallet"]
+              texts: ["LEZ Wallet", "Set up your wallet"]
               timeout: 60000
             - name: "Let the page transition settle"
               action: sleep
               ms: 1500
-            - name: "Go to the open screen"
+            - name: "Enter setup"
               action: click_object
               find_by: "objectName"
-              find_value: "lezOpenInsteadLink"
-            - name: "Let the open screen settle"
+              find_value: "lezSetUpWalletButton"
+            - name: "Let the setup step settle"
+              action: sleep
+              ms: 1500
+            - name: "Choose the open route"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezSetupExistingCard"
+            - name: "Let the pickers appear"
               action: sleep
               ms: 1500
             - name: "Point at the moved storage file"
@@ -476,8 +660,9 @@ sections:
               find_value: "lezOpenConfigField"
               value: "/tmp/lez-doctest-moved/config.json"
             - name: "Open it"
-              action: click
-              target: "Open Wallet"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
             - name: "The dashboard is reached"
               action: wait_for
               texts: ["Accounts"]
@@ -486,9 +671,10 @@ sections:
               screenshot: "onboarding-reopened.png"
 
 outro: |
-  Every onboarding outcome is covered above: both validation failures, a
-  selection with nothing filled in, a path that does not exist, files that exist
-  but are not a wallet, a wallet that has moved, a returning user, and the two
-  successful entries. None of the failure paths creates or rewrites a file, and
-  the successful create shows its recovery phrase exactly once before the
-  dashboard is allowed to replace it.
+  Every onboarding outcome is covered above: both password validation failures,
+  a route chosen with nothing filled in, a path that does not exist, files that
+  exist but are not a wallet, a wallet that has moved, a returning user, and the
+  two successful entries. None of the failure paths creates or rewrites a file,
+  and the successful create shows its recovery phrase exactly once — behind a
+  gate the footer will not open until it is acknowledged — before the dashboard
+  is allowed to replace it.

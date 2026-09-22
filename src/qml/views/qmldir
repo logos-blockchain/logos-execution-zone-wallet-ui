@@ -1,8 +1,12 @@
 module views
 LoadingView 1.0 LoadingView.qml
+singleton OnboardingText 1.0 OnboardingText.qml
 OnboardingView 1.0 OnboardingView.qml
-CreateWalletPage 1.0 CreateWalletPage.qml
-OpenWalletPage 1.0 OpenWalletPage.qml
+OnboardingWelcomePage 1.0 OnboardingWelcomePage.qml
+OnboardingSetupPage 1.0 OnboardingSetupPage.qml
+OnboardingChoiceCard 1.0 OnboardingChoiceCard.qml
+OnboardingNetworkPage 1.0 OnboardingNetworkPage.qml
+OnboardingPasswordPage 1.0 OnboardingPasswordPage.qml
 RecoveryPhrasePage 1.0 RecoveryPhrasePage.qml
 DashboardView 1.0 DashboardView.qml
 AccountsPanel 1.0 AccountsPanel.qml
