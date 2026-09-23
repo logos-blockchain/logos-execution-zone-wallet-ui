@@ -16,6 +16,27 @@ Rectangle {
     property var accountModel: null
     property int lastSyncedBlock: 0
     property int currentBlockHeight: 0
+    readonly property bool syncing: currentBlockHeight > 0
+                                 && lastSyncedBlock < currentBlockHeight
+    property bool justSettled: false
+    property int syncStartBlock: 0
+
+    onSyncingChanged: {
+        if (syncing) {
+            syncStartBlock = lastSyncedBlock
+            justSettled = false
+            settledTimer.stop()
+        } else if (currentBlockHeight > 0) {
+            justSettled = true
+            settledTimer.restart()
+        }
+    }
+
+    Timer {
+        id: settledTimer
+        interval: 4000
+        onTriggered: root.justSettled = false
+    }
 
     // --- Public API: signals out ---
     signal createPublicAccountRequested()
@@ -60,11 +81,11 @@ Rectangle {
             }
         }
 
-        // Sync progress
         ColumnLayout {
+            objectName: "lezSyncProgress"
             Layout.fillWidth: true
             spacing: Theme.spacing.small
-            visible: root.currentBlockHeight > 0 && root.lastSyncedBlock < root.currentBlockHeight
+            visible: root.syncing
 
             RowLayout {
                 Layout.fillWidth: true
@@ -82,21 +103,44 @@ Rectangle {
             }
             LogosProgressBar {
                 Layout.fillWidth: true
-                from: 0
-                to: root.currentBlockHeight
+                from: root.syncStartBlock
+                to: Math.max(root.currentBlockHeight, root.syncStartBlock + 1)
                 value: root.lastSyncedBlock
                 trackColor: Theme.palette.backgroundElevated
             }
+            LogosText {
+                objectName: "lezSyncConsequence"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                text: qsTr("Private accounts are found by scanning blocks. Accounts and "
+                           + "balances may be missing until this finishes.")
+                font.pixelSize: Theme.typography.secondaryText
+                color: Theme.palette.textTertiary
+                wrapMode: Text.WordWrap
+            }
         }
 
-        // Empty state (when no real model and we don't show showcase)
+        // The one moment this list is known to be the whole answer.
         LogosText {
+            objectName: "lezSyncSettled"
+            Layout.fillWidth: true
+            visible: root.justSettled
+            text: qsTr("Up to date · block %1").arg(root.currentBlockHeight)
+            font.pixelSize: Theme.typography.secondaryText
+            color: Theme.palette.textSecondary
+        }
+
+        LogosText {
+            objectName: "lezAccountsEmpty"
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.topMargin: Theme.spacing.xlarge
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            text: qsTr("Add a new account to get started")
+            text: root.syncing
+                ? qsTr("Looking for your accounts…\nAnything sent to your private keys "
+                       + "appears here as the scan reaches it.")
+                : qsTr("Add a new account to get started")
             font.pixelSize: Theme.typography.secondaryText
             color: Theme.palette.textSecondary
             visible: !listView.visible
