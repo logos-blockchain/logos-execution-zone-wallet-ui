@@ -7,6 +7,7 @@ import Logos.Controls
 
 import "../controls"
 import "../Base58.js" as Base58
+import "../Units.js" as Units
 
 Item {
     id: root
@@ -170,7 +171,7 @@ Item {
             spacing: Theme.spacing.small
 
             LogosText {
-                text: qsTr("Amount")
+                text: qsTr("Amount (LGO)")
                 font.pixelSize: Theme.typography.secondaryText
                 color: Theme.palette.textSecondary
             }
@@ -178,7 +179,11 @@ Item {
             LogosTextField {
                 id: amountField
                 Layout.fillWidth: true
-                placeholderText: "0.00"
+                // Follows the locale too: the validator refuses the other
+                // separator, so a hardcoded "0.00" would show an example the
+                // field will not accept wherever ',' is the decimal point.
+                placeholderText: "0" + Qt.locale().decimalPoint + "00"
+                validator: RegularExpressionValidator { regularExpression: Units.inputRegExp() }
             }
         }
 
@@ -196,7 +201,7 @@ Item {
                 var toAddress = (d.useOwnedAccountForTo && toCombo.currentIndex >= 0)
                         ? (toCombo.currentValue ?? "")
                         : (d.needsKeysJson ? rawTo : Base58.decode(rawTo))
-                var amount = amountField.text.trim()
+                var amount = Units.normalizeInput(amountField.text.trim())
                 if (fromId.length > 0 && toAddress.length > 0 && amount.length > 0) {
                     if (d.isPublicTab)
                         root.transferPublicRequested(fromId, toAddress, amount)

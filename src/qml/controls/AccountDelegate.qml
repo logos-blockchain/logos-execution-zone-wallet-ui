@@ -6,6 +6,7 @@ import Logos.Theme
 import Logos.Controls
 import "../Base58.js" as Base58
 import "../Format.js" as Format
+import "../Units.js" as Units
 
 ItemDelegate {
     id: root
@@ -114,7 +115,8 @@ ItemDelegate {
         }
 
         LogosText {
-            text: model.balance && model.balance.length > 0 ? model.balance : "—"
+            text: model.balance && model.balance.length > 0
+                ? Units.format(model.balance) : "—"
             font.bold: true
             color: Theme.palette.primary
         }

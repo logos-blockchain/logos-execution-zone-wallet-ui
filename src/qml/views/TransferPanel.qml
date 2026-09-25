@@ -45,7 +45,7 @@ Rectangle {
 
 
             LogosTabButton {
-                text: qsTr("Transfer")
+                text: qsTr("Send")
             }
 
             LogosTabButton {
