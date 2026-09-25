@@ -47,7 +47,7 @@ public slots:
     QString transferShielded(QString fromHex, QString toKeysJson, QString amountStr) override;
     QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr) override;
     QString transferDeshielded(QString fromHex, QString toHex, QString amountStr) override;
-    QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount) override;
+    QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, QString amountStr) override;
     QString createNew(QString password, QString sequencerAddr) override;
     QString openExisting(QString configPath, QString storagePath) override;
     void copyToClipboard(QString text) override;

@@ -10,8 +10,8 @@ LogosDialog {
     id: root
 
     // Context set by the parent right before open(). Only ever opened for an
-    // unlabeled account — the wallet core has no way to rename or remove a label
-    // once added, so there's no "current label" to prefill or compare against.
+    // unnamed account — the wallet core has no way to rename or remove a label
+    // once added, so there is no current name to prefill or replace.
     property string accountId: ""
     property bool isPublic: true
 
@@ -61,7 +61,10 @@ LogosDialog {
         root.saving = false
         root.saveError = ""
         labelField.forceActiveFocus()
-        labelField.selectAll()
+        // LogosTextField has no selectAll of its own; the DS exposes the inner
+        // TextInput for exactly this. Selecting lets an edit be typed straight
+        // over the prefilled name instead of cleared by hand first.
+        labelField.textInput.selectAll()
     }
 
     Timer {
@@ -82,7 +85,7 @@ LogosDialog {
         spacing: Theme.spacing.large
 
         LogosText {
-            text: qsTr("Add label")
+            text: qsTr("Add name")
             font.pixelSize: Theme.typography.titleText
             font.weight: Theme.typography.weightBold
             color: Theme.palette.text

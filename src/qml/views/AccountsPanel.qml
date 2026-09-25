@@ -47,12 +47,6 @@ Rectangle {
     radius: Theme.spacing.radiusXlarge
     color: Theme.palette.backgroundSecondary
 
-    CreateAccountDialog {
-        id: createAccountDialog
-        onCreatePublicRequested: root.createPublicAccountRequested()
-        onCreatePrivateRequested: root.createPrivateAccountRequested()
-    }
-
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Theme.spacing.large
@@ -73,12 +67,22 @@ Rectangle {
 
             Item { Layout.fillWidth: true }
 
+            // Not "Refresh Balances": this kicks a sync, and a sync that finds
+            // new blocks re-lists the accounts too, so the narrower name
+            // undersold it.
             LogosButton {
-                Layout.preferredHeight: 40
-                Layout.preferredWidth: 80
-                text: qsTr("+ Create")
-                onClicked: createAccountDialog.open()
+                objectName: "lezRefreshButton"
+                compact: true
+                radius: Theme.spacing.radiusLarge
+                text: qsTr("Refresh")
+                onClicked: root.fetchBalancesRequested()
             }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Theme.palette.border
         }
 
         ColumnLayout {
@@ -130,20 +134,61 @@ Rectangle {
             color: Theme.palette.textSecondary
         }
 
-        LogosText {
-            objectName: "lezAccountsEmpty"
+        // Only when there is a sync row above it to separate — otherwise this
+        // would sit directly under the header divider as a double rule.
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            visible: root.syncing || root.justSettled
+            color: Theme.palette.border
+        }
+
+        // Empty state. Create now lives in the section headers, which are
+        // rendered by the list — so with no rows there is no section, and this
+        // has to carry the buttons or a fresh wallet has no way to make its
+        // first account.
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.topMargin: Theme.spacing.xlarge
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-            text: root.syncing
-                ? qsTr("Looking for your accounts…\nAnything sent to your private keys "
-                       + "appears here as the scan reaches it.")
-                : qsTr("Add a new account to get started")
-            font.pixelSize: Theme.typography.secondaryText
-            color: Theme.palette.textSecondary
             visible: !listView.visible
+            spacing: Theme.spacing.medium
+
+            LogosText {
+                objectName: "lezAccountsEmpty"
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                text: root.syncing
+                    ? qsTr("Looking for your accounts…\nAnything sent to your private keys "
+                           + "appears here as the scan reaches it.")
+                    : qsTr("Add a new account to get started")
+                font.pixelSize: Theme.typography.secondaryText
+                color: Theme.palette.textSecondary
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: Theme.spacing.medium
+
+                LogosButton {
+                    objectName: "lezCreatePublicEmptyButton"
+                    compact: true
+                    radius: Theme.spacing.radiusLarge
+                    text: qsTr("+ Public account")
+                    onClicked: root.createPublicAccountRequested()
+                }
+
+                LogosButton {
+                    objectName: "lezCreatePrivateEmptyButton"
+                    compact: true
+                    radius: Theme.spacing.radiusLarge
+                    text: qsTr("+ Private account")
+                    onClicked: root.createPrivateAccountRequested()
+                }
+            }
+
+            Item { Layout.fillHeight: true }
         }
 
         // Account ListView (real model when set and non-empty; otherwise showcase so delegate is visible)
@@ -153,7 +198,8 @@ Rectangle {
             Layout.fillHeight: true
             visible: count > 0 || !root.accountModel
             clip: true
-            spacing: Theme.spacing.small
+            // Rows carry their own rule, so a gap between them would break it.
+            spacing: 0
             model: root.accountModel
 
             // Each private account's "keysJson"/"sectionKey"/"isFirstInGroup" are plain
@@ -163,118 +209,178 @@ Rectangle {
             // with no way back to that row's data once the model is a remote replica.
             delegate: ColumnLayout {
                 width: listView.width
-                spacing: Theme.spacing.small
+                // 0 so each margin below is the gap you see. With a non-zero
+                // spacing every number here would be "gap minus 8", which is how
+                // the section titles drifted out of step with the rows.
+                spacing: 0
 
                 // "Public Accounts" title: the public section is a single group, so this
                 // is equivalent to showing it once above the first public row.
-                RowLayout {
+                // A banded header, not just bold text: with rows separated by
+                // rules of their own, a plain line of text read as another row
+                // and the section boundary disappeared.
+                Rectangle {
                     Layout.fillWidth: true
+                    // No top margin: this is the first thing in the list, so the
+                    // panel's column spacing is already the gap under the rule
+                    // above it.
+                    Layout.bottomMargin: Theme.spacing.medium
+                    Layout.preferredHeight: publicHeaderRow.implicitHeight + 2 * Theme.spacing.small
                     visible: (model.isPublic ?? false) && (model.isFirstInGroup ?? false)
-                    spacing: Theme.spacing.small
+                    color: Theme.palette.backgroundTertiary
+                    radius: Theme.spacing.radiusSmall
 
-                    LogosText {
-                        text: qsTr("Public Accounts")
-                        font.pixelSize: Theme.typography.primaryText
-                        font.bold: true
-                        color: Theme.palette.text
+                    RowLayout {
+                        id: publicHeaderRow
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.spacing.medium
+                        anchors.rightMargin: Theme.spacing.small
+                        spacing: Theme.spacing.small
+
+                        LogosText {
+                            text: qsTr("Public Accounts")
+                            font.pixelSize: Theme.typography.primaryText
+                            font.bold: true
+                            color: Theme.palette.text
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        // Per-section, so the section is the answer to "which
+                        // kind?" — no type picker needed.
+                        LogosButton {
+                            objectName: "lezCreatePublicButton"
+                            compact: true
+                            radius: Theme.spacing.radiusLarge
+                            text: qsTr("+ Create")
+                            onClicked: root.createPublicAccountRequested()
+                        }
                     }
                 }
 
-                // "Private Accounts" title: shown once above the whole private section,
-                // unlike the per-key-set row below which repeats for every private key
-                // group. Wrapped the same way as the "Public Accounts" title above so
-                // both line up identically.
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: model.isFirstPrivate ?? false
-                    spacing: Theme.spacing.small
-
-                    LogosText {
-                        text: qsTr("Private Accounts")
-                        font.pixelSize: Theme.typography.primaryText
-                        font.bold: true
-                        color: Theme.palette.text
-                    }
-                }
-
-                // Per-key-set row: separates each private key group within the Private
-                // section, naming the group by its Npk/Vpk pair, and holds the copy
-                // button for that pair.
-                RowLayout {
-                    id: keyGroupHeader
-                    Layout.fillWidth: true
-                    visible: !model.isPublic && (model.isFirstInGroup ?? false)
-                    spacing: Theme.spacing.small
+                // Private header: the section title (once) and the key pair the
+                // accounts under it belong to, banded together — the keys are
+                // what the section IS, not a footnote sitting under its title.
+                Rectangle {
+                    id: privateHeader
 
                     property var groupKeys: {
                         try { return JSON.parse(model.keysJson ?? "{}") } catch (e) { return {} }
                     }
 
+                    Layout.fillWidth: true
+                    Layout.topMargin: Theme.spacing.medium
+                    Layout.bottomMargin: Theme.spacing.medium
+                    Layout.preferredHeight: privateHeaderColumn.implicitHeight + 2 * Theme.spacing.small
+                    // One band per key group, so a wallet with several key sets
+                    // gets a header for each.
+                    visible: !model.isPublic && (model.isFirstInGroup ?? false)
+                    color: Theme.palette.backgroundTertiary
+                    radius: Theme.spacing.radiusSmall
+
                     ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
+                        id: privateHeaderColumn
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.spacing.medium
+                        anchors.rightMargin: Theme.spacing.small
+                        anchors.topMargin: Theme.spacing.small
+                        anchors.bottomMargin: Theme.spacing.small
+                        spacing: Theme.spacing.small
 
-                        LogosText {
+                        // Only above the first group — later groups are still the
+                        // same section, so the title would be a lie the second time.
+                        RowLayout {
                             Layout.fillWidth: true
-                            text: qsTr("Accounts under keys")
-                            font.pixelSize: Theme.typography.secondaryText
-                            color: Theme.palette.textSecondary
+                            visible: model.isFirstPrivate ?? false
+                            spacing: Theme.spacing.small
+
+                            LogosText {
+                                text: qsTr("Private Accounts")
+                                font.pixelSize: Theme.typography.primaryText
+                                font.bold: true
+                                color: Theme.palette.text
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            LogosButton {
+                                objectName: "lezCreatePrivateButton"
+                                compact: true
+                                radius: Theme.spacing.radiusLarge
+                                text: qsTr("+ Create")
+                                onClicked: root.createPrivateAccountRequested()
+                            }
                         }
 
-                        // Each of Npk/Vpk gets its own bullet, aligned with "Private
-                        // Accounts"/"Accounts under keys" above. Labels share a fixed
-                        // width (the wider of the two) so the value column still lines
-                        // up between the two rows.
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.spacing.small
 
-                            LogosText {
-                                text: "•"
-                                font.pixelSize: Theme.typography.secondaryText
-                                color: Theme.palette.textSecondary
-                            }
-                            LogosText {
-                                id: npkLabel
-                                Layout.preferredWidth: Math.max(npkLabel.implicitWidth, vpkLabel.implicitWidth)
-                                text: qsTr("Npk:")
-                                font.pixelSize: Theme.typography.secondaryText
-                                color: Theme.palette.textSecondary
-                            }
-                            LogosSelectableText {
+                            ColumnLayout {
                                 Layout.fillWidth: true
-                                text: Format.shortenMiddle(keyGroupHeader.groupKeys.nullifier_public_key)
-                                color: Theme.palette.textSecondary
+                                spacing: 0
+
+                                LogosText {
+                                    Layout.fillWidth: true
+                                    text: qsTr("Accounts under keys")
+                                    font.pixelSize: Theme.typography.secondaryText
+                                    color: Theme.palette.textSecondary
+                                }
+
+                                // Labels share a fixed width (the wider of the two)
+                                // so the value column lines up between the rows.
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: Theme.spacing.small
+
+                                    LogosText {
+                                        text: "\u2022"
+                                        font.pixelSize: Theme.typography.secondaryText
+                                        color: Theme.palette.textSecondary
+                                    }
+                                    LogosText {
+                                        id: npkLabel
+                                        Layout.preferredWidth: Math.max(npkLabel.implicitWidth, vpkLabel.implicitWidth)
+                                        text: qsTr("Npk:")
+                                        font.pixelSize: Theme.typography.secondaryText
+                                        color: Theme.palette.textSecondary
+                                    }
+                                    LogosSelectableText {
+                                        Layout.fillWidth: true
+                                        text: Format.shortenMiddle(privateHeader.groupKeys.nullifier_public_key)
+                                        color: Theme.palette.textSecondary
+                                    }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: Theme.spacing.small
+
+                                    LogosText {
+                                        text: "\u2022"
+                                        font.pixelSize: Theme.typography.secondaryText
+                                        color: Theme.palette.textSecondary
+                                    }
+                                    LogosText {
+                                        id: vpkLabel
+                                        Layout.preferredWidth: Math.max(npkLabel.implicitWidth, vpkLabel.implicitWidth)
+                                        text: qsTr("Vpk:")
+                                        font.pixelSize: Theme.typography.secondaryText
+                                        color: Theme.palette.textSecondary
+                                    }
+                                    LogosSelectableText {
+                                        Layout.fillWidth: true
+                                        text: Format.shortenMiddle(privateHeader.groupKeys.viewing_public_key)
+                                        color: Theme.palette.textSecondary
+                                    }
+                                }
+                            }
+
+                            LogosCopyButton {
+                                Layout.alignment: Qt.AlignVCenter
+                                value: model.keysJson ?? ""
                             }
                         }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: Theme.spacing.small
-
-                            LogosText {
-                                text: "•"
-                                font.pixelSize: Theme.typography.secondaryText
-                                color: Theme.palette.textSecondary
-                            }
-                            LogosText {
-                                id: vpkLabel
-                                Layout.preferredWidth: Math.max(npkLabel.implicitWidth, vpkLabel.implicitWidth)
-                                text: qsTr("Vpk:")
-                                font.pixelSize: Theme.typography.secondaryText
-                                color: Theme.palette.textSecondary
-                            }
-                            LogosSelectableText {
-                                Layout.fillWidth: true
-                                text: Format.shortenMiddle(keyGroupHeader.groupKeys.viewing_public_key)
-                                color: Theme.palette.textSecondary
-                            }
-                        }
-                    }
-
-                    LogosCopyButton {
-                        Layout.alignment: Qt.AlignVCenter
-                        value: model.keysJson ?? ""
                     }
                 }
 
@@ -283,14 +389,6 @@ Rectangle {
                     onLabelRequested: (accountId, isPublic) => root.labelRequested(accountId, isPublic)
                 }
             }
-        }
-
-        // Footer: Fetch / Refresh Balances
-        LogosButton {
-            Layout.fillWidth: true
-            text: qsTr("Refresh Balances")
-            onClicked: root.fetchBalancesRequested()
-            visible: listView.visible
         }
     }
 }

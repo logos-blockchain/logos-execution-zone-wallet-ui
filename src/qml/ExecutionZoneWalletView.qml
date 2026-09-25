@@ -382,14 +382,7 @@ Rectangle {
                 }
                 onBridgeWithdrawRequested: (fromId, bedrockAccountPkHex, amount) => {
                     if (!backend) return
-                    var parsedAmount = Number(amount)
-                    if (!Number.isInteger(parsedAmount) || parsedAmount <= 0) {
-                        dashboardView.transferResult = qsTr("Error: Invalid amount.")
-                        dashboardView.transferResultIsError = true
-                        dashboardView.transferTxHash = ""
-                        return
-                    }
-                    logos.watch(backend.bridgeWithdraw(fromId, bedrockAccountPkHex, parsedAmount),
+                    logos.watch(backend.bridgeWithdraw(fromId, bedrockAccountPkHex, amount),
                         function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
                         function(error) {
                             dashboardView.transferResult = qsTr("Error: %1").arg(error)

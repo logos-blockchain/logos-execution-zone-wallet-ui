@@ -27,7 +27,7 @@ class LEZWalletBackend
     SLOT(QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr))
     SLOT(QString transferDeshielded(QString fromHex, QString toHex, QString amountStr))
 
-    SLOT(QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, quint64 amount))
+    SLOT(QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, QString amountStr))
 
     SLOT(QString createNew(QString password, QString sequencerAddr))
     SLOT(QString openExisting(QString configPath, QString storagePath))
