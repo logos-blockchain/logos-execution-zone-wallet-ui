@@ -20,7 +20,6 @@ class LEZWalletBackend : public LEZWalletBackendSimpleSource {
     Q_PROPERTY(LEZWalletAccountModel* accountModel READ accountModel CONSTANT)
     Q_PROPERTY(LEZAccountFilterModel* filteredAccountModel READ filteredAccountModel CONSTANT)
     Q_PROPERTY(LEZAccountFilterModel* privateAccountModel READ privateAccountModel CONSTANT)
-    Q_PROPERTY(LEZAccountFilterModel* recipientAccountModel READ recipientAccountModel CONSTANT)
 
 public:
     explicit LEZWalletBackend(LogosAPI* logosAPI = nullptr, QObject* parent = nullptr);
@@ -29,7 +28,6 @@ public:
     LEZWalletAccountModel* accountModel() const { return m_accountModel; }
     LEZAccountFilterModel* filteredAccountModel() const { return m_filteredAccountModel; }
     LEZAccountFilterModel* privateAccountModel() const { return m_privateAccountModel; }
-    LEZAccountFilterModel* recipientAccountModel() const { return m_recipientAccountModel; }
 
 public slots:
     // Overrides of the pure-virtual slots generated from the .rep.
@@ -83,7 +81,6 @@ private:
     LEZWalletAccountModel* m_accountModel;
     LEZAccountFilterModel* m_filteredAccountModel;
     LEZAccountFilterModel* m_privateAccountModel;
-    LEZAccountFilterModel* m_recipientAccountModel;
 
     LogosAPI* m_logosAPI;
     LogosModules* m_logos;

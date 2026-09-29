@@ -80,16 +80,6 @@ ItemDelegate {
                 labelItem.font.pixelSize: 9
             }
 
-            LogosBadge {
-                // A public account is claimed by its first funded transfer (fees
-                // rule out a bare init); private ones initialize on first use.
-                text: model.isInitialized ? qsTr("Initialized")
-                    : (model.isPublic ?? true) ? qsTr("Unclaimed · fund to claim") : qsTr("Uninitialized")
-                color: model.isInitialized ? Theme.palette.success : Theme.palette.warning
-                radius: Theme.spacing.radiusPill
-                labelItem.font.pixelSize: 9
-            }
-
             Item { Layout.fillWidth: true }
 
             LogosIconButton {

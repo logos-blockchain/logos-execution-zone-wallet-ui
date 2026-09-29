@@ -64,15 +64,6 @@ LogosDialog {
             Layout.fillWidth: true
         }
 
-        LogosText {
-            visible: tabBar.currentIndex === 0
-            text: qsTr("A new public account is claimed by its first funded transfer: send tokens to it from a funded account.")
-            font.pixelSize: Theme.typography.secondaryText
-            color: Theme.palette.textMuted
-            wrapMode: Text.WordWrap
-            Layout.fillWidth: true
-        }
-
         RowLayout {
             Layout.topMargin: Theme.spacing.medium
             spacing: Theme.spacing.medium

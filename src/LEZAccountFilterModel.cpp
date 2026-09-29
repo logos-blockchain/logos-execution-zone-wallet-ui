@@ -19,27 +19,12 @@ void LEZAccountFilterModel::setFilterByPublic(bool value)
     emit countChanged();
 }
 
-void LEZAccountFilterModel::setOnlyInitialized(bool value)
-{
-    if (m_onlyInitialized == value)
-        return;
-    m_onlyInitialized = value;
-    invalidateFilter();
-    emit onlyInitializedChanged();
-    emit countChanged();
-}
-
 bool LEZAccountFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const
 {
     if (!sourceModel())
         return false;
     const QModelIndex idx = sourceModel()->index(sourceRow, 0, sourceParent);
-    const bool isPublic = sourceModel()->data(idx, LEZWalletAccountModel::IsPublicRole).toBool();
-    if (isPublic != m_filterByPublic)
-        return false;
-    if (m_onlyInitialized && !sourceModel()->data(idx, LEZWalletAccountModel::IsInitializedRole).toBool())
-        return false;
-    return true;
+    return sourceModel()->data(idx, LEZWalletAccountModel::IsPublicRole).toBool() == m_filterByPublic;
 }
 
 int LEZAccountFilterModel::rowForAddress(const QString& address) const
