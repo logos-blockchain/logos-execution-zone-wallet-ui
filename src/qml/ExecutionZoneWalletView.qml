@@ -14,7 +14,6 @@ Rectangle {
     readonly property var accountModel: logos.model("lez_wallet_ui", "accountModel")
     readonly property var publicAccountModel: logos.model("lez_wallet_ui", "filteredAccountModel")
     readonly property var privateAccountModel: logos.model("lez_wallet_ui", "privateAccountModel")
-    readonly property var recipientAccountModel: logos.model("lez_wallet_ui", "recipientAccountModel")
     property bool ready: false
 
     Connections {
@@ -287,15 +286,13 @@ Rectangle {
                 accountModel: root.accountModel
                 publicAccountModel: root.publicAccountModel
                 privateAccountModel: root.privateAccountModel
-                recipientAccountModel: root.recipientAccountModel
                 lastSyncedBlock: backend ? backend.lastSyncedBlock : 0
                 currentBlockHeight: backend ? backend.currentBlockHeight : 0
 
                 onCreatePublicAccountRequested: {
                     if (!backend) { console.warn("backend is null"); return }
                     // accountModel updates via NOTIFY when the backend's refreshAccounts()
-                    // runs after creation. The account is claimed by its first funded
-                    // transfer, so there is nothing else to chase here.
+                    // runs after creation.
                     logos.watch(backend.createAccountPublic(),
                         null,
                         function(error) { console.warn("createAccountPublic failed:", error) })

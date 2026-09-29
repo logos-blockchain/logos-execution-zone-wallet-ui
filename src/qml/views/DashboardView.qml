@@ -12,7 +12,6 @@ Rectangle {
     property var accountModel: null
     property var publicAccountModel: null
     property var privateAccountModel: null
-    property var recipientAccountModel: null
     property string transferResult: ""
     property string transferTxHash: ""
     property bool transferResultIsError: false
@@ -61,7 +60,6 @@ Rectangle {
             Layout.fillHeight: true
             publicAccountModel: root.publicAccountModel
             privateAccountModel: root.privateAccountModel
-            recipientAccountModel: root.recipientAccountModel
             transferResult: root.transferResult
             transferTxHash: root.transferTxHash
             transferResultIsError: root.transferResultIsError

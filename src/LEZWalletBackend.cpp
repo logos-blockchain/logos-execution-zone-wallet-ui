@@ -114,21 +114,6 @@ namespace {
         return info.absolutePath() + QStringLiteral("/statistics.json");
     }
 
-    // An account is uninitialized until some program claims it (program_owner goes
-    // from all-zero to that program's ID) — see DEFAULT_PROGRAM_ID in the execution
-    // zone's state machine. Accounts this wallet creates are only ever claimed by the
-    // authenticated-transfer program, as a side effect of receiving their first
-    // funded transfer (under fees a bare init can't pay for itself, so there is no
-    // explicit init), so "non-zero owner" is enough to show as initialized here.
-    bool accountJsonIsInitialized(const QString& accountJson) {
-        const QJsonDocument doc = QJsonDocument::fromJson(accountJson.toUtf8());
-        if (!doc.isObject())
-            return false;
-        const QString programOwner = doc.object().value(QStringLiteral("program_owner")).toString();
-        return std::any_of(programOwner.cbegin(), programOwner.cend(),
-            [](QChar c) { return c != QLatin1Char('0'); });
-    }
-
     // createNew()'s reply shape (see the .rep): the recovery phrase has to reach
     // the view, so success cannot be signalled by an empty string the way the
     // other slots do.
@@ -147,22 +132,13 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
       m_accountModel(new LEZWalletAccountModel(this)),
       m_filteredAccountModel(new LEZAccountFilterModel(this)),
       m_privateAccountModel(new LEZAccountFilterModel(this)),
-      m_recipientAccountModel(new LEZAccountFilterModel(this)),
       m_logosAPI(logosAPI ? logosAPI : new LogosAPI("lez_wallet_ui", this)),
       m_logos(new LogosModules(m_logosAPI))
 {
-    // Both feed the transfer/withdraw "from"/"to" account-picker combo boxes, where an
-    // uninitialized account isn't a usable sender — unlike m_accountModel (unfiltered),
-    // which AccountsPanel shows so an unclaimed account's id can be copied and funded
-    // (pasted into the manual "To" field), which is what claims it.
-    m_filteredAccountModel->setOnlyInitialized(true);
+    // Feed the transfer/withdraw "from"/"to" account-picker combo boxes.
     m_filteredAccountModel->setSourceModel(m_accountModel);
     m_privateAccountModel->setFilterByPublic(false);
-    m_privateAccountModel->setOnlyInitialized(true);
     m_privateAccountModel->setSourceModel(m_accountModel);
-    // Public "to" picker: unclaimed accounts stay in, because sending to one is
-    // exactly what claims it. Only the "from" side needs onlyInitialized.
-    m_recipientAccountModel->setSourceModel(m_accountModel);
 
     // Initialise PROP defaults via the generated setters.
     setIsWalletOpen(false);
@@ -350,10 +326,6 @@ QVariantList LEZWalletBackend::buildEnrichedAccountList()
                 map[QStringLiteral("keys_json")] = keysJson;
             }
         }
-        const QString accountJson = isPublic
-            ? m_logos->lez_core.get_account_public(accountId)
-            : m_logos->lez_core.get_account_private(accountId);
-        map[QStringLiteral("is_initialized")] = accountJsonIsInitialized(accountJson);
         const QStringList labels = m_logos->lez_core.get_all_labels_for_account(accountId, !isPublic);
         if (!labels.isEmpty())
             map[QStringLiteral("name")] = labels.join(QStringLiteral(", "));
@@ -442,19 +414,6 @@ void LEZWalletBackend::updateBalances()
             m_accountModel->setBalanceByAccountId(addr, bal);
         else
             anyFailed = true;
-
-        // Initialization is one-way (program_owner never reverts to zero), so once an
-        // account is known initialized there's no need to keep re-checking it here.
-        // Pending accounts get re-checked on every balance refresh so the "Unclaimed"
-        // tag catches up once the claiming (first funded) transfer lands in a block.
-        const bool alreadyInitialized = m_accountModel->data(idx, LEZWalletAccountModel::IsInitializedRole).toBool();
-        if (!alreadyInitialized) {
-            const QString accountJson = isPub
-                ? m_logos->lez_core.get_account_public(addr)
-                : m_logos->lez_core.get_account_private(addr);
-            if (accountJsonIsInitialized(accountJson))
-                m_accountModel->setInitializedByAccountId(addr, true);
-        }
     }
     if (anyFailed)
         QTimer::singleShot(3000, this, &LEZWalletBackend::updateBalances);

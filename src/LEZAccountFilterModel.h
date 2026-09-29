@@ -6,7 +6,6 @@
 class LEZAccountFilterModel : public QSortFilterProxyModel {
     Q_OBJECT
     Q_PROPERTY(bool filterByPublic READ filterByPublic WRITE setFilterByPublic NOTIFY filterByPublicChanged)
-    Q_PROPERTY(bool onlyInitialized READ onlyInitialized WRITE setOnlyInitialized NOTIFY onlyInitializedChanged)
     Q_PROPERTY(int count READ count NOTIFY countChanged)
 
 public:
@@ -14,14 +13,6 @@ public:
 
     bool filterByPublic() const { return m_filterByPublic; }
     void setFilterByPublic(bool value);
-
-    // When true, unclaimed accounts are excluded. Used for the account-picker combo
-    // boxes (transfer/withdraw "from"/"to" fields): an unclaimed account can't sign
-    // or pay fees, so it is never a valid sender. AccountsPanel's unfiltered
-    // accountModel keeps showing them so an unclaimed account's id can be copied and
-    // funded — the first funded transfer is what claims it.
-    bool onlyInitialized() const { return m_onlyInitialized; }
-    void setOnlyInitialized(bool value);
 
     int count() const { return rowCount(); }
 
@@ -32,10 +23,8 @@ protected:
 
 signals:
     void filterByPublicChanged();
-    void onlyInitializedChanged();
     void countChanged();
 
 private:
     bool m_filterByPublic = true;
-    bool m_onlyInitialized = false;
 };

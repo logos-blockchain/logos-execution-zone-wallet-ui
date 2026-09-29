@@ -15,7 +15,6 @@ Item {
     // --- Public API: data in ---
     property var publicAccountModel: null
     property var privateAccountModel: null
-    property var recipientAccountModel: null
     property bool transferPending: false
 
     // --- Public API: signals out (match backend: transfer_public, transfer_private, transfer_private_owned, transfer_shielded, transfer_shielded_owned, transfer_deshielded) ---
@@ -160,7 +159,7 @@ Item {
             AccountComboBox {
                 id: toCombo
                 Layout.fillWidth: true
-                model: (d.isPublicTab || d.isDeshieldedTab) ? root.recipientAccountModel : root.privateAccountModel
+                model: (d.isPublicTab || d.isDeshieldedTab) ? root.publicAccountModel : root.privateAccountModel
                 visible: d.useOwnedAccountForTo && root.toFilterCount > 0
             }
         }
