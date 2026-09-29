@@ -9,7 +9,7 @@
   "main": "lez_wallet_ui_plugin",
   "icon": "src/icons/lez_wallet.png",
   "view": "qml/ExecutionZoneWalletView.qml",
-  "dependencies": ["lez_core"],
+  "dependencies": [{"name": "lez_core", "version": ">=0.4.3"}],
   "nix": {
     "packages": {
       "build": [],
