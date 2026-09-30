@@ -10,8 +10,7 @@
   inputs = {
     logos-module-builder.url = "github:logos-co/logos-module-builder";
     nix-bundle-lgx.url = "github:logos-co/nix-bundle-lgx";
-     # FIXME: re-pin to main once logos-execution-zone-module#erhant/0.3.0-release-bumps is merged
-    lez_core.url = "git+https://github.com/logos-blockchain/logos-execution-zone-module?ref=erhant/0.3.0-release-bumps";
+    lez_core.url = "git+https://github.com/logos-blockchain/logos-execution-zone-module?ref=main";
   };
 
   outputs = inputs@{ logos-module-builder, ... }:

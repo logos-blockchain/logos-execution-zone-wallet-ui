@@ -269,16 +269,16 @@
         "nix-bundle-lgx": "nix-bundle-lgx_22"
       },
       "locked": {
-        "lastModified": 1790750785,
+        "lastModified": 1790755025,
         "narHash": "sha256-R5RLhOYZML0v70T2NeT5llAAlBPsIuEUnc+d5T14gME=",
-        "ref": "erhant/0.3.0-release-bumps",
-        "rev": "e64d54cc8fceb30048194ce944e5e365f2189d30",
+        "ref": "main",
+        "rev": "bbe150ace696a9c555467068cd1de6af67e4af38",
         "revCount": 124,
         "type": "git",
         "url": "https://github.com/logos-blockchain/logos-execution-zone-module"
       },
       "original": {
-        "ref": "erhant/0.3.0-release-bumps",
+        "ref": "main",
         "type": "git",
         "url": "https://github.com/logos-blockchain/logos-execution-zone-module"
       }
