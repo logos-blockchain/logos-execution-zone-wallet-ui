@@ -269,18 +269,18 @@
         "nix-bundle-lgx": "nix-bundle-lgx_22"
       },
       "locked": {
-        "lastModified": 1790640602,
-        "narHash": "sha256-CHGEZEiedC4WxlYPZJ0Mvisq9mmP4HDLpj9M1hWQaKs=",
-        "owner": "logos-blockchain",
-        "repo": "logos-execution-zone-module",
-        "rev": "f3a08c659c3ccd0dad890687f78bd748fcffde09",
-        "type": "github"
+        "lastModified": 1790750785,
+        "narHash": "sha256-R5RLhOYZML0v70T2NeT5llAAlBPsIuEUnc+d5T14gME=",
+        "ref": "erhant/0.3.0-release-bumps",
+        "rev": "e64d54cc8fceb30048194ce944e5e365f2189d30",
+        "revCount": 124,
+        "type": "git",
+        "url": "https://github.com/logos-blockchain/logos-execution-zone-module"
       },
       "original": {
-        "owner": "logos-blockchain",
-        "repo": "logos-execution-zone-module",
-        "rev": "f3a08c659c3ccd0dad890687f78bd748fcffde09",
-        "type": "github"
+        "ref": "erhant/0.3.0-release-bumps",
+        "type": "git",
+        "url": "https://github.com/logos-blockchain/logos-execution-zone-module"
       }
     },
     "logos-blockchain-circuits": {
@@ -3002,16 +3002,16 @@
         "rust-rapidsnark": "rust-rapidsnark"
       },
       "locked": {
-        "lastModified": 1790394807,
-        "narHash": "sha256-xB01Sr8ag0Zxi5stKRlDC3hQC3XfUCBBOhWGDmqyw3s=",
+        "lastModified": 1790727166,
+        "narHash": "sha256-TdYNTXr7tLwq0j7eac8shLcrkDUO7L4TOebhSbbg+p0=",
         "owner": "logos-blockchain",
         "repo": "logos-execution-zone",
-        "rev": "f7fda38a4428b9989f1db1dbf5d2411484848fd4",
+        "rev": "db66590ab821a4e142c211017a3866d007f6fa77",
         "type": "github"
       },
       "original": {
         "owner": "logos-blockchain",
-        "ref": "v0.3.0-rc1",
+        "ref": "v0.3.0",
         "repo": "logos-execution-zone",
         "type": "github"
       }
