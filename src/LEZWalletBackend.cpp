@@ -585,6 +585,11 @@ void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, con
     sequencerEntry[QStringLiteral("basic_auth")]     = QJsonValue::Null;
     obj[QStringLiteral("sequencers")] = QJsonArray{ sequencerEntry };
 
+    // FIXME: interim fix until @Pravdyvy 's actual fix lands, reduce the calibration limit to 1
+    QJsonObject multiClient;
+    multiClient[QStringLiteral("calibration_limit")]  = 1;
+    obj[QStringLiteral("multi_sequencer_client_config")] = multiClient;
+
     QDir().mkpath(QFileInfo(configPath).absolutePath());
     if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
         file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
