@@ -585,9 +585,14 @@ void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, con
     sequencerEntry[QStringLiteral("basic_auth")]     = QJsonValue::Null;
     obj[QStringLiteral("sequencers")] = QJsonArray{ sequencerEntry };
 
-    // FIXME: interim fix until @Pravdyvy 's actual fix lands, reduce the calibration limit to 1
-    QJsonObject multiClient;
-    multiClient[QStringLiteral("calibration_limit")]  = 1;
+    // FIXME: interim fix until @Pravdyvy 's actual fix lands, reduce the calibration limit to 1.
+    // Anything the config already set here is carried over -- only calibration_limit is forced.
+    // distribution_limit has to end up present either way: MultiSequencerClientConfig has no
+    // per-field serde defaults, so a partial object fails the whole WalletConfig deserialization.
+    QJsonObject multiClient = obj.value(QStringLiteral("multi_sequencer_client_config")).toObject();
+    multiClient[QStringLiteral("calibration_limit")] = 1;
+    if (!multiClient.contains(QStringLiteral("distribution_limit")))
+        multiClient[QStringLiteral("distribution_limit")] = 1;
     obj[QStringLiteral("multi_sequencer_client_config")] = multiClient;
 
     QDir().mkpath(QFileInfo(configPath).absolutePath());
