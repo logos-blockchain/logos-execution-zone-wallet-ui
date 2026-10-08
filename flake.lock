@@ -175,18 +175,18 @@
         "nix-bundle-lgx": "nix-bundle-lgx_4"
       },
       "locked": {
-        "lastModified": 1791370219,
-        "narHash": "sha256-U9DijJdDiLEyPr6jg4MqBganRKKVc4IoMEBhfeTdbWM=",
-        "ref": "Pravdyvy/breaking-cleanup",
-        "rev": "b17c80185157f7b5f8e532a16c163f9e8c66a30e",
-        "revCount": 128,
-        "type": "git",
-        "url": "https://github.com/logos-blockchain/logos-execution-zone-module"
+        "lastModified": 1791502736,
+        "narHash": "sha256-hJYdswQ0lQotye6wvUee7kjOeoDMbluWwYqSYMsL9cQ=",
+        "owner": "logos-blockchain",
+        "repo": "logos-execution-zone-module",
+        "rev": "8f374fd52d5ba4bf21169871bebb66de53e76195",
+        "type": "github"
       },
       "original": {
-        "ref": "Pravdyvy/breaking-cleanup",
-        "type": "git",
-        "url": "https://github.com/logos-blockchain/logos-execution-zone-module"
+        "owner": "logos-blockchain",
+        "ref": "main",
+        "repo": "logos-execution-zone-module",
+        "type": "github"
       }
     },
     "logos-blockchain-circuits": {
