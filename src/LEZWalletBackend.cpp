@@ -107,13 +107,6 @@ namespace {
         return QDir(base).filePath(QStringLiteral("lez_wallet"));
     }
 
-    // lez_core has no UI-facing concept of a statistics file; derive one deterministically
-    // next to the storage file so onboarding doesn't need a third path picker.
-    QString statisticsPathFor(const QString& localStoragePath) {
-        const QFileInfo info(localStoragePath);
-        return info.absolutePath() + QStringLiteral("/statistics.json");
-    }
-
     // createNew()'s reply shape (see the .rep): the recovery phrase has to reach
     // the view, so success cannot be signalled by an empty string the way the
     // other slots do.
@@ -302,8 +295,7 @@ void LEZWalletBackend::openIfPathsConfigured(int attempt)
 
 qint64 LEZWalletBackend::openWalletAt(const QString& localConfigPath, const QString& localStoragePath)
 {
-    return m_logos->lez_core.open(localConfigPath, localStoragePath,
-                                  statisticsPathFor(localStoragePath));
+    return m_logos->lez_core.open(localConfigPath, localStoragePath);
 }
 
 // Tags each private account with the NPK of the key group it belongs to (plus that
@@ -627,7 +619,7 @@ QString LEZWalletBackend::createNew(QString password, QString sequencerAddr)
         applySequencerAddrToConfig(localConfigPath, sequencerAddr);
 
     const QString mnemonic = m_logos->lez_core.create_new(
-        localConfigPath, localStoragePath, statisticsPathFor(localStoragePath), password);
+        localConfigPath, localStoragePath, password);
     if (mnemonic.isEmpty()) {
         qWarning() << "LEZWalletBackend: create_new returned no mnemonic. config:"
                    << localConfigPath << "storage:" << localStoragePath;
