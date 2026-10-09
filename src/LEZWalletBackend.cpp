@@ -39,19 +39,19 @@ namespace {
     const int MODULE_WARMUP_RETRY_MS = 50;
     const int MODULE_WARMUP_MAX_ATTEMPTS = 100;
 
-    // One LGO is 10^9 lepta. The chain deals only in lepta; the UI shows and
-    // accepts only LGO. Kept in step with DECIMALS in qml/Units.js, which
+    // One token is 10^9 lepta. The chain deals only in lepta; the UI shows and
+    // accepts only tokens. Kept in step with DECIMALS in qml/Units.js, which
     // converts the other way — if these two ever disagree, every amount in the
     // app is wrong by the difference.
-    constexpr int kLgoDecimals = 9;
+    constexpr int kTokenDecimals = 9;
 
-    // Canonical LGO ("1.5", as Units.normalizeInput leaves it) to lepta digits.
+    // Canonical tokens ("1.5", as Units.normalizeInput leaves it) to lepta digits.
     // String arithmetic, not toDouble(): a u128 lepta figure runs far past the
     // 2^53 where a double starts dropping the digits that matter. Returns empty
     // for anything it cannot represent EXACTLY — including more decimal places
     // than the chain has, which is a refusal rather than a silent truncation of
     // someone's transfer.
-    QString leptaFromLgo(const QString& canonical) {
+    QString leptaFromToken(const QString& canonical) {
         const QString t = canonical.trimmed();
         if (t.isEmpty()) return QString();
         const int dot = t.indexOf(QLatin1Char('.'));
@@ -60,8 +60,8 @@ namespace {
         if (whole.isEmpty() && frac.isEmpty()) return QString();
         for (const QChar c : whole) if (!c.isDigit()) return QString();
         for (const QChar c : frac)  if (!c.isDigit()) return QString();
-        if (frac.size() > kLgoDecimals) return QString();
-        frac += QString(kLgoDecimals - frac.size(), QLatin1Char('0'));
+        if (frac.size() > kTokenDecimals) return QString();
+        frac += QString(kTokenDecimals - frac.size(), QLatin1Char('0'));
         QString out = (whole.isEmpty() ? QStringLiteral("0") : whole) + frac;
         int firstSignificant = 0;
         while (firstSignificant < out.size() - 1 && out.at(firstSignificant) == QLatin1Char('0'))
@@ -69,10 +69,10 @@ namespace {
         return out.mid(firstSignificant);
     }
 
-    // Convert a canonical LGO amount to 32-char hex (16 bytes little-endian)
+    // Convert a canonical token amount to 32-char hex (16 bytes little-endian)
     // for transfer_public/transfer_private/transfer_private_owned.
     QString amountToLe16Hex(const QString& amountStr) {
-        const QString lepta = leptaFromLgo(amountStr);
+        const QString lepta = leptaFromToken(amountStr);
         if (lepta.isEmpty()) return QString();
         // Decimal string -> u128, rejecting anything that will not fit rather
         // than wrapping. The module requires __uint128_t for the same reason.
@@ -553,10 +553,10 @@ QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QSt
 
 QString LEZWalletBackend::bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, QString amountStr)
 {
-    // Canonical LGO from the view; bridge_withdraw takes lepta, and as a u64
+    // Canonical tokens from the view; bridge_withdraw takes lepta, and as a u64
     // rather than the u128 the transfers use — so an amount the chain could
     // express is still refused here rather than wrapped.
-    const QString lepta = leptaFromLgo(amountStr);
+    const QString lepta = leptaFromToken(amountStr);
     bool ok = false;
     const quint64 amount = lepta.isEmpty() ? 0 : lepta.toULongLong(&ok);
     if (!ok || amount == 0)
