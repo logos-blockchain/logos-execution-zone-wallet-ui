@@ -85,7 +85,7 @@ Item {
             spacing: Theme.spacing.small
 
             LogosText {
-                text: qsTr("Amount (LGO)")
+                text: qsTr("Amount (%1)").arg(Units.SYMBOL)
                 font.pixelSize: Theme.typography.secondaryText
                 color: Theme.palette.textSecondary
             }
