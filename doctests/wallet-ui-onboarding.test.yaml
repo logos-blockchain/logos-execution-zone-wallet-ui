@@ -108,7 +108,7 @@ sections:
     steps:
       - title: "Launch on a clean profile and exercise the wizard's validation"
         ui_test:
-          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400 --user-dir $PWD/lez-home/data/basecamp"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
@@ -436,7 +436,7 @@ sections:
     steps:
       - title: "Relaunch against the same profile"
         ui_test:
-          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400 --user-dir $PWD/lez-home/data/basecamp"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
@@ -472,7 +472,7 @@ sections:
         check_file: "/tmp/lez-doctest-moved/storage.json"
       - title: "Relaunch and confirm the notice"
         ui_test:
-          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400 --user-dir $PWD/lez-home/data/basecamp"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
@@ -551,7 +551,7 @@ sections:
         check_file: "/tmp/lez-doctest-empty/storage.json"
       - title: "Try to open them"
         ui_test:
-          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400 --user-dir $PWD/lez-home/data/basecamp"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
@@ -623,7 +623,7 @@ sections:
     steps:
       - title: "Open the wallet from its new location"
         ui_test:
-          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400"
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400 --user-dir $PWD/lez-home/data/basecamp"
           qt_mcp: "result-mcp"
           build_timeout: 2400
           launch_timeout: 2400
