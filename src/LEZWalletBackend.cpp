@@ -327,8 +327,11 @@ QVariantList LEZWalletBackend::buildEnrichedAccountList()
     return enriched;
 }
 
-void LEZWalletBackend::finishOpeningWallet()
+void LEZWalletBackend::finishOpeningWallet(SyncPrompt prompt)
 {
+    m_syncApproved = prompt == SyncPrompt::Skip;
+    m_syncDeclined = false;
+    setSyncPromptOpen(false);
     setIsWalletOpen(true);
     QTimer::singleShot(0, this, [this]() {
         m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
@@ -356,12 +359,38 @@ void LEZWalletBackend::refreshBalances()
 void LEZWalletBackend::startChunkedSync()
 {
     m_syncTarget = static_cast<quint64>(currentBlockHeight());
-    if (m_syncTarget == 0 || static_cast<quint64>(lastSyncedBlock()) >= m_syncTarget) {
+    const quint64 synced = static_cast<quint64>(lastSyncedBlock());
+    if (m_syncTarget == 0 || synced >= m_syncTarget) {
+        setPendingSyncBlocks(0);
+        setSyncPromptOpen(false);
         updateBalances();
         return;
     }
+    const quint64 pending = m_syncTarget - synced;
+    if (!m_syncApproved && pending > SYNC_CONFIRM_THRESHOLD) {
+        setPendingSyncBlocks(static_cast<int>(pending));
+        setSyncPromptOpen(!m_syncDeclined);
+        updateBalances();
+        return;
+    }
+    setPendingSyncBlocks(0);
+    setSyncPromptOpen(false);
     m_syncing = true;
     syncNextChunk();
+}
+
+void LEZWalletBackend::confirmSync(bool accepted)
+{
+    setSyncPromptOpen(false);
+    if (!accepted) {
+        m_syncDeclined = true;
+        return;
+    }
+
+    m_syncDeclined = false;
+    m_syncApproved = true;
+    if (!m_syncing)
+        startChunkedSync();
 }
 
 void LEZWalletBackend::syncNextChunk()
@@ -635,7 +664,7 @@ QString LEZWalletBackend::createNew(QString password, QString sequencerAddr)
 
     persistConfigPath(localConfigPath);
     persistStoragePath(localStoragePath);
-    finishOpeningWallet();
+    finishOpeningWallet(SyncPrompt::Skip);
     return createSucceeded(mnemonic);
 }
 

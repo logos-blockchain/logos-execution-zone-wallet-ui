@@ -16,11 +16,13 @@ Rectangle {
     property var accountModel: null
     property int lastSyncedBlock: 0
     property int currentBlockHeight: 0
+    property int pendingSyncBlocks: 0
 
     // --- Public API: signals out ---
     signal createPublicAccountRequested()
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
+    signal syncRequested()
     signal labelRequested(string accountId, bool isPublic)
 
     radius: Theme.spacing.radiusXlarge
@@ -60,11 +62,30 @@ Rectangle {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacing.medium
+            visible: root.pendingSyncBlocks > 0
+
+            LogosText {
+                text: qsTr("Not synced, %1 blocks behind").arg(root.pendingSyncBlocks)
+                font.pixelSize: Theme.typography.secondaryText
+                color: Theme.palette.textSecondary
+            }
+            Item { Layout.fillWidth: true }
+            LogosButton {
+                text: qsTr("Sync now")
+                onClicked: root.syncRequested()
+            }
+        }
+
         // Sync progress
         ColumnLayout {
             Layout.fillWidth: true
             spacing: Theme.spacing.small
-            visible: root.currentBlockHeight > 0 && root.lastSyncedBlock < root.currentBlockHeight
+            visible: root.pendingSyncBlocks === 0
+                     && root.currentBlockHeight > 0
+                     && root.lastSyncedBlock < root.currentBlockHeight
 
             RowLayout {
                 Layout.fillWidth: true
