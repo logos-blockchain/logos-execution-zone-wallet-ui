@@ -7,6 +7,8 @@ class LEZWalletBackend
     PROP(QString notice READONLY)
     PROP(int lastSyncedBlock READONLY)
     PROP(int currentBlockHeight READONLY)
+    PROP(int pendingSyncBlocks READONLY)
+    PROP(bool syncPromptOpen READONLY)
     PROP(QString sequencerAddr READONLY)
     PROP(QString testnetUrl READONLY)
     PROP(QString localhostUrl READONLY)
@@ -19,6 +21,7 @@ class LEZWalletBackend
     SLOT(QString getPublicAccountKey(QString accountIdHex))
     SLOT(QString getPrivateAccountKeys(QString accountIdHex))
     SLOT(bool syncToBlock(quint64 blockId))
+    SLOT(void confirmSync(bool accepted))
 
     SLOT(QString transferPublic(QString fromHex, QString toHex, QString amountStr))
     SLOT(QString transferPrivate(QString fromHex, QString toHex, QString amountStr))

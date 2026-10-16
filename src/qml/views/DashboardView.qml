@@ -19,11 +19,13 @@ Rectangle {
     property bool transferPending: false
     property int lastSyncedBlock: 0
     property int currentBlockHeight: 0
+    property int pendingSyncBlocks: 0
 
     // --- Public API: output signals (parent connects and calls backend) ---
     signal createPublicAccountRequested()
     signal createPrivateAccountRequested()
     signal fetchBalancesRequested()
+    signal syncRequested()
     signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
     signal transferPrivateRequested(string fromAccountId, string toKeysJsonOrAddress, string amount)
     signal transferPrivateOwnedRequested(string fromAccountId, string toAccountId, string amount)
@@ -48,10 +50,12 @@ Rectangle {
             accountModel: root.accountModel
             lastSyncedBlock: root.lastSyncedBlock
             currentBlockHeight: root.currentBlockHeight
+            pendingSyncBlocks: root.pendingSyncBlocks
 
             onCreatePublicAccountRequested: root.createPublicAccountRequested()
             onCreatePrivateAccountRequested: root.createPrivateAccountRequested()
             onFetchBalancesRequested: root.fetchBalancesRequested()
+            onSyncRequested: root.syncRequested()
             onLabelRequested: (accountId, isPublic) => root.labelRequested(accountId, isPublic)
         }
 

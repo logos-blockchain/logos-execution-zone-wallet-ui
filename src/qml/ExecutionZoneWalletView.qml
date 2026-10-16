@@ -126,8 +126,11 @@ Rectangle {
         root.ready = root.backend !== null
             && logos.isViewModuleReady("lez_wallet_ui")
         if (root.ready) d.updateStack(d.isWalletOpen)
-        if (root.backend)
+        if (root.backend) {
             d.showNotice(LogosNotice.Error, root.backend.notice)
+            if (root.backend.syncPromptOpen)
+                syncConfirmDialog.open()
+        }
     }
 
     Connections {
@@ -136,9 +139,24 @@ Rectangle {
         function onNoticeChanged() {
             d.showNotice(LogosNotice.Error, backend.notice)
         }
+        function onSyncPromptOpenChanged() {
+            if (backend.syncPromptOpen)
+                syncConfirmDialog.open()
+            else
+                syncConfirmDialog.close()
+        }
     }
 
     color: Theme.palette.background
+
+    SyncConfirmDialog {
+        id: syncConfirmDialog
+
+        blocks: backend ? backend.pendingSyncBlocks : 0
+
+        onSyncAccepted: if (backend) backend.confirmSync(true)
+        onSyncDeclined: if (backend) backend.confirmSync(false)
+    }
 
     SetLabelDialog {
         id: setLabelDialog
@@ -293,6 +311,9 @@ Rectangle {
                 recipientAccountModel: root.recipientAccountModel
                 lastSyncedBlock: backend ? backend.lastSyncedBlock : 0
                 currentBlockHeight: backend ? backend.currentBlockHeight : 0
+                pendingSyncBlocks: backend ? backend.pendingSyncBlocks : 0
+
+                onSyncRequested: if (backend) backend.confirmSync(true)
 
                 onCreatePublicAccountRequested: {
                     if (!backend) { console.warn("backend is null"); return }

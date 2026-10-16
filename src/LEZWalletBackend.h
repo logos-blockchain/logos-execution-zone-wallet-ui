@@ -15,6 +15,8 @@ struct LogosModules;
 // Source-side implementation of the LEZWalletBackend .rep interface.
 // Inheriting from LEZWalletBackendSimpleSource gives us the generated PROPs
 // and SLOTs from LEZWalletBackend.rep — all the simple ones flow over QtRO.
+enum class SyncPrompt { Ask, Skip };
+
 class LEZWalletBackend : public LEZWalletBackendSimpleSource {
     Q_OBJECT
     Q_PROPERTY(LEZWalletAccountModel* accountModel READ accountModel CONSTANT)
@@ -53,6 +55,7 @@ public slots:
     void copyToClipboard(QString text) override;
     bool checkLabelAvailable(QString label) override;
     QString addLabel(QString label, QString accountIdHex, bool isPublic) override;
+    void confirmSync(bool accepted) override;
 
 private slots:
     void syncNextChunk();
@@ -73,12 +76,15 @@ private:
     void refreshSequencerAddr();
     void saveWallet();
     void openIfPathsConfigured(int attempt = 0);
-    void finishOpeningWallet();
+    void finishOpeningWallet(SyncPrompt prompt = SyncPrompt::Ask);
     void finishStartup();
 
     bool m_syncing = false;
+    bool m_syncApproved = false;
+    bool m_syncDeclined = false;
     quint64 m_syncTarget = 0;
     static constexpr quint64 SYNC_CHUNK_SIZE = 100;
+    static constexpr quint64 SYNC_CONFIRM_THRESHOLD = 1000;
 
     LEZWalletAccountModel* m_accountModel;
     LEZAccountFilterModel* m_filteredAccountModel;
