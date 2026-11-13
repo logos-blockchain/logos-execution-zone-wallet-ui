@@ -18,7 +18,7 @@ ColumnLayout {
     property string busyMessage: ""
 
     signal createWallet(string password, string sequencerUrl)
-    signal openWallet(string configPath, string storagePath)
+    signal openWallet(string configPath, string storagePath, string password)
     signal mnemonicAcknowledged()
 
     function showRecoveryPhrase(mnemonic) {

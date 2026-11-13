@@ -260,7 +260,7 @@ Rectangle {
                     onboarding.busyMessage = qsTr("Opening your wallet…")
                     onboarding.busy = true
                     // Empty string on success, human-readable message otherwise.
-                    logos.watch(backend.openExisting(configPath, storagePath),
+                    logos.watch(backend.openExisting(configPath, storagePath, password),
                         function(errorMessage) {
                             onboarding.busy = false
                             if (errorMessage)
