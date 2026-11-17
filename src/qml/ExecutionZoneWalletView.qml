@@ -254,7 +254,7 @@ Rectangle {
                     )
                 }
 
-                onOpenWallet: function(configPath, storagePath) {
+                onOpenWallet: function(configPath, storagePath, password) {
                     if (!backend) return
                     onboarding.openError = ""
                     onboarding.busyMessage = qsTr("Opening your wallet…")

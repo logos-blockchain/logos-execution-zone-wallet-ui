@@ -85,7 +85,7 @@ ColumnLayout {
                         return
                     }
                     root.openError = ""
-                    root.openWallet(setupStep.configPath, setupStep.storagePath)
+                    root.openWallet(setupStep.configPath, setupStep.storagePath, setupStep.password)
                 } else {
                     next()
                 }
