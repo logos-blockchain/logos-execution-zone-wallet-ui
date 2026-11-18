@@ -146,14 +146,6 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     setStoragePath(s.value(STORAGE_PATH_KEY).toString());
     setIsStartupResolved(configPath().isEmpty() || storagePath().isEmpty());
 
-    // ui-host runs our constructor inside initLogos(), synchronously, BEFORE
-    // it enables remoting and emits READY. Any blocking RPC here (open,
-    // list_accounts, block-height queries, sequencer lookup) would stall
-    // ui-host startup past ViewModuleHost's 30s ready watchdog and get the
-    // child SIGTERM'd. Defer the whole open+refresh chain to the first
-    // event-loop tick so ui-host finishes wiring itself up first.
-    QTimer::singleShot(0, this, [this]() { openIfPathsConfigured(); });
-
     // Save wallet when app quits; host may not call destructors so this is best-effort.
     connect(qApp, &QCoreApplication::aboutToQuit, this,
             [this]() { saveWallet(); }, Qt::DirectConnection);
@@ -270,7 +262,7 @@ void LEZWalletBackend::openIfPathsConfigured(int attempt, const QString& passwor
     // session, so open() itself won't hit this race afterwards.
     if (m_logos->lez_core.version().isEmpty() && attempt < MODULE_WARMUP_MAX_ATTEMPTS) {
         QTimer::singleShot(MODULE_WARMUP_RETRY_MS, this,
-            [this, attempt]() { openIfPathsConfigured(attempt + 1, password); });
+            [this, attempt, password]() { openIfPathsConfigured(attempt + 1, password); });
         return;
     }
 

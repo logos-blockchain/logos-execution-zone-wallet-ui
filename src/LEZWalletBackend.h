@@ -70,7 +70,7 @@ private:
     void updateBalances();
     void refreshSequencerAddr();
     void saveWallet();
-    void openIfPathsConfigured(int attempt = 0, const QString& password);
+    void openIfPathsConfigured(int attempt = 0, const QString& password = "");
     void finishOpeningWallet();
     void finishStartup();
 

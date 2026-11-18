@@ -18,11 +18,8 @@ intro: |
      network and a password, one per step. The wallet's files go to a location
      the backend picks, so a first-time user is never asked to name a file that
      does not yet exist. It returns the recovery phrase, which the UI shows once.
-  2. **Open** — `openExisting(configPath, storagePath)` loads files the user
-     already has. It takes no password (`wallet_ffi_open` has no such parameter)
-     and no sequencer (an existing wallet's sequencer lives in the config file
-     being opened), so the open route's two file pickers appear inline under its
-     card and the wizard ends there.
+  2. **Open** — `openExisting(configPath, storagePath, password)` loads files the
+     user already has and unlocks them with the wallet password.
 
   Neither call can fall through to the other. That separation is the point of
   this test: an earlier single `createNew(configPath, storagePath, password,
@@ -186,7 +183,7 @@ sections:
               action: click_object
               find_by: "objectName"
               find_value: "lezSetupExistingCard"
-            - name: "The file pickers appear inline, and nothing else is asked for"
+            - name: "The file pickers and password field appear inline"
               action: wait_for
               texts:
                 - "Point to your files"
@@ -194,12 +191,18 @@ sections:
                 - "Config file"
               timeout: 15000
               text: |
-                No password field and no network selector: `wallet_ffi_open` takes
-                no password, and the sequencer is read from the config file being
-                opened. Asking for either would be asking for something the call
-                discards — which is also why this route ends the wizard here
-                instead of walking on through Network and Password.
+                Opening needs the two files and the wallet's password, and nothing
+                else: no network selector, because the sequencer is read from the
+                config file being opened. That is why this route ends the wizard
+                here instead of walking on through Network and Password.
               screenshot: "onboarding-open-existing.png"
+
+            - name: "…including the password field"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOpenPasswordField"
+              property: "visible"
+              value: true
 
             - name: "Let the page transition settle"
               action: sleep
@@ -230,6 +233,20 @@ sections:
               find_by: "objectName"
               find_value: "lezOpenConfigField"
               value: "/tmp/lez-doctest-does-not-exist/config.json"
+            - name: "With both paths set but no password, the open is still not offered"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
+              property: "enabled"
+              value: false
+            - name: "and the footer asks for the password"
+              action: expect_texts
+              texts: ["Enter your wallet password to continue"]
+            - name: "Enter the wallet password"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenPasswordField"
+              value: "doctest-passphrase"
             - name: "Try to open them"
               action: click_object
               find_by: "objectName"
@@ -618,8 +635,8 @@ sections:
     step: true
     text: |
       Finally, the path that proves the open branch really is an open: the wallet
-      moved aside earlier is loaded from its new location, with no password and no
-      network selection, and the dashboard comes back.
+      moved aside earlier is loaded from its new location with its password and
+      no network selection, and the dashboard comes back.
     steps:
       - title: "Open the wallet from its new location"
         ui_test:
@@ -659,6 +676,32 @@ sections:
               find_by: "objectName"
               find_value: "lezOpenConfigField"
               value: "/tmp/lez-doctest-moved/config.json"
+            - name: "Open it"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
+            - name: "Enter a wrong password"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenPasswordField"
+              value: "wrong-passphrase"
+            - name: "Try to open it"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezOnboardingAdvanceButton"
+            - name: "The wrong password is rejected"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezOpenError"
+              property: "shown"
+              value: true
+              timeout: 30000
+              screenshot: "onboarding-error-wrong-password.png"
+            - name: "Enter the right password"
+              action: set_text
+              find_by: "objectName"
+              find_value: "lezOpenPasswordField"
+              value: "doctest-passphrase"
             - name: "Open it"
               action: click_object
               find_by: "objectName"
