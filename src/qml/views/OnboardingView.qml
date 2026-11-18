@@ -18,7 +18,7 @@ ColumnLayout {
     property string busyMessage: ""
 
     signal createWallet(string password, string sequencerUrl)
-    signal openWallet(string configPath, string storagePath)
+    signal openWallet(string configPath, string storagePath, string password)
     signal mnemonicAcknowledged()
 
     function showRecoveryPhrase(mnemonic) {
@@ -85,7 +85,7 @@ ColumnLayout {
                         return
                     }
                     root.openError = ""
-                    root.openWallet(setupStep.configPath, setupStep.storagePath)
+                    root.openWallet(setupStep.configPath, setupStep.storagePath, setupStep.password)
                 } else {
                     next()
                 }

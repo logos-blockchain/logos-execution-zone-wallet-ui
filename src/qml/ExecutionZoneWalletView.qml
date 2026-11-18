@@ -24,30 +24,38 @@ Rectangle {
         }
     }
 
-    // Map wallet FFI error codes to user-facing strings. Matches lssa/wallet-ffi WalletFfiError enum.
+    // Map wallet FFI error codes to user-facing strings. Matches lssa/core-ffi FfiOperationError enum.
     QtObject {
         id: ffiErrors
         readonly property var codeToMessage: ({
             0: qsTr("Success"),
             1: qsTr("Invalid argument (null pointer)"),
             2: qsTr("Invalid UTF-8 string"),
-            3: qsTr("Wallet not initialized"),
-            4: qsTr("Configuration error"),
-            5: qsTr("Storage or persistence error"),
-            6: qsTr("Network or RPC error"),
-            7: qsTr("Account not found"),
-            8: qsTr("Key not found for account"),
-            9: qsTr("Insufficient funds"),
-            10: qsTr("Invalid account ID format"),
-            11: qsTr("Runtime error"),
-            12: qsTr("Password required but not provided"),
-            13: qsTr("Block synchronization error"),
-            14: qsTr("Serialization error"),
-            15: qsTr("Invalid type conversion"),
-            16: qsTr("Invalid key value"),
-            17: qsTr("Invalid program bytecode"),
+            3: qsTr("Invalid argument (malformed or unappiable)"),
+            4: qsTr("Sequencer not initialized"),
+            5: qsTr("Wallet not initialized"),
+            6: qsTr("Configuration error"),
+            7: qsTr("Storage or persistence error"),
+            8: qsTr("Network or RPC error"),
+            9: qsTr("Query failed"),
+            10: qsTr("Account not found"),
+            11: qsTr("Key not found for account"),
+            12: qsTr("Insufficient funds"),
+            13: qsTr("Invalid account ID format"),
+            14: qsTr("Runtime error"),
+            15: qsTr("Password required but not provided"),
+            16: qsTr("Block synchronization error"),
+            17: qsTr("Serialization error"),
+            18: qsTr("Invalid type conversion"),
+            19: qsTr("Invalid key value"),
+            20: qsTr("Invalid program bytecode"),
             // Fee-admission refusal: distinct from 9, which is the transfer amount check.
-            18: qsTr("Insufficient balance to cover the transaction fee"),
+            21: qsTr("Insufficient balance to cover the transaction fee"),
+            22: qsTr("Not supported"),
+            23: qsTr("Response too big"),
+            24: qsTr("Message not found"),
+            25: qsTr("Wrong password, does not open the wallet storage, or the storage is corrupted"),
+            26: qsTr("Would revert"),
             99: qsTr("Internal error")
         })
         function format(errorMessage) {
@@ -254,13 +262,13 @@ Rectangle {
                     )
                 }
 
-                onOpenWallet: function(configPath, storagePath) {
+                onOpenWallet: function(configPath, storagePath, password) {
                     if (!backend) return
                     onboarding.openError = ""
                     onboarding.busyMessage = qsTr("Opening your wallet…")
                     onboarding.busy = true
                     // Empty string on success, human-readable message otherwise.
-                    logos.watch(backend.openExisting(configPath, storagePath),
+                    logos.watch(backend.openExisting(configPath, storagePath, password),
                         function(errorMessage) {
                             onboarding.busy = false
                             if (errorMessage)

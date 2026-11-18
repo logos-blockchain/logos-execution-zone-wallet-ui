@@ -146,14 +146,6 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     setStoragePath(s.value(STORAGE_PATH_KEY).toString());
     setIsStartupResolved(configPath().isEmpty() || storagePath().isEmpty());
 
-    // ui-host runs our constructor inside initLogos(), synchronously, BEFORE
-    // it enables remoting and emits READY. Any blocking RPC here (open,
-    // list_accounts, block-height queries, sequencer lookup) would stall
-    // ui-host startup past ViewModuleHost's 30s ready watchdog and get the
-    // child SIGTERM'd. Defer the whole open+refresh chain to the first
-    // event-loop tick so ui-host finishes wiring itself up first.
-    QTimer::singleShot(0, this, [this]() { openIfPathsConfigured(); });
-
     // Save wallet when app quits; host may not call destructors so this is best-effort.
     connect(qApp, &QCoreApplication::aboutToQuit, this,
             [this]() { saveWallet(); }, Qt::DirectConnection);
@@ -240,7 +232,7 @@ void LEZWalletBackend::finishStartup()
     setIsStartupResolved(true);
 }
 
-void LEZWalletBackend::openIfPathsConfigured(int attempt)
+void LEZWalletBackend::openIfPathsConfigured(int attempt, const QString& password)
 {
     if (configPath().isEmpty() || storagePath().isEmpty()) {
         finishStartup();
@@ -270,13 +262,13 @@ void LEZWalletBackend::openIfPathsConfigured(int attempt)
     // session, so open() itself won't hit this race afterwards.
     if (m_logos->lez_core.version().isEmpty() && attempt < MODULE_WARMUP_MAX_ATTEMPTS) {
         QTimer::singleShot(MODULE_WARMUP_RETRY_MS, this,
-            [this, attempt]() { openIfPathsConfigured(attempt + 1); });
+            [this, attempt, password]() { openIfPathsConfigured(attempt + 1, password); });
         return;
     }
 
     qDebug() << "LEZWalletBackend: opening wallet with config" << configPath()
              << "storage" << storagePath();
-    const qint64 err = openWalletAt(configPath(), storagePath());
+    const qint64 err = openWalletAt(configPath(), storagePath(), password);
     if (err == WALLET_FFI_SUCCESS) {
         qDebug() << "LEZWalletBackend: wallet opened successfully";
         finishOpeningWallet();
@@ -293,9 +285,9 @@ void LEZWalletBackend::openIfPathsConfigured(int attempt)
     finishStartup();
 }
 
-qint64 LEZWalletBackend::openWalletAt(const QString& localConfigPath, const QString& localStoragePath)
+qint64 LEZWalletBackend::openWalletAt(const QString& localConfigPath, const QString& localStoragePath, const QString& password)
 {
-    return m_logos->lez_core.open(localConfigPath, localStoragePath);
+    return m_logos->lez_core.open(localConfigPath, localStoragePath, password, true);
 }
 
 // Tags each private account with the NPK of the key group it belongs to (plus that
@@ -609,7 +601,7 @@ QString LEZWalletBackend::createNew(QString password, QString sequencerAddr)
         applySequencerAddrToConfig(localConfigPath, sequencerAddr);
 
     const QString mnemonic = m_logos->lez_core.create_new(
-        localConfigPath, localStoragePath, password);
+        localConfigPath, localStoragePath, password, true);
     if (mnemonic.isEmpty()) {
         qWarning() << "LEZWalletBackend: create_new returned no mnemonic. config:"
                    << localConfigPath << "storage:" << localStoragePath;
@@ -633,7 +625,7 @@ QString LEZWalletBackend::createNew(QString password, QString sequencerAddr)
     return createSucceeded(mnemonic);
 }
 
-QString LEZWalletBackend::openExisting(QString configPath, QString storagePath)
+QString LEZWalletBackend::openExisting(QString configPath, QString storagePath, QString password)
 {
     const QString localConfigPath = toLocalPath(configPath);
     const QString localStoragePath = toLocalPath(storagePath);
@@ -646,7 +638,7 @@ QString LEZWalletBackend::openExisting(QString configPath, QString storagePath)
     if (!QFile::exists(localStoragePath))
         return tr("No storage file at %1.").arg(localStoragePath);
 
-    const qint64 err = openWalletAt(localConfigPath, localStoragePath);
+    const qint64 err = openWalletAt(localConfigPath, localStoragePath, password);
     if (err != WALLET_FFI_SUCCESS) {
         qWarning() << "LEZWalletBackend: openExisting failed, error" << err
                    << "config:" << localConfigPath << "storage:" << localStoragePath;
