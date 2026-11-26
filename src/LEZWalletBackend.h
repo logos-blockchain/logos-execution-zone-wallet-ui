@@ -60,7 +60,8 @@ private slots:
 private:
     void persistConfigPath(const QString& path);
     void persistStoragePath(const QString& path);
-    void lookForDefaultWallet(int attempt);
+    void resolveStartup(int attempt);
+    void lookForDefaultWallet();
     void clearSavedPaths();
     void reportNotice(const QString& message);
     QString defaultWalletDir();
