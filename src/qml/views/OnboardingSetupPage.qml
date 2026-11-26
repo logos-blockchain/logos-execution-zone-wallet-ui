@@ -34,6 +34,11 @@ ColumnLayout {
     function samePathChosen() {
         return storagePicker.path === configPicker.path
     }
+    // Fill the file fields the person hasn't set yet.
+    function prefill(config, storage) {
+        if (configPicker.path.length === 0) configPicker.path = config
+        if (storagePicker.path.length === 0) storagePicker.path = storage
+    }
 
     spacing: Theme.spacing.medium
 

@@ -16,10 +16,23 @@ ColumnLayout {
     property string openError: ""
     property bool busy: false
     property string busyMessage: ""
+    // A wallet saved here: the home screen asks for its password.
+    property bool savedWallet: false
+    property string savedConfigPath: ""
+    property string savedStoragePath: ""
+    property bool unlockBusy: false
 
     signal createWallet(string password, string sequencerUrl)
     signal openWallet(string configPath, string storagePath, string password)
     signal mnemonicAcknowledged()
+    signal unlockWallet(string password)
+    // "I already have a wallet" with no saved paths: ask for lez_core's default wallet folder.
+    signal defaultPathsWanted()
+
+    function unlockFailed(message) { welcomePage.unlockFailed(message) }
+    function offerDefaultPaths(dir) {
+        setupStep.prefill(dir + "/config.json", dir + "/storage.json")
+    }
 
     function showRecoveryPhrase(mnemonic) {
         keysStep.mnemonic = mnemonic
@@ -141,10 +154,15 @@ ColumnLayout {
     // ---- Welcome -----------------------------------------------------------
 
     OnboardingWelcomePage {
+        id: welcomePage
         objectName: "lezOnboardingWelcome"
         Layout.fillWidth: true
         Layout.fillHeight: true
         visible: d.step === "welcome"
+        savedWallet: root.savedWallet
+        storagePath: root.savedStoragePath
+        busy: root.unlockBusy
+        onUnlockRequested: (password) => root.unlockWallet(password)
         onSetupRequested: {
             root.createError = ""
             root.openError = ""
@@ -258,6 +276,15 @@ ColumnLayout {
                 objectName: "lezOnboardingSetupStep"
                 errorMessage: d.step === "setup" ? root.openError : ""
                 onErrorRaised: (message) => root.openError = message
+                // "I already have a wallet" starts from the saved wallet's files, else from
+                // lez_core's default folder, never from empty fields.
+                onModeChanged: {
+                    if (mode !== "existing" || storagePath.length > 0 || configPath.length > 0) return
+                    if (root.savedStoragePath.length > 0 && root.savedConfigPath.length > 0)
+                        prefill(root.savedConfigPath, root.savedStoragePath)
+                    else
+                        root.defaultPathsWanted()
+                }
             }
 
             OnboardingNetworkPage {

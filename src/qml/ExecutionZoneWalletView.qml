@@ -99,8 +99,11 @@ Rectangle {
         // Until this is true the backend has not finished deciding whether there
         // is a wallet to open, so "not open" carries no information yet.
         readonly property bool isStartupResolved: backend !== null && backend.isStartupResolved
+        // A saved wallet waits for its password before it can open.
+        readonly property bool needsPassword: backend !== null && backend.needsPassword
 
         onIsStartupResolvedChanged: if (root.ready) updateStack(isWalletOpen)
+        onNeedsPasswordChanged: if (root.ready) updateStack(isWalletOpen)
 
         property var currentComponent: null
 
@@ -230,6 +233,34 @@ Rectangle {
 
                 testnetUrl: backend ? backend.testnetUrl : ""
                 localhostUrl: backend ? backend.localhostUrl : ""
+                // A saved wallet: the home screen asks for its password; "I already have a
+                // wallet" starts from its paths.
+                savedWallet: d.needsPassword
+                savedConfigPath: backend ? backend.configPath : ""
+                savedStoragePath: backend ? backend.storagePath : ""
+
+                onUnlockWallet: function(password) {
+                    if (!backend) return
+                    onboarding.unlockBusy = true
+                    // "" on success, the reason otherwise; a wrong password stays on the home screen.
+                    logos.watch(backend.unlockSaved(password),
+                        function(errorMessage) {
+                            onboarding.unlockBusy = false
+                            if (errorMessage) onboarding.unlockFailed(errorMessage)
+                            else d.updateStack(d.isWalletOpen)
+                        },
+                        function(error) {
+                            onboarding.unlockBusy = false
+                            onboarding.unlockFailed(qsTr("Error opening wallet: %1").arg(error))
+                        }
+                    )
+                }
+                onDefaultPathsWanted: {
+                    if (!backend) return
+                    logos.watch(backend.defaultWalletDirectory(),
+                        function(dir) { if (dir) onboarding.offerDefaultPaths(dir) },
+                        function(error) {})
+                }
 
                 onCreateWallet: function(password, sequencerUrl) {
                     if (!backend) return

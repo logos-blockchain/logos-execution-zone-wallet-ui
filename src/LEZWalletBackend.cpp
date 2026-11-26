@@ -30,14 +30,15 @@ namespace {
     const char TESTNET_URL[] = "https://testnet.lez.logos.co";
     const char LOCALHOST_URL[] = "http://127.0.0.1:3040";
     const int WALLET_FFI_SUCCESS = 0;
+    // wallet_ffi_open: the storage did not decrypt (wrong password, or a damaged file).
+    const int WALLET_FFI_WRONG_PASSWORD = 25;
+    // Finding the default wallet at startup waits for lez_core: 50 ms x up to 100 tries.
+    const int DEFAULT_WALLET_LOOKUP_RETRY_MS = 50;
+    const int DEFAULT_WALLET_LOOKUP_ATTEMPTS = 100;
     // Proof generation time is unbounded on commodity hardware.
     // Timeout(-1) means "wait indefinitely", matching Qt's own convention
     // for infinite waits (e.g. QRemoteObjectPendingCall::waitForFinished(-1)).
     const Timeout NO_TIMEOUT{-1};
-    // Warm-up retry budget for openIfPathsConfigured(), 50ms x up to 100 attempts
-    // ~= 5s, matching LogosAPIConsumer's own connect-retry budget.
-    const int MODULE_WARMUP_RETRY_MS = 50;
-    const int MODULE_WARMUP_MAX_ATTEMPTS = 100;
 
     // One token is 10^9 lepta. The chain deals only in lepta; the UI shows and
     // accepts only tokens. Kept in step with DECIMALS in qml/Units.js, which
@@ -144,7 +145,22 @@ LEZWalletBackend::LEZWalletBackend(LogosAPI* logosAPI, QObject* parent)
     QSettings s(SETTINGS_ORG, SETTINGS_APP);
     setConfigPath(s.value(CONFIG_PATH_KEY).toString());
     setStoragePath(s.value(STORAGE_PATH_KEY).toString());
-    setIsStartupResolved(configPath().isEmpty() || storagePath().isEmpty());
+    // A wallet here opens with its password (lez_core 0.6 encrypts the storage), so the home
+    // screen asks for it. "Here" is the last wallet used, else the files in lez_core's default
+    // wallet folder: a lost setting must not hide a wallet that is still on disk.
+    setNeedsPassword(false);
+    if (!configPath().isEmpty() && !storagePath().isEmpty()) {
+        if (QFile::exists(configPath()) && QFile::exists(storagePath())) {
+            setNeedsPassword(true);
+            setIsStartupResolved(true);
+            return;
+        }
+        qWarning() << "LEZWalletBackend: saved wallet files missing, clearing saved paths."
+                   << "config:" << configPath() << "storage:" << storagePath();
+        clearSavedPaths();
+    }
+    setIsStartupResolved(false);
+    QTimer::singleShot(0, this, [this]() { lookForDefaultWallet(0); });
 
     // Save wallet when app quits; host may not call destructors so this is best-effort.
     connect(qApp, &QCoreApplication::aboutToQuit, this,
@@ -225,64 +241,6 @@ void LEZWalletBackend::clearSavedPaths()
     s.remove(STORAGE_PATH_KEY);
     setConfigPath(QString());
     setStoragePath(QString());
-}
-
-void LEZWalletBackend::finishStartup()
-{
-    setIsStartupResolved(true);
-}
-
-void LEZWalletBackend::openIfPathsConfigured(int attempt, const QString& password)
-{
-    if (configPath().isEmpty() || storagePath().isEmpty()) {
-        finishStartup();
-        return;
-    }
-
-    if (!QFile::exists(configPath()) || !QFile::exists(storagePath())) {
-        qWarning() << "LEZWalletBackend: saved wallet files missing, clearing saved paths."
-                   << "config:" << configPath() << "storage:" << storagePath();
-        reportNotice(tr("Your saved wallet files were not found, so they have been "
-                            "forgotten.\nConfig: %1\nStorage: %2")
-                             .arg(configPath(), storagePath()));
-        clearSavedPaths();
-        finishStartup();
-        return;
-    }
-
-    // The first cross-process call this module makes to lez_core can race
-    // the inter-module capability/auth-token handshake: if it goes out before the
-    // target has been informed of our token, ModuleProxy rejects it and the call
-    // resolves to a default-constructed return value -- 0 for open()'s int64_t, which
-    // is indistinguishable from WALLET_FFI_SUCCESS. Warm up with a harmless,
-    // wallet-state-free call first: version() defaults to "" on that same rejection,
-    // which IS distinguishable from its real non-empty value, so we can retry here
-    // until the handshake has settled before trusting open()'s result. Once any call
-    // to lez_core succeeds, its token is cached for the rest of the
-    // session, so open() itself won't hit this race afterwards.
-    if (m_logos->lez_core.version().isEmpty() && attempt < MODULE_WARMUP_MAX_ATTEMPTS) {
-        QTimer::singleShot(MODULE_WARMUP_RETRY_MS, this,
-            [this, attempt, password]() { openIfPathsConfigured(attempt + 1, password); });
-        return;
-    }
-
-    qDebug() << "LEZWalletBackend: opening wallet with config" << configPath()
-             << "storage" << storagePath();
-    const qint64 err = openWalletAt(configPath(), storagePath(), password);
-    if (err == WALLET_FFI_SUCCESS) {
-        qDebug() << "LEZWalletBackend: wallet opened successfully";
-        finishOpeningWallet();
-        finishStartup();
-        return;
-    }
-
-    qWarning() << "LEZWalletBackend: failed to open saved wallet, error" << err
-               << "config:" << configPath() << "storage:" << storagePath();
-    reportNotice(tr("Your saved wallet could not be opened (error %1), so the saved "
-                        "location has been forgotten.\nConfig: %2\nStorage: %3")
-                         .arg(QString::number(err), configPath(), storagePath()));
-    clearSavedPaths();
-    finishStartup();
 }
 
 qint64 LEZWalletBackend::openWalletAt(const QString& localConfigPath, const QString& localStoragePath, const QString& password)
@@ -674,4 +632,57 @@ QString LEZWalletBackend::addLabel(QString label, QString accountIdHex, bool isP
 
     refreshAccounts();
     return QString();
+}
+
+QString LEZWalletBackend::unlockSaved(QString password)
+{
+    if (!needsPassword())
+        return QString();
+    if (password.isEmpty())
+        return tr("Enter your wallet password.");
+    // The first call to lez_core can race the capability handshake and come back as a default
+    // 0, which reads as success for open(). version() is "" on that same rejection: ask it first.
+    if (m_logos->lez_core.version().isEmpty())
+        return tr("The wallet module isn't ready yet. Try again in a moment.");
+
+    const qint64 err = openWalletAt(configPath(), storagePath(), password);
+    if (err == WALLET_FFI_SUCCESS) {
+        persistConfigPath(configPath());
+        persistStoragePath(storagePath());
+        setNeedsPassword(false);
+        finishOpeningWallet();
+        return QString();
+    }
+    qWarning() << "LEZWalletBackend: could not open the saved wallet, error" << err
+               << "storage:" << storagePath();
+    // 25: the storage didn't decrypt. lez_core can't tell a wrong password from a damaged file.
+    if (err == WALLET_FFI_WRONG_PASSWORD)
+        return tr("Wrong password, or the wallet file is damaged.");
+    return tr("Could not open the wallet (error %1).").arg(err);
+}
+
+QString LEZWalletBackend::defaultWalletDirectory()
+{
+    return defaultWalletDir();
+}
+
+void LEZWalletBackend::lookForDefaultWallet(int attempt)
+{
+    // The first call to lez_core can race the capability handshake: version() is "" until it
+    // has settled, so ask that first and try again shortly.
+    if (m_logos->lez_core.version().isEmpty() && attempt < DEFAULT_WALLET_LOOKUP_ATTEMPTS) {
+        QTimer::singleShot(DEFAULT_WALLET_LOOKUP_RETRY_MS, this,
+                           [this, attempt]() { lookForDefaultWallet(attempt + 1); });
+        return;
+    }
+    const QString dir = defaultWalletDir();
+    const QString config = dir.isEmpty() ? QString() : QDir(dir).filePath(QStringLiteral("config.json"));
+    const QString storage = dir.isEmpty() ? QString() : QDir(dir).filePath(QStringLiteral("storage.json"));
+    if (!dir.isEmpty() && QFile::exists(config) && QFile::exists(storage)) {
+        // Offered, not remembered: it becomes the last used once it opens.
+        setConfigPath(config);
+        setStoragePath(storage);
+        setNeedsPassword(true);
+    }
+    setIsStartupResolved(true);
 }
