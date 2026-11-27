@@ -99,6 +99,8 @@ Rectangle {
         // Until this is true the backend has not finished deciding whether there
         // is a wallet to open, so "not open" carries no information yet.
         readonly property bool isStartupResolved: backend !== null && backend.isStartupResolved
+        // A saved wallet waits for its password before it can open.
+        readonly property bool needsPassword: backend !== null && backend.needsPassword
 
         onIsStartupResolvedChanged: if (root.ready) updateStack(isWalletOpen)
 
@@ -127,7 +129,13 @@ Rectangle {
         }
     }
 
-    onReadyChanged: if (ready) d.updateStack(d.isWalletOpen)
+    // A notice raised at startup (saved files gone, a wallet that can't be read) can come before
+    // the view is connected: show what the backend holds once it is ready.
+    onReadyChanged: {
+        if (!ready) return
+        d.updateStack(d.isWalletOpen)
+        d.showNotice(LogosNotice.Error, root.backend.notice)
+    }
 
     Component.onCompleted: {
         root.ready = root.backend !== null
@@ -230,6 +238,36 @@ Rectangle {
 
                 testnetUrl: backend ? backend.testnetUrl : ""
                 localhostUrl: backend ? backend.localhostUrl : ""
+                // A saved wallet: the home screen asks for its password; "I already have a
+                // wallet" starts from its paths.
+                savedWallet: d.needsPassword
+                savedConfigPath: backend ? backend.configPath : ""
+                savedStoragePath: backend ? backend.storagePath : ""
+
+                onUnlockWallet: function(password) {
+                    if (!backend) return
+                    onboarding.unlockBusy = true
+                    // "" on success, the reason otherwise; a wrong password stays on the home screen.
+                    logos.watch(backend.unlockSaved(password),
+                        function(errorMessage) {
+                            onboarding.unlockBusy = false
+                            if (errorMessage) onboarding.unlockFailed(errorMessage)
+                            else d.updateStack(d.isWalletOpen)
+                        },
+                        function(error) {
+                            onboarding.unlockBusy = false
+                            onboarding.unlockFailed(qsTr("Error opening wallet: %1").arg(error))
+                        }
+                    )
+                }
+                onDefaultPathsWanted: {
+                    if (!backend) return
+                    logos.watch(backend.defaultWalletFiles(),
+                        function(files) {
+                            if (files && files.length === 2) onboarding.offerDefaultPaths(files[0], files[1])
+                        },
+                        function(error) {})
+                }
 
                 onCreateWallet: function(password, sequencerUrl) {
                     if (!backend) return

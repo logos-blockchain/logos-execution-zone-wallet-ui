@@ -2,6 +2,8 @@ class LEZWalletBackend
 {
     PROP(bool isWalletOpen READONLY)
     PROP(bool isStartupResolved READONLY)
+    // A wallet is saved here and waits for its password to open.
+    PROP(bool needsPassword READONLY)
     PROP(QString configPath READONLY)
     PROP(QString storagePath READONLY)
     PROP(QString notice READONLY)
@@ -31,6 +33,12 @@ class LEZWalletBackend
 
     SLOT(QString createNew(QString password, QString sequencerAddr))
     SLOT(QString openExisting(QString configPath, QString storagePath, QString password))
+    // Open the saved wallet: "" when it opened or when it can't be opened at all (then the
+    // saved location is forgotten and a notice says why), else the reason to show on the form.
+    SLOT(QString unlockSaved(QString password))
+    // The config.json and storage.json in lez_core's default wallet folder, only when both
+    // exist: [config, storage], else empty.
+    SLOT(QStringList defaultWalletFiles())
 
     SLOT(void copyToClipboard(QString text))
 

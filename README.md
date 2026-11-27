@@ -33,6 +33,23 @@ nix run --override-input lez_wallet_module path:../logos-execution-zone-module \
 
 The standalone app starts Logos Core, loads `capability_module` and the `lez_wallet_module` core plugin (flake input name must match `metadata.json` `dependencies`), then launches the QML UI via an isolated `ui-host` process.
 
+#### Building on macOS
+
+The wallet core (`core_ffi`, from the LEZ repository) normally comes prebuilt from the Logos Nix cache, which `flake.nix` declares. Nix applies a flake's cache settings only for trusted users, so if `nix run` starts compiling `core_ffi`, add the cache to your Nix config (`/etc/nix/nix.conf`, or `/etc/nix/nix.custom.conf` with Determinate Nix) and restart the Nix daemon:
+
+```
+extra-substituters = https://cache.nix.logos.co/public
+extra-trusted-public-keys = public:zaDAOkd+E3cQyFm9J7qejQYd9HoLJc1SJvnk68hNWeI=
+```
+
+Compiling `core_ffi` yourself on macOS needs full Xcode and its Metal toolchain, a separate download: risc0 compiles Metal kernels for the prover. Without it the build stops with `xcrun: error: unable to find utility "metal"`.
+
+```bash
+xcodebuild -downloadComponent MetalToolchain
+```
+
+If `xcode-select -p` points at the Command Line Tools, select Xcode first (`sudo xcode-select -s /Applications/Xcode.app`) or prefix the command with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+
 ### In Basecamp
 
 ```bash
