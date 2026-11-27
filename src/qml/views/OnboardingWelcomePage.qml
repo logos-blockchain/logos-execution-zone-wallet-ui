@@ -95,7 +95,7 @@ Item {
             objectName: "lezUnlockPasswordField"
             Layout.fillWidth: true
             visible: root.savedWallet
-            placeholderText: qsTr("Password")
+            placeholderText: qsTr("Password (empty if it has none)")
             echoMode: TextInput.Password
             focus: root.savedWallet
             onTextChanged: if (text.length > 0) root.errorMessage = ""
