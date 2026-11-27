@@ -4,6 +4,7 @@
 #include <QAbstractItemModel>
 #include <QClipboard>
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -32,6 +33,13 @@ namespace {
     const int WALLET_FFI_SUCCESS = 0;
     // wallet_ffi_open: the storage did not decrypt (wrong password, or a damaged file).
     const int WALLET_FFI_WRONG_PASSWORD = 25;
+    // lez_core's open(): an internal error, which is also its answer when it already has a
+    // wallet open (it can't close one). get_sequencer_addr() tells the two apart.
+    const int WALLET_FFI_INTERNAL_ERROR = 99;
+    // A wallet in the default folder that lez_core couldn't read, and the file's modification
+    // time then: it isn't offered again at startup until the file changes.
+    const char IGNORED_STORAGE_KEY[] = "ignoredStoragePath";
+    const char IGNORED_STORAGE_MTIME_KEY[] = "ignoredStorageModified";
     // Finding the default wallet at startup waits for lez_core: 50 ms x up to 100 tries.
     const int DEFAULT_WALLET_LOOKUP_RETRY_MS = 50;
     const int DEFAULT_WALLET_LOOKUP_ATTEMPTS = 100;
@@ -268,6 +276,7 @@ QVariantList LEZWalletBackend::buildEnrichedAccountList()
 
 void LEZWalletBackend::finishOpeningWallet()
 {
+    setNeedsPassword(false);
     setIsWalletOpen(true);
     QTimer::singleShot(0, this, [this]() {
         m_accountModel->replaceFromVariantList(buildEnrichedAccountList());
@@ -535,8 +544,8 @@ QString LEZWalletBackend::createNew(QString password, QString sequencerAddr)
         qWarning() << "LEZWalletBackend: refusing to create over existing storage at"
                    << localStoragePath;
         return createFailed(tr("A wallet already exists at %1. Move or remove those "
-                               "files before creating a new wallet here, or use "
-                               "\"Open wallet instead\" to load it.")
+                               "files before creating a new wallet here, or choose "
+                               "\"I already have a wallet\" to open it.")
                                 .arg(localStoragePath));
     }
 
@@ -590,7 +599,7 @@ QString LEZWalletBackend::openExisting(QString configPath, QString storagePath, 
     if (err != WALLET_FFI_SUCCESS) {
         qWarning() << "LEZWalletBackend: openExisting failed, error" << err
                    << "config:" << localConfigPath << "storage:" << localStoragePath;
-        return tr("Could not open the wallet at those paths (error %1).").arg(err);
+        return openErrorText(err);
     }
 
     persistConfigPath(localConfigPath);
@@ -628,44 +637,102 @@ QString LEZWalletBackend::unlockSaved(QString password)
 {
     if (!needsPassword())
         return QString();
-    if (password.isEmpty())
-        return tr("Enter your wallet password.");
+    // An empty password is passed on: lez_core still keeps a wallet created without one
+    // unencrypted, and only it can say whether this one is.
     // The first call to lez_core can race the capability handshake and come back as a default
     // 0, which reads as success for open(). version() is "" on that same rejection: ask it first.
     if (m_logos->lez_core.version().isEmpty())
         return tr("The wallet module isn't ready yet. Try again in a moment.");
 
     const qint64 err = openWalletAt(configPath(), storagePath(), password);
-    // Already open in lez_core (it outlives this view): that is the wallet to show.
-    const bool alreadyOpen = err != WALLET_FFI_SUCCESS
-                             && !m_logos->lez_core.get_sequencer_addr().isEmpty();
-    if (err == WALLET_FFI_SUCCESS || alreadyOpen) {
+    if (err == WALLET_FFI_SUCCESS) {
         persistConfigPath(configPath());
         persistStoragePath(storagePath());
-        setNeedsPassword(false);
         finishOpeningWallet();
         return QString();
     }
     qWarning() << "LEZWalletBackend: could not open the saved wallet, error" << err
                << "storage:" << storagePath();
+    // A password can fix only 25, and a wallet already open in lez_core needs a restart: the
+    // rest is about the files, so this card would come back on every launch. Say why, forget the
+    // location, go on to setup.
+    if (err != WALLET_FFI_WRONG_PASSWORD && !isAnotherWalletOpen(err)) {
+        forgetUnreadableWallet(err);
+        return QString();
+    }
+    return openErrorText(err);
+}
+
+bool LEZWalletBackend::isAnotherWalletOpen(qint64 err)
+{
+    return err == WALLET_FFI_INTERNAL_ERROR && !m_logos->lez_core.get_sequencer_addr().isEmpty();
+}
+
+QString LEZWalletBackend::openErrorText(qint64 err)
+{
     // 25: the storage didn't decrypt. lez_core can't tell a wrong password from a damaged file.
     if (err == WALLET_FFI_WRONG_PASSWORD)
         return tr("Wrong password, or the wallet file is damaged.");
+    if (isAnotherWalletOpen(err))
+        return tr("Another wallet is already open. Quit Basecamp and open it again to use this one.");
     return tr("Could not open the wallet (error %1).").arg(err);
 }
 
-QString LEZWalletBackend::defaultWalletDirectory()
+void LEZWalletBackend::forgetUnreadableWallet(qint64 err)
 {
-    return defaultWalletDir();
+    reportNotice(tr("Your saved wallet could not be opened (error %1), so the saved "
+                    "location has been forgotten.\nConfig: %2\nStorage: %3")
+                     .arg(QString::number(err), configPath(), storagePath()));
+    // The default folder's wallet would be offered again at the next launch: skip it until
+    // the file changes.
+    QSettings s(SETTINGS_ORG, SETTINGS_APP);
+    s.setValue(IGNORED_STORAGE_KEY, storagePath());
+    s.setValue(IGNORED_STORAGE_MTIME_KEY, QFileInfo(storagePath()).lastModified());
+    clearSavedPaths();
+    setNeedsPassword(false);
+}
+
+bool LEZWalletBackend::isIgnoredDefaultWallet(const QString& storage) const
+{
+    QSettings s(SETTINGS_ORG, SETTINGS_APP);
+    return s.value(IGNORED_STORAGE_KEY).toString() == storage
+           && s.value(IGNORED_STORAGE_MTIME_KEY).toDateTime() == QFileInfo(storage).lastModified();
+}
+
+QStringList LEZWalletBackend::defaultWalletFiles()
+{
+    const QString dir = defaultWalletDir();
+    if (dir.isEmpty())
+        return {};
+    const QString config = QDir(dir).filePath(QStringLiteral("config.json"));
+    const QString storage = QDir(dir).filePath(QStringLiteral("storage.json"));
+    if (!QFile::exists(config) || !QFile::exists(storage))
+        return {};
+    return {config, storage};
 }
 
 void LEZWalletBackend::resolveStartup(int attempt)
 {
     // The first call to lez_core can race the capability handshake: version() is "" until it
     // has settled, so ask that first and try again shortly.
-    if (m_logos->lez_core.version().isEmpty() && attempt < DEFAULT_WALLET_LOOKUP_ATTEMPTS) {
-        QTimer::singleShot(DEFAULT_WALLET_LOOKUP_RETRY_MS, this,
-                           [this, attempt]() { resolveStartup(attempt + 1); });
+    if (m_logos->lez_core.version().isEmpty()) {
+        if (attempt < DEFAULT_WALLET_LOOKUP_ATTEMPTS) {
+            QTimer::singleShot(DEFAULT_WALLET_LOOKUP_RETRY_MS, this,
+                               [this, attempt]() { resolveStartup(attempt + 1); });
+            return;
+        }
+        // Still no answer: lez_core can't say whether a wallet is open, and its default folder
+        // can't be asked for. A saved wallet whose files are here is still offered (Unlock asks
+        // the module again); anything else says so rather than passing for a first run.
+        qWarning() << "LEZWalletBackend: lez_core did not answer at startup.";
+        if (!configPath().isEmpty() && !storagePath().isEmpty()
+            && QFile::exists(configPath()) && QFile::exists(storagePath())) {
+            setNeedsPassword(true);
+        } else {
+            reportNotice(tr("The wallet module didn't answer, so this app can't tell whether "
+                            "there is a wallet here yet. Close the app and open it again."));
+        }
+        setIsStartupResolved(true);
         return;
     }
     // lez_core outlives this view: closing the app's tab unloads only the UI, so the wallet can
@@ -684,6 +751,9 @@ void LEZWalletBackend::resolveStartup(int attempt)
         }
         qWarning() << "LEZWalletBackend: saved wallet files missing, clearing saved paths."
                    << "config:" << configPath() << "storage:" << storagePath();
+        reportNotice(tr("Your saved wallet files were not found, so they have been "
+                        "forgotten.\nConfig: %1\nStorage: %2")
+                         .arg(configPath(), storagePath()));
         clearSavedPaths();
     }
     lookForDefaultWallet();
@@ -691,10 +761,10 @@ void LEZWalletBackend::resolveStartup(int attempt)
 
 void LEZWalletBackend::lookForDefaultWallet()
 {
-    const QString dir = defaultWalletDir();
-    const QString config = dir.isEmpty() ? QString() : QDir(dir).filePath(QStringLiteral("config.json"));
-    const QString storage = dir.isEmpty() ? QString() : QDir(dir).filePath(QStringLiteral("storage.json"));
-    if (!dir.isEmpty() && QFile::exists(config) && QFile::exists(storage)) {
+    const QStringList files = defaultWalletFiles();
+    if (files.size() == 2 && !isIgnoredDefaultWallet(files.at(1))) {
+        const QString& config = files.at(0);
+        const QString& storage = files.at(1);
         // Offered, not remembered: it becomes the last used once it opens.
         setConfigPath(config);
         setStoragePath(storage);

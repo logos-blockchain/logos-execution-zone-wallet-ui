@@ -19,19 +19,18 @@ Item {
     signal setupRequested()
     signal unlockRequested(string password)
 
+    // An empty password is sent too: a wallet created without one opens with it, and the
+    // wallet module answers for an encrypted one. The field never keeps what was typed.
     function submit() {
         if (root.busy)
             return
-        if (passwordField.text.length === 0) {
-            root.errorMessage = qsTr("Enter your password.")
-            passwordField.forceActiveFocus()
-            return
-        }
-        root.unlockRequested(passwordField.text)
+        const password = passwordField.text
+        passwordField.text = ""
+        root.errorMessage = ""
+        root.unlockRequested(password)
     }
     // A refused password: the field empties for another try, the reason stays.
     function unlockFailed(message) {
-        passwordField.text = ""
         root.errorMessage = message
         passwordField.forceActiveFocus()
     }
@@ -150,8 +149,12 @@ Item {
             font.pixelSize: Theme.typography.primaryText
             font.weight: Theme.typography.weightMedium
             enabled: !root.busy
-            text: root.savedWallet ? qsTr("Create new or unlock other wallet") : qsTr("Set up your wallet")
-            onClicked: root.setupRequested()
+            text: root.savedWallet ? qsTr("Open another wallet") : qsTr("Set up your wallet")
+            onClicked: {
+                passwordField.text = ""
+                root.errorMessage = ""
+                root.setupRequested()
+            }
         }
     }
 }

@@ -18,6 +18,7 @@ ColumnLayout {
 
     readonly property alias storagePath: storagePicker.path
     readonly property alias configPath: configPicker.path
+    readonly property alias password: passwordField.text
 
     readonly property bool valid: mode === "create"
         || (mode === "existing" && storagePicker.path.length > 0
@@ -34,6 +35,8 @@ ColumnLayout {
     function samePathChosen() {
         return storagePicker.path === configPicker.path
     }
+    // The password is used once, for one open: it never stays in the field.
+    function clearPassword() { passwordField.text = "" }
     // Fill the file fields the person hasn't set yet.
     function prefill(config, storage) {
         if (configPicker.path.length === 0) configPicker.path = config
@@ -103,6 +106,16 @@ ColumnLayout {
             placeholder: qsTr("Path to config file")
             fieldObjectName: "lezOpenConfigField"
             onPathEdited: if (root.errorMessage.length > 0) root.errorRaised("")
+        }
+
+        LogosTextField {
+            id: passwordField
+            objectName: "lezOpenPasswordField"
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.spacing.small
+            placeholderText: qsTr("Wallet password (empty if it has none)")
+            echoMode: TextInput.Password
+            onTextChanged: if (text.length > 0 && root.errorMessage.length > 0) root.errorRaised("")
         }
 
         LogosText {

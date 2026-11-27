@@ -103,7 +103,6 @@ Rectangle {
         readonly property bool needsPassword: backend !== null && backend.needsPassword
 
         onIsStartupResolvedChanged: if (root.ready) updateStack(isWalletOpen)
-        onNeedsPasswordChanged: if (root.ready) updateStack(isWalletOpen)
 
         property var currentComponent: null
 
@@ -130,7 +129,13 @@ Rectangle {
         }
     }
 
-    onReadyChanged: if (ready) d.updateStack(d.isWalletOpen)
+    // A notice raised at startup (saved files gone, a wallet that can't be read) can come before
+    // the view is connected: show what the backend holds once it is ready.
+    onReadyChanged: {
+        if (!ready) return
+        d.updateStack(d.isWalletOpen)
+        d.showNotice(LogosNotice.Error, root.backend.notice)
+    }
 
     Component.onCompleted: {
         root.ready = root.backend !== null
@@ -257,8 +262,10 @@ Rectangle {
                 }
                 onDefaultPathsWanted: {
                     if (!backend) return
-                    logos.watch(backend.defaultWalletDirectory(),
-                        function(dir) { if (dir) onboarding.offerDefaultPaths(dir) },
+                    logos.watch(backend.defaultWalletFiles(),
+                        function(files) {
+                            if (files && files.length === 2) onboarding.offerDefaultPaths(files[0], files[1])
+                        },
                         function(error) {})
                 }
 

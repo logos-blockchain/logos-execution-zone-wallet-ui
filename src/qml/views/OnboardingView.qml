@@ -26,12 +26,13 @@ ColumnLayout {
     signal openWallet(string configPath, string storagePath, string password)
     signal mnemonicAcknowledged()
     signal unlockWallet(string password)
-    // "I already have a wallet" with no saved paths: ask for lez_core's default wallet folder.
+    // "I already have a wallet" with no saved paths: ask for the wallet in lez_core's default
+    // folder, offered only when both of its files are there.
     signal defaultPathsWanted()
 
     function unlockFailed(message) { welcomePage.unlockFailed(message) }
-    function offerDefaultPaths(dir) {
-        setupStep.prefill(dir + "/config.json", dir + "/storage.json")
+    function offerDefaultPaths(config, storage) {
+        setupStep.prefill(config, storage)
     }
 
     function showRecoveryPhrase(mnemonic) {
@@ -86,6 +87,8 @@ ColumnLayout {
         function back() {
             if (stepIndex > -1)
                 stepIndex -= 1
+            if (step === "welcome")
+                setupStep.clearPassword()
         }
 
         function advance() {
@@ -98,7 +101,9 @@ ColumnLayout {
                         return
                     }
                     root.openError = ""
-                    root.openWallet(setupStep.configPath, setupStep.storagePath, setupStep.password)
+                    const password = setupStep.password
+                    setupStep.clearPassword()
+                    root.openWallet(setupStep.configPath, setupStep.storagePath, password)
                 } else {
                     next()
                 }
@@ -166,6 +171,10 @@ ColumnLayout {
         onSetupRequested: {
             root.createError = ""
             root.openError = ""
+            // With a wallet here, the way to another one is to open it: creating one in
+            // lez_core's default folder would be refused while this one is there.
+            if (root.savedWallet)
+                setupStep.mode = "existing"
             d.stepIndex = 0
         }
     }
@@ -276,14 +285,13 @@ ColumnLayout {
                 objectName: "lezOnboardingSetupStep"
                 errorMessage: d.step === "setup" ? root.openError : ""
                 onErrorRaised: (message) => root.openError = message
-                // "I already have a wallet" starts from the saved wallet's files, else from
-                // lez_core's default folder, never from empty fields.
+                // With no wallet saved here, "I already have a wallet" starts from the wallet in
+                // lez_core's default folder when both its files are there. With one saved, this
+                // route is for another wallet, so its fields start empty.
                 onModeChanged: {
-                    if (mode !== "existing" || storagePath.length > 0 || configPath.length > 0) return
-                    if (root.savedStoragePath.length > 0 && root.savedConfigPath.length > 0)
-                        prefill(root.savedConfigPath, root.savedStoragePath)
-                    else
-                        root.defaultPathsWanted()
+                    if (mode !== "existing" || root.savedWallet
+                        || storagePath.length > 0 || configPath.length > 0) return
+                    root.defaultPathsWanted()
                 }
             }
 

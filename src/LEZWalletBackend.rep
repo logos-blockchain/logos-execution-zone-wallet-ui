@@ -33,10 +33,12 @@ class LEZWalletBackend
 
     SLOT(QString createNew(QString password, QString sequencerAddr))
     SLOT(QString openExisting(QString configPath, QString storagePath, QString password))
-    // Open the saved wallet: "" on success, else why not, in words.
+    // Open the saved wallet: "" when it opened or when it can't be opened at all (then the
+    // saved location is forgotten and a notice says why), else the reason to show on the form.
     SLOT(QString unlockSaved(QString password))
-    // Where lez_core keeps its default wallet (config.json and storage.json inside).
-    SLOT(QString defaultWalletDirectory())
+    // The config.json and storage.json in lez_core's default wallet folder, only when both
+    // exist: [config, storage], else empty.
+    SLOT(QStringList defaultWalletFiles())
 
     SLOT(void copyToClipboard(QString text))
 
