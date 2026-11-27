@@ -22,14 +22,16 @@ class LEZWalletBackend
     SLOT(QString getPrivateAccountKeys(QString accountIdHex))
     SLOT(bool syncToBlock(quint64 blockId))
 
-    SLOT(QString transferPublic(QString fromHex, QString toHex, QString amountStr))
-    SLOT(QString transferPrivate(QString fromHex, QString toHex, QString amountStr))
-    SLOT(QString transferPrivateOwned(QString fromHex, QString toHex, QString amountStr))
-    SLOT(QString transferShielded(QString fromHex, QString toKeysJson, QString amountStr))
-    SLOT(QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr))
-    SLOT(QString transferDeshielded(QString fromHex, QString toHex, QString amountStr))
+    // Every send takes lez_core's per-call fee overrides ("" for the wallet's defaults) and
+    // whether to only simulate. The result JSON carries the simulation report and the fee.
+    SLOT(QString transferPublic(QString fromHex, QString toHex, QString amountStr, QString feeParamsJson, bool dryRun))
+    SLOT(QString transferPrivate(QString fromHex, QString toHex, QString amountStr, QString feeParamsJson, bool dryRun))
+    SLOT(QString transferPrivateOwned(QString fromHex, QString toHex, QString amountStr, QString feeParamsJson, bool dryRun))
+    SLOT(QString transferShielded(QString fromHex, QString toKeysJson, QString amountStr, QString feeParamsJson, bool dryRun))
+    SLOT(QString transferShieldedOwned(QString fromHex, QString toHex, QString amountStr, QString feeParamsJson, bool dryRun))
+    SLOT(QString transferDeshielded(QString fromHex, QString toHex, QString amountStr, QString feeParamsJson, bool dryRun))
 
-    SLOT(QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, QString amountStr))
+    SLOT(QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, QString amountStr, QString feeParamsJson, bool dryRun))
 
     SLOT(QString createNew(QString password, QString sequencerAddr))
     SLOT(QString openExisting(QString configPath, QString storagePath, QString password))

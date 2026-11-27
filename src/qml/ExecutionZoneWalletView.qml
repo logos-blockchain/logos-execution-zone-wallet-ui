@@ -155,6 +155,78 @@ Rectangle {
 
     color: Theme.palette.background
 
+    // One send at a time: simulate it, let the user review and adjust the fee,
+    // then send it with exactly the overrides that were reviewed.
+    QtObject {
+        id: sendFlow
+
+        property var dashboard: null
+        // The backend slot and its (from, to, amount) arguments.
+        property string slot: ""
+        property var args: []
+        // Whether the real send generates a proof, which takes a while.
+        property bool proves: false
+        // Bumped per send, so a late result of an earlier one is dropped.
+        property int generation: 0
+
+        function begin(dashboardView, slotName, slotArgs, generatesProof) {
+            if (!backend) return
+            dashboard = dashboardView
+            slot = slotName
+            args = slotArgs
+            proves = generatesProof
+            generation += 1
+            if (!dashboardView.previewFee) {
+                send("")
+                return
+            }
+            feeDialog.reset()
+            feeDialog.gasLimitEditable = !generatesProof
+            feeDialog.open()
+            simulate("")
+        }
+
+        function call(feeParamsJson, dryRun, onResult) {
+            logos.watch(backend[slot](args[0], args[1], args[2], feeParamsJson, dryRun),
+                onResult,
+                function(error) { onResult(JSON.stringify({ success: false, error: qsTr("Error: %1").arg(error) })) })
+        }
+
+        function simulate(feeParamsJson) {
+            feeDialog.busy = true
+            feeDialog.errorText = ""
+            const asked = generation
+            call(feeParamsJson, true, function(raw) {
+                if (asked !== generation) return
+                feeDialog.busy = false
+                var obj = null
+                try { obj = JSON.parse(raw) } catch (e) {}
+                if (obj && obj.success && obj.is_dry_run) {
+                    feeDialog.simulatedParams = feeParamsJson
+                    feeDialog.report = obj
+                } else {
+                    feeDialog.report = null
+                    feeDialog.errorText = ffiErrors.format(obj && obj.error ? obj.error : raw)
+                }
+            })
+        }
+
+        function send(feeParamsJson) {
+            feeDialog.close()
+            dashboard.transferPending = proves
+            call(feeParamsJson, false, function(raw) {
+                dashboard.transferPending = false
+                ffiErrors.applyTransferResult(dashboard, raw)
+            })
+        }
+    }
+
+    FeeConfirmDialog {
+        id: feeDialog
+        onSimulateRequested: (feeParamsJson) => sendFlow.simulate(feeParamsJson)
+        onSendRequested: (feeParamsJson) => sendFlow.send(feeParamsJson)
+    }
+
     SetLabelDialog {
         id: setLabelDialog
 
@@ -353,86 +425,20 @@ Rectangle {
                     if (!backend) { console.warn("backend is null"); return }
                     backend.refreshBalances()  // void slot, fire-and-forget
                 }
-                onTransferPublicRequested: (fromId, toAddress, amount) => {
-                    if (!backend) return
-                    logos.watch(backend.transferPublic(fromId, toAddress, amount),
-                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
-                        function(error) {
-                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
-                            dashboardView.transferResultIsError = true
-                            dashboardView.transferTxHash = ""
-                        })
-                }
-                onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) => {
-                    if (!backend) return
-                    dashboardView.transferPending = true
-                    logos.watch(backend.transferPrivate(fromId, toKeysJsonOrAddress, amount),
-                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
-                        function(error) {
-                            dashboardView.transferPending = false
-                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
-                            dashboardView.transferResultIsError = true
-                            dashboardView.transferTxHash = ""
-                        })
-                }
-                onTransferPrivateOwnedRequested: (fromId, toAccountId, amount) => {
-                    if (!backend) return
-                    dashboardView.transferPending = true
-                    logos.watch(backend.transferPrivateOwned(fromId, toAccountId, amount),
-                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
-                        function(error) {
-                            dashboardView.transferPending = false
-                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
-                            dashboardView.transferResultIsError = true
-                            dashboardView.transferTxHash = ""
-                        })
-                }
-                onTransferShieldedRequested: (fromId, toKeysJsonOrAddress, amount) => {
-                    if (!backend) return
-                    dashboardView.transferPending = true
-                    logos.watch(backend.transferShielded(fromId, toKeysJsonOrAddress, amount),
-                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
-                        function(error) {
-                            dashboardView.transferPending = false
-                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
-                            dashboardView.transferResultIsError = true
-                            dashboardView.transferTxHash = ""
-                        })
-                }
-                onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) => {
-                    if (!backend) return
-                    dashboardView.transferPending = true
-                    logos.watch(backend.transferShieldedOwned(fromId, toAccountId, amount),
-                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
-                        function(error) {
-                            dashboardView.transferPending = false
-                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
-                            dashboardView.transferResultIsError = true
-                            dashboardView.transferTxHash = ""
-                        })
-                }
-                onTransferDeshieldedRequested: (fromId, toAccountId, amount) => {
-                    if (!backend) return
-                    dashboardView.transferPending = true
-                    logos.watch(backend.transferDeshielded(fromId, toAccountId, amount),
-                        function(raw) { dashboardView.transferPending = false; ffiErrors.applyTransferResult(dashboardView, raw) },
-                        function(error) {
-                            dashboardView.transferPending = false
-                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
-                            dashboardView.transferResultIsError = true
-                            dashboardView.transferTxHash = ""
-                        })
-                }
-                onBridgeWithdrawRequested: (fromId, bedrockAccountPkHex, amount) => {
-                    if (!backend) return
-                    logos.watch(backend.bridgeWithdraw(fromId, bedrockAccountPkHex, amount),
-                        function(raw) { ffiErrors.applyTransferResult(dashboardView, raw) },
-                        function(error) {
-                            dashboardView.transferResult = qsTr("Error: %1").arg(error)
-                            dashboardView.transferResultIsError = true
-                            dashboardView.transferTxHash = ""
-                        })
-                }
+                onTransferPublicRequested: (fromId, toAddress, amount) =>
+                    sendFlow.begin(dashboardView, "transferPublic", [fromId, toAddress, amount], false)
+                onTransferPrivateRequested: (fromId, toKeysJsonOrAddress, amount) =>
+                    sendFlow.begin(dashboardView, "transferPrivate", [fromId, toKeysJsonOrAddress, amount], true)
+                onTransferPrivateOwnedRequested: (fromId, toAccountId, amount) =>
+                    sendFlow.begin(dashboardView, "transferPrivateOwned", [fromId, toAccountId, amount], true)
+                onTransferShieldedRequested: (fromId, toKeysJsonOrAddress, amount) =>
+                    sendFlow.begin(dashboardView, "transferShielded", [fromId, toKeysJsonOrAddress, amount], true)
+                onTransferShieldedOwnedRequested: (fromId, toAccountId, amount) =>
+                    sendFlow.begin(dashboardView, "transferShieldedOwned", [fromId, toAccountId, amount], true)
+                onTransferDeshieldedRequested: (fromId, toAccountId, amount) =>
+                    sendFlow.begin(dashboardView, "transferDeshielded", [fromId, toAccountId, amount], true)
+                onBridgeWithdrawRequested: (fromId, bedrockAccountPkHex, amount) =>
+                    sendFlow.begin(dashboardView, "bridgeWithdraw", [fromId, bedrockAccountPkHex, amount], false)
                 onLabelRequested: (accountId, isPublic) => {
                     setLabelDialog.accountId = accountId
                     setLabelDialog.isPublic = isPublic

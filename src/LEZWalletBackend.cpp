@@ -417,14 +417,14 @@ bool LEZWalletBackend::syncToBlock(quint64 blockId)
     return err == WALLET_FFI_SUCCESS;
 }
 
-QString LEZWalletBackend::transferPublic(QString fromHex, QString toHex, QString amountStr)
+QString LEZWalletBackend::transferPublic(QString fromHex, QString toHex, QString amountStr, QString feeParamsJson, bool dryRun)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
-    return m_logos->lez_core.transfer_public(fromHex, toHex, amountHex);
+    return m_logos->lez_core.transfer_public(fromHex, toHex, amountHex, feeParamsJson, dryRun);
 }
 
-QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QString amountStr)
+QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QString amountStr, QString feeParamsJson, bool dryRun)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
@@ -439,21 +439,21 @@ QString LEZWalletBackend::transferPrivate(QString fromHex, QString toHex, QStrin
 
     return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
         LEZ_MODULE, "transfer_private",
-        QVariantList{fromHex.trimmed(), keysPayload, amountHex},
+        QVariantList{fromHex.trimmed(), keysPayload, amountHex, feeParamsJson, dryRun},
         NO_TIMEOUT).toString();
 }
 
-QString LEZWalletBackend::transferPrivateOwned(QString fromHex, QString toHex, QString amountStr)
+QString LEZWalletBackend::transferPrivateOwned(QString fromHex, QString toHex, QString amountStr, QString feeParamsJson, bool dryRun)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
     return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
         LEZ_MODULE, "transfer_private_owned",
-        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex},
+        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex, feeParamsJson, dryRun},
         NO_TIMEOUT).toString();
 }
 
-QString LEZWalletBackend::transferShielded(QString fromHex, QString toKeysJson, QString amountStr)
+QString LEZWalletBackend::transferShielded(QString fromHex, QString toKeysJson, QString amountStr, QString feeParamsJson, bool dryRun)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
@@ -468,31 +468,31 @@ QString LEZWalletBackend::transferShielded(QString fromHex, QString toKeysJson, 
 
     return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
         LEZ_MODULE, "transfer_shielded",
-        QVariantList{fromHex.trimmed(), keysPayload, amountHex},
+        QVariantList{fromHex.trimmed(), keysPayload, amountHex, feeParamsJson, dryRun},
         NO_TIMEOUT).toString();
 }
 
-QString LEZWalletBackend::transferShieldedOwned(QString fromHex, QString toHex, QString amountStr)
+QString LEZWalletBackend::transferShieldedOwned(QString fromHex, QString toHex, QString amountStr, QString feeParamsJson, bool dryRun)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
     return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
         LEZ_MODULE, "transfer_shielded_owned",
-        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex},
+        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex, feeParamsJson, dryRun},
         NO_TIMEOUT).toString();
 }
 
-QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QString amountStr)
+QString LEZWalletBackend::transferDeshielded(QString fromHex, QString toHex, QString amountStr, QString feeParamsJson, bool dryRun)
 {
     const QString amountHex = amountToLe16Hex(amountStr);
     if (amountHex.isEmpty()) return QStringLiteral("Error: Invalid amount.");
     return m_logosAPI->getClient(LEZ_MODULE)->invokeRemoteMethod(
         LEZ_MODULE, "transfer_deshielded",
-        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex},
+        QVariantList{fromHex.trimmed(), toHex.trimmed(), amountHex, feeParamsJson, dryRun},
         NO_TIMEOUT).toString();
 }
 
-QString LEZWalletBackend::bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, QString amountStr)
+QString LEZWalletBackend::bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, QString amountStr, QString feeParamsJson, bool dryRun)
 {
     // Canonical tokens from the view; bridge_withdraw takes lepta, and as a u64
     // rather than the u128 the transfers use — so an amount the chain could
@@ -502,7 +502,7 @@ QString LEZWalletBackend::bridgeWithdraw(QString fromHex, QString bedrockAccount
     const quint64 amount = lepta.isEmpty() ? 0 : lepta.toULongLong(&ok);
     if (!ok || amount == 0)
         return QStringLiteral("Error: Invalid amount.");
-    return m_logos->lez_core.bridge_withdraw(fromHex, bedrockAccountPkHex, amount);
+    return m_logos->lez_core.bridge_withdraw(fromHex, bedrockAccountPkHex, amount, feeParamsJson, dryRun);
 }
 
 void LEZWalletBackend::applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr)

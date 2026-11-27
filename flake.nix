@@ -10,6 +10,7 @@
   inputs = {
     logos-module-builder.url = "github:logos-co/logos-module-builder";
     nix-bundle-lgx.url = "github:logos-co/nix-bundle-lgx";
+    # FIXME: will update, was using --override-input in nix
     lez_core.url = "github:logos-blockchain/logos-execution-zone-module?ref=main";
   };
 
