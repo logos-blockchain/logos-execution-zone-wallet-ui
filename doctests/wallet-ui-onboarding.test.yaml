@@ -790,11 +790,177 @@ sections:
               text: "Same wallet, new location, no recovery phrase shown — this was an open, not a create."
               screenshot: "onboarding-reopened.png"
 
+  - title: "A saved wallet lez_core can't read is forgotten, not offered forever"
+    step: true
+    text: |
+      A password can only fix a wrong password (lez_core's error 25). Any other
+      failure is about the files, for example a `storage.json` written by an older
+      LEZ that this lez_core can no longer parse. Offering that wallet again would
+      bring the same unlock card back on every launch, and no password could ever
+      open it.
+
+      So the app says why, forgets the saved location and moves on to setup, the
+      way the missing-files case does. A wallet in lez_core's default folder isn't
+      a saved location, so forgetting alone would offer it again at the next start:
+      the app also remembers to skip that file until it changes.
+    steps:
+      - title: "Break the saved wallet, and put an unreadable one in the default folder"
+        run: |
+          set -e
+          cp /tmp/lez-doctest-moved/storage.json /tmp/lez-doctest-moved/storage.json.good
+          echo '{}' > /tmp/lez-doctest-moved/storage.json
+          d="$(find lez-home/data -type d -name wallet -path '*lez_core*' | head -1)"
+          test -n "$d" || { echo "lez_core's default wallet folder was not found"; exit 1; }
+          cp /tmp/lez-doctest-moved/config.json "$d/config.json"
+          echo '{}' > "$d/storage.json"
+          echo "$d" > lez-home/default-wallet-dir
+          echo broken
+        check_file: "lez-home/default-wallet-dir"
+      - title: "The saved wallet is forgotten after one try"
+        ui_test:
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400 --user-dir $PWD/lez-home/data/basecamp"
+          qt_mcp: "result-mcp"
+          build_timeout: 2400
+          launch_timeout: 2400
+          tests:
+            - name: "The home screen offers the saved wallet for unlocking"
+              action: wait_for
+              texts: ["LEZ Wallet", "Unlock", "Open another wallet"]
+              timeout: 60000
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+            - name: "Unlock"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezUnlockButton"
+            # The notice names the error code and both paths, so its text differs per
+            # run and can't be matched literally: assert that it is raised instead.
+            - name: "lez_core can't read it, so the user is told why"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezNotice"
+              property: "shown"
+              value: true
+              timeout: 30000
+            - name: "and the app moves on to setup"
+              action: wait_for
+              texts: ["Set up your wallet"]
+              timeout: 30000
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+            - name: "The unlock card is gone"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezUnlockCard"
+              property: "visible"
+              value: false
+              screenshot: "onboarding-unreadable-wallet-forgotten.png"
+      - title: "The default folder's unreadable wallet is forgotten too"
+        ui_test:
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400 --user-dir $PWD/lez-home/data/basecamp"
+          qt_mcp: "result-mcp"
+          build_timeout: 2400
+          launch_timeout: 2400
+          tests:
+            - name: "The home screen offers the wallet in the default folder for unlocking"
+              action: wait_for
+              texts: ["LEZ Wallet", "Unlock", "Open another wallet"]
+              timeout: 60000
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+            - name: "Unlock"
+              action: click_object
+              find_by: "objectName"
+              find_value: "lezUnlockButton"
+            # The notice names the error code and both paths, so its text differs per
+            # run and can't be matched literally: assert that it is raised instead.
+            - name: "lez_core can't read it, so the user is told why"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezNotice"
+              property: "shown"
+              value: true
+              timeout: 30000
+            - name: "and the app moves on to setup"
+              action: wait_for
+              texts: ["Set up your wallet"]
+              timeout: 30000
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+            - name: "The unlock card is gone"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezUnlockCard"
+              property: "visible"
+              value: false
+
+      - title: "Neither is offered at the next start"
+        ui_test:
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400 --user-dir $PWD/lez-home/data/basecamp"
+          qt_mcp: "result-mcp"
+          build_timeout: 2400
+          launch_timeout: 2400
+          tests:
+            - name: "Onboarding starts from setup"
+              action: wait_for
+              texts: ["LEZ Wallet", "Set up your wallet"]
+              timeout: 60000
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+            - name: "No unlock card"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezUnlockCard"
+              property: "visible"
+              value: false
+            - name: "and no notice: nothing went wrong at this start"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezNotice"
+              property: "shown"
+              value: false
+
+      - title: "Rewrite the default folder's wallet file"
+        run: |
+          set -e
+          d="$(cat lez-home/default-wallet-dir)"
+          sleep 2
+          echo '{ }' > "$d/storage.json"
+          echo rewritten
+        check_file: "lez-home/default-wallet-dir"
+      - title: "A changed file is offered again"
+        ui_test:
+          launch: "XDG_CONFIG_HOME=$PWD/lez-home/config XDG_DATA_HOME=$PWD/lez-home/data nix run github:logos-blockchain/logos-execution-zone-wallet-ui{release} --no-write-lock-file -- --height 1400 --user-dir $PWD/lez-home/data/basecamp"
+          qt_mcp: "result-mcp"
+          build_timeout: 2400
+          launch_timeout: 2400
+          tests:
+            - name: "The rewritten wallet is offered for unlocking"
+              action: wait_for
+              texts: ["LEZ Wallet", "Unlock", "Open another wallet"]
+              timeout: 60000
+              text: "The skip lasts only while the file is unchanged: a wallet put back in place is offered again."
+            - name: "Let the page transition settle"
+              action: sleep
+              ms: 1500
+            - name: "The unlock card is showing"
+              action: expect_property
+              find_by: "objectName"
+              find_value: "lezUnlockCard"
+              property: "visible"
+              value: true
+
 outro: |
   Every onboarding outcome is covered above: both password validation failures,
   a route chosen with nothing filled in, a path that does not exist, files that
   exist but are not a wallet, a wallet that has moved, a returning user unlocking
-  with an empty, a wrong and the right password, and the successful entries. None of the failure paths creates or rewrites a file,
+  with an empty, a wrong and the right password, a saved wallet lez_core can't
+  read, and the successful entries. None of the failure paths creates or rewrites a file,
   and the successful create shows its recovery phrase exactly once — behind a
   gate the footer will not open until it is acknowledged — before the dashboard
   is allowed to replace it.
