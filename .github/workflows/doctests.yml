@@ -49,7 +49,7 @@ jobs:
         with:
           extra-conf: |
             extra-substituters = https://logos-co.cachix.org https://cache.nix.logos.co/public
-            extra-trusted-public-keys = logos-co.cachix.org-1:12K8609ho1pCt0erUQrOrs/KmOuhWq/EhVwhzQRb35E= public:l4HrXgL4nw246+LBh2SOJyhz64BoGegOYLheT/iIAPU=
+            extra-trusted-public-keys = logos-co.cachix.org-1:12K8609ho1pCt0erUQrOrs/KmOuhWq/EhVwhzQRb35E= public:zaDAOkd+E3cQyFm9J7qejQYd9HoLJc1SJvnk68hNWeI=
 
       - name: Setup Cachix
         uses: cachix/cachix-action@v15

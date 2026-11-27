@@ -47,7 +47,9 @@ public slots:
     QString transferDeshielded(QString fromHex, QString toHex, QString amountStr) override;
     QString bridgeWithdraw(QString fromHex, QString bedrockAccountPkHex, QString amountStr) override;
     QString createNew(QString password, QString sequencerAddr) override;
-    QString openExisting(QString configPath, QString storagePath) override;
+    QString openExisting(QString configPath, QString storagePath, QString password) override;
+    QString unlockSaved(QString password) override;
+    QStringList defaultWalletFiles() override;
     void copyToClipboard(QString text) override;
     bool checkLabelAvailable(QString label) override;
     QString addLabel(QString label, QString accountIdHex, bool isPublic) override;
@@ -58,11 +60,17 @@ private slots:
 private:
     void persistConfigPath(const QString& path);
     void persistStoragePath(const QString& path);
+    void resolveStartup(int attempt);
+    void lookForDefaultWallet();
     void clearSavedPaths();
     void reportNotice(const QString& message);
+    QString openErrorText(qint64 err);
+    bool isAnotherWalletOpen(qint64 err);
+    void forgetUnreadableWallet(qint64 err);
+    bool isIgnoredDefaultWallet(const QString& storage) const;
     QString defaultWalletDir();
     void applySequencerAddrToConfig(const QString& configPath, const QString& sequencerAddr);
-    qint64 openWalletAt(const QString& localConfigPath, const QString& localStoragePath);
+    qint64 openWalletAt(const QString& localConfigPath, const QString& localStoragePath, const QString& password);
     void fetchAndUpdateBlockHeights();
     void startChunkedSync();
     QVariantList buildEnrichedAccountList();
@@ -70,9 +78,7 @@ private:
     void updateBalances();
     void refreshSequencerAddr();
     void saveWallet();
-    void openIfPathsConfigured(int attempt = 0);
     void finishOpeningWallet();
-    void finishStartup();
 
     bool m_syncing = false;
     quint64 m_syncTarget = 0;

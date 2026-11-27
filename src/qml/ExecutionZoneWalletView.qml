@@ -24,30 +24,38 @@ Rectangle {
         }
     }
 
-    // Map wallet FFI error codes to user-facing strings. Matches lssa/wallet-ffi WalletFfiError enum.
+    // Map wallet FFI error codes to user-facing strings. Matches lssa/core-ffi FfiOperationError enum.
     QtObject {
         id: ffiErrors
         readonly property var codeToMessage: ({
             0: qsTr("Success"),
             1: qsTr("Invalid argument (null pointer)"),
             2: qsTr("Invalid UTF-8 string"),
-            3: qsTr("Wallet not initialized"),
-            4: qsTr("Configuration error"),
-            5: qsTr("Storage or persistence error"),
-            6: qsTr("Network or RPC error"),
-            7: qsTr("Account not found"),
-            8: qsTr("Key not found for account"),
-            9: qsTr("Insufficient funds"),
-            10: qsTr("Invalid account ID format"),
-            11: qsTr("Runtime error"),
-            12: qsTr("Password required but not provided"),
-            13: qsTr("Block synchronization error"),
-            14: qsTr("Serialization error"),
-            15: qsTr("Invalid type conversion"),
-            16: qsTr("Invalid key value"),
-            17: qsTr("Invalid program bytecode"),
+            3: qsTr("Invalid argument (malformed or unappiable)"),
+            4: qsTr("Sequencer not initialized"),
+            5: qsTr("Wallet not initialized"),
+            6: qsTr("Configuration error"),
+            7: qsTr("Storage or persistence error"),
+            8: qsTr("Network or RPC error"),
+            9: qsTr("Query failed"),
+            10: qsTr("Account not found"),
+            11: qsTr("Key not found for account"),
+            12: qsTr("Insufficient funds"),
+            13: qsTr("Invalid account ID format"),
+            14: qsTr("Runtime error"),
+            15: qsTr("Password required but not provided"),
+            16: qsTr("Block synchronization error"),
+            17: qsTr("Serialization error"),
+            18: qsTr("Invalid type conversion"),
+            19: qsTr("Invalid key value"),
+            20: qsTr("Invalid program bytecode"),
             // Fee-admission refusal: distinct from 9, which is the transfer amount check.
-            18: qsTr("Insufficient balance to cover the transaction fee"),
+            21: qsTr("Insufficient balance to cover the transaction fee"),
+            22: qsTr("Not supported"),
+            23: qsTr("Response too big"),
+            24: qsTr("Message not found"),
+            25: qsTr("Wrong password, does not open the wallet storage, or the storage is corrupted"),
+            26: qsTr("Would revert"),
             99: qsTr("Internal error")
         })
         function format(errorMessage) {
@@ -91,6 +99,8 @@ Rectangle {
         // Until this is true the backend has not finished deciding whether there
         // is a wallet to open, so "not open" carries no information yet.
         readonly property bool isStartupResolved: backend !== null && backend.isStartupResolved
+        // A saved wallet waits for its password before it can open.
+        readonly property bool needsPassword: backend !== null && backend.needsPassword
 
         onIsStartupResolvedChanged: if (root.ready) updateStack(isWalletOpen)
 
@@ -119,7 +129,13 @@ Rectangle {
         }
     }
 
-    onReadyChanged: if (ready) d.updateStack(d.isWalletOpen)
+    // A notice raised at startup (saved files gone, a wallet that can't be read) can come before
+    // the view is connected: show what the backend holds once it is ready.
+    onReadyChanged: {
+        if (!ready) return
+        d.updateStack(d.isWalletOpen)
+        d.showNotice(LogosNotice.Error, root.backend.notice)
+    }
 
     Component.onCompleted: {
         root.ready = root.backend !== null
@@ -222,6 +238,36 @@ Rectangle {
 
                 testnetUrl: backend ? backend.testnetUrl : ""
                 localhostUrl: backend ? backend.localhostUrl : ""
+                // A saved wallet: the home screen asks for its password; "I already have a
+                // wallet" starts from its paths.
+                savedWallet: d.needsPassword
+                savedConfigPath: backend ? backend.configPath : ""
+                savedStoragePath: backend ? backend.storagePath : ""
+
+                onUnlockWallet: function(password) {
+                    if (!backend) return
+                    onboarding.unlockBusy = true
+                    // "" on success, the reason otherwise; a wrong password stays on the home screen.
+                    logos.watch(backend.unlockSaved(password),
+                        function(errorMessage) {
+                            onboarding.unlockBusy = false
+                            if (errorMessage) onboarding.unlockFailed(errorMessage)
+                            else d.updateStack(d.isWalletOpen)
+                        },
+                        function(error) {
+                            onboarding.unlockBusy = false
+                            onboarding.unlockFailed(qsTr("Error opening wallet: %1").arg(error))
+                        }
+                    )
+                }
+                onDefaultPathsWanted: {
+                    if (!backend) return
+                    logos.watch(backend.defaultWalletFiles(),
+                        function(files) {
+                            if (files && files.length === 2) onboarding.offerDefaultPaths(files[0], files[1])
+                        },
+                        function(error) {})
+                }
 
                 onCreateWallet: function(password, sequencerUrl) {
                     if (!backend) return
@@ -254,13 +300,13 @@ Rectangle {
                     )
                 }
 
-                onOpenWallet: function(configPath, storagePath) {
+                onOpenWallet: function(configPath, storagePath, password) {
                     if (!backend) return
                     onboarding.openError = ""
                     onboarding.busyMessage = qsTr("Opening your wallet…")
                     onboarding.busy = true
                     // Empty string on success, human-readable message otherwise.
-                    logos.watch(backend.openExisting(configPath, storagePath),
+                    logos.watch(backend.openExisting(configPath, storagePath, password),
                         function(errorMessage) {
                             onboarding.busy = false
                             if (errorMessage)
