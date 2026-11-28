@@ -16,6 +16,7 @@ Rectangle {
     property string transferTxHash: ""
     property bool transferResultIsError: false
     property bool transferPending: false
+    property alias previewFee: transferPanel.previewFee
     property int lastSyncedBlock: 0
     property int currentBlockHeight: 0
 

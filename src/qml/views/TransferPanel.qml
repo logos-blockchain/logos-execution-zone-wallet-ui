@@ -17,6 +17,8 @@ Rectangle {
     property string transferTxHash: ""
     property bool transferResultIsError: false
     property bool transferPending: false
+    // Simulate a send and show its fee for review before sending it.
+    property alias previewFee: previewFeeSwitch.checked
 
     // --- Public API: signals out (match backend: transfer_public, transfer_private, transfer_private_owned, transfer_shielded, transfer_shielded_owned, transfer_deshielded, bridge_withdraw) ---
     signal transferPublicRequested(string fromAccountId, string toAddress, string amount)
@@ -76,6 +78,13 @@ Rectangle {
 
                 onBridgeWithdrawRequested: (fromId, bedrockAccountPkHex, amount) => root.bridgeWithdrawRequested(fromId, bedrockAccountPkHex, amount)
             }
+        }
+
+        LogosSwitch {
+            id: previewFeeSwitch
+            objectName: "previewFeeSwitch"
+            text: qsTr("Review the fee before sending")
+            checked: true
         }
 
         // Proof pending indicator
