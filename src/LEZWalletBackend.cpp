@@ -403,7 +403,7 @@ QString LEZWalletBackend::getBalance(QString accountIdHex, bool isPublic)
 
 QString LEZWalletBackend::getPublicAccountKey(QString accountIdHex)
 {
-    return m_logos->lez_core.get_public_account_key(accountIdHex);
+    return m_logos->lez_core.get_public_account_initial_key(accountIdHex);
 }
 
 QString LEZWalletBackend::getPrivateAccountKeys(QString accountIdHex)
